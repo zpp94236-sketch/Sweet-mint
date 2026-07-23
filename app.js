@@ -552,14 +552,19 @@ function toggleVoiceInput() {
     recognition.start();
 }
 
-// ===== 页面切换：小家 / 聊天 =====
+// ===== 页面切换：小家 / 客厅 / 聊天 =====
 let currentPage = 'home';
 function showPage(page) {
     currentPage = page;
     const homePage = document.getElementById('homePage');
+    const livingRoomPage = document.getElementById('livingRoomPage');
     const chatMain = document.getElementById('chatMain');
-    if (page === 'home') { homePage.classList.add('active'); chatMain.style.display = 'none'; updateGreeting(); }
-    else { homePage.classList.remove('active'); chatMain.style.display = 'flex'; }
+    homePage.classList.remove('active');
+    if (livingRoomPage) livingRoomPage.classList.remove('active');
+    chatMain.style.display = 'none';
+    if (page === 'home') { homePage.classList.add('active'); updateGreeting(); }
+    else if (page === 'living') { if (livingRoomPage) livingRoomPage.classList.add('active'); }
+    else { chatMain.style.display = 'flex'; }
 }
 function updateGreeting() {
     const el = document.getElementById('homeGreeting'); if (!el) return;
@@ -585,23 +590,28 @@ function setupEventListeners() {
     on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
     on('headerNewChat', 'click', createNewChat);
     on('currentChatTitle', 'click', editChatTitle);
-    on('backToHome', 'click', () => showPage('home'));
-    on('homeOpenSidebar', 'click', openSidebar);
-    document.querySelectorAll('.room-card').forEach(card => {
+    on('backToHome', 'click', () => showPage('living'));
+    on('homeOpenSettings', 'click', openSettingsPanel);
+    on('livingRoomBack', 'click', () => showPage('home'));
+    document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
-            if (room === 'chat') { showPage('chat'); }
-            else if (room === 'diary') { alert('卧室·日记功能开发中，敬请期待～'); }
+            if (room === 'living') { showPage('living'); }
+            else if (room === 'diary') { alert('卧室开发中，敬请期待～（日记 · 记忆 将在这里）'); }
+            else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
+        });
+    });
+    document.querySelectorAll('.room-card[data-liv]').forEach(card => {
+        card.addEventListener('click', () => {
+            const liv = card.dataset.liv;
+            if (liv === 'sofa') { showPage('chat'); }
             else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
         });
     });
 
-    // 侧边栏底部导航（5个按钮）
-    on('navHome', 'click', openHomePage);
-    on('navMemory', 'click', openMemoryPage);
+    // 侧边栏底部导航（仅聊天页内使用：统计、助手）
     on('openStats', 'click', () => { closeSidebar(); openStats(); });
     on('editAiAssistant', 'click', () => { closeSidebar(); openEditAiAssistant(); });
-    on('openSettings', 'click', () => { closeSidebar(); openSettingsPanel(); });
     const input = document.getElementById('messageInput');
     if (input) {
         input.addEventListener('input', () => { autoResize(input); updateSendButton(); });
