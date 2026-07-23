@@ -43,6 +43,7 @@ function init() {
     if (state.chats.length === 0) createNewChat();
     else switchChat(state.currentChatId || state.chats[0].id);
     updateModelDisplays();
+    showPage('home');
 }
 
 function saveState() { localStorage.setItem('chatApp_state', JSON.stringify(state)); }
@@ -551,8 +552,28 @@ function toggleVoiceInput() {
     recognition.start();
 }
 
-// 小屋/记忆页面占位
-function openHomePage() { closeSidebar(); alert('小屋页面开发中，敬请期待～'); }
+// ===== 页面切换：小家 / 聊天 =====
+let currentPage = 'home';
+function showPage(page) {
+    currentPage = page;
+    const homePage = document.getElementById('homePage');
+    const chatMain = document.getElementById('chatMain');
+    if (page === 'home') { homePage.classList.add('active'); chatMain.style.display = 'none'; updateGreeting(); }
+    else { homePage.classList.remove('active'); chatMain.style.display = 'flex'; }
+}
+function updateGreeting() {
+    const el = document.getElementById('homeGreeting'); if (!el) return;
+    const h = new Date().getHours();
+    let emoji = '🌿', text = '欢迎回家';
+    if (h >= 5 && h < 9) { emoji = '🌅'; text = '早上好呀'; }
+    else if (h >= 9 && h < 12) { emoji = '☀️'; text = '上午好'; }
+    else if (h >= 12 && h < 14) { emoji = '🍙'; text = '午安'; }
+    else if (h >= 14 && h < 18) { emoji = '🌤️'; text = '下午好'; }
+    else if (h >= 18 && h < 22) { emoji = '🌙'; text = '晚上好'; }
+    else { emoji = '🌛'; text = '夜深了，注意休息'; }
+    el.innerHTML = '<span class="greeting-emoji">' + emoji + '</span><span class="greeting-text">' + text + '</span>';
+}
+function openHomePage() { closeSidebar(); showPage('home'); }
 function openMemoryPage() { closeSidebar(); alert('记忆页面开发中，敬请期待～'); }
 
 // ===== Event Listeners =====
@@ -561,9 +582,20 @@ function setupEventListeners() {
     on('openSidebar', 'click', openSidebar);
     on('closeSidebar', 'click', closeSidebar);
     on('sidebarBackdrop', 'click', closeSidebar);
-    on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); });
+    on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
     on('headerNewChat', 'click', createNewChat);
     on('currentChatTitle', 'click', editChatTitle);
+    on('backToHome', 'click', () => showPage('home'));
+    on('homeOpenSidebar', 'click', openSidebar);
+    document.querySelectorAll('.room-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const room = card.dataset.room;
+            if (room === 'chat') { showPage('chat'); }
+            else if (room === 'diary') { alert('卧室·日记功能开发中，敬请期待～'); }
+            else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
+        });
+    });
+
     // 侧边栏底部导航（5个按钮）
     on('navHome', 'click', openHomePage);
     on('navMemory', 'click', openMemoryPage);

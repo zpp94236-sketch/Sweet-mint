@@ -46,10 +46,73 @@
             </div>
         </aside>
 
-        <main class="chat-main" id="chatMain">
+        <!-- ===== 小家首页 ===== -->
+        <div class="home-page active" id="homePage">
+            <div class="home-header">
+                <div class="home-header-left">
+                    <button class="btn-icon" id="homeOpenSidebar"><i data-lucide="heart"></i></button>
+                </div>
+                <h1 class="home-title">我们的小家</h1>
+                <div class="home-header-right"></div>
+            </div>
+            <div class="home-content">
+                <div class="home-greeting" id="homeGreeting">
+                    <span class="greeting-emoji">🌿</span>
+                    <span class="greeting-text">欢迎回家</span>
+                </div>
+                <div class="room-grid">
+                    <div class="room-card" data-room="chat">
+                        <div class="room-icon">🛋️</div>
+                        <div class="room-info">
+                            <span class="room-name">客厅</span>
+                            <span class="room-desc">一起聊天</span>
+                        </div>
+                    </div>
+                    <div class="room-card" data-room="diary">
+                        <div class="room-icon">🛏️</div>
+                        <div class="room-info">
+                            <span class="room-name">卧室</span>
+                            <span class="room-desc">写日记</span>
+                        </div>
+                    </div>
+                    <div class="room-card" data-room="study">
+                        <div class="room-icon">📚</div>
+                        <div class="room-info">
+                            <span class="room-name">书房</span>
+                            <span class="room-desc">敬请期待</span>
+                        </div>
+                    </div>
+                    <div class="room-card" data-room="kitchen">
+                        <div class="room-icon">🍳</div>
+                        <div class="room-info">
+                            <span class="room-name">厨房</span>
+                            <span class="room-desc">敬请期待</span>
+                        </div>
+                    </div>
+                    <div class="room-card" data-room="balcony">
+                        <div class="room-icon">🌙</div>
+                        <div class="room-info">
+                            <span class="room-name">阳台</span>
+                            <span class="room-desc">敬请期待</span>
+                        </div>
+                    </div>
+                    <div class="room-card" data-room="garden">
+                        <div class="room-icon">🌷</div>
+                        <div class="room-info">
+                            <span class="room-name">花园</span>
+                            <span class="room-desc">敬请期待</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 聊天页 ===== -->
+        <main class="chat-main" id="chatMain" style="display:none;">
             <div class="lace-top-decoration"></div>
             <header class="chat-header">
-                <button class="btn-icon" id="openSidebar"><i data-lucide="heart"></i></button>
+                <button class="btn-icon" id="backToHome" title="回到小家"><i data-lucide="home"></i></button>
+                <button class="btn-icon" id="openSidebar" title="侧边栏"><i data-lucide="menu"></i></button>
                 <div class="chat-title">
                     <span id="currentChatTitle">新对话</span>
                     <span class="model-badge" id="modelBadge">未配置模型</span>
@@ -60,7 +123,6 @@
             <div class="messages" id="messages"></div>
 
             <div class="input-area">
-                <!-- 加号菜单弹层 -->
                 <div class="input-popup plus-menu" id="plusMenu">
                     <div class="plus-menu-row model-switch-row" id="modelSwitchRow">
                         <span class="plus-menu-label"><i data-lucide="cpu"></i> 模型</span>
@@ -97,7 +159,6 @@
                     <button class="toolbar-btn" id="uploadBtn" title="上传"><i data-lucide="plus"></i></button>
                 </div>
 
-                <!-- 上传菜单弹层 -->
                 <div class="input-popup upload-menu" id="uploadMenu">
                     <div class="plus-menu-row upload-row" id="uploadFile">
                         <span class="plus-menu-label"><i data-lucide="file"></i> 上传文件</span>
@@ -140,7 +201,6 @@
             </div>
         </div>
 
-        <!-- 编辑对话标题弹窗 -->
         <div class="edit-title-overlay" id="editTitleOverlay">
             <div class="edit-title-panel">
                 <h3>编辑对话标题</h3>
@@ -152,7 +212,6 @@
             </div>
         </div>
 
-        <!-- 编辑用户信息弹窗 -->
         <div class="edit-user-overlay" id="editUserOverlay">
             <div class="edit-user-panel">
                 <div class="edit-user-header">

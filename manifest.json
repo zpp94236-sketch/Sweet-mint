@@ -1,7 +1,7 @@
 {
-  "name": "甜薄荷",
-  "short_name": "甜薄荷",
-  "description": "郑郑和晏晏的小窝",
+  "name": "\u751c\u8584\u8377",
+  "short_name": "\u751c\u8584\u8377",
+  "description": "\u90d1\u90d1\u548c\u664f\u664f\u7684\u5c0f\u7a9d",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
@@ -10,13 +10,13 @@
   "lang": "zh-CN",
   "icons": [
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%237BAF9E'/><text x='96' y='120' font-size='90' text-anchor='middle' fill='%23FCF2E6'>荷</text></svg>",
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%237BAF9E'/><text x='96' y='120' font-size='90' text-anchor='middle' fill='%23FCF2E6'>\u8377</text></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%237BAF9E'/><text x='256' y='320' font-size='240' text-anchor='middle' fill='%23FCF2E6'>荷</text></svg>",
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%237BAF9E'/><text x='256' y='320' font-size='240' text-anchor='middle' fill='%23FCF2E6'>\u8377</text></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
