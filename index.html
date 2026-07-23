@@ -54,15 +54,21 @@
             </div>
             <div class="home-content">
                 <div class="home-greeting" id="homeGreeting">
-                    <span class="greeting-emoji">🌿</span>
-                    <span class="greeting-text">欢迎回家</span>
+                    <div class="greeting-top">
+                        <span class="greeting-emoji">🌿</span>
+                        <span class="greeting-text">欢迎回家</span>
+                    </div>
+                    <div class="greeting-days" id="greetingDays">已经在一起 0 天</div>
                 </div>
+                <button class="chat-entry-bar" id="chatEntryBar">
+                    <span>💬 和晏晏聊天...</span>
+                </button>
                 <div class="room-grid">
                     <div class="room-card" data-room="living">
                         <div class="room-icon">🛋️</div>
                         <div class="room-info">
                             <span class="room-name">客厅</span>
-                            <span class="room-desc">日常陪伴</span>
+                            <span class="room-desc">敬请期待</span>
                         </div>
                     </div>
                     <div class="room-card" data-room="diary">
@@ -104,58 +110,11 @@
             </div>
         </div>
 
-        <!-- ===== 客厅 ===== -->
-        <div class="home-page" id="livingRoomPage">
-            <div class="home-header">
-                <div class="home-header-left">
-                    <button class="btn-icon" id="livingRoomBack"><i data-lucide="arrow-left"></i></button>
-                </div>
-                <h1 class="home-title">客厅</h1>
-                <div class="home-header-right"></div>
-            </div>
-            <div class="home-content">
-                <div class="home-greeting">
-                    <span class="greeting-emoji">🛋️</span>
-                    <span class="greeting-text">日常陪伴中心</span>
-                </div>
-                <div class="room-grid">
-                    <div class="room-card" data-liv="sofa">
-                        <div class="room-icon">🛋️</div>
-                        <div class="room-info">
-                            <span class="room-name">沙发</span>
-                            <span class="room-desc">聊天</span>
-                        </div>
-                    </div>
-                    <div class="room-card" data-liv="aquarium">
-                        <div class="room-icon">🐟</div>
-                        <div class="room-info">
-                            <span class="room-name">鱼缸</span>
-                            <span class="room-desc">ta的行动轨迹</span>
-                        </div>
-                    </div>
-                    <div class="room-card" data-liv="speaker">
-                        <div class="room-icon">🔊</div>
-                        <div class="room-info">
-                            <span class="room-name">音响</span>
-                            <span class="room-desc">敬请期待</span>
-                        </div>
-                    </div>
-                    <div class="room-card" data-liv="tv">
-                        <div class="room-icon">📺</div>
-                        <div class="room-info">
-                            <span class="room-name">电视</span>
-                            <span class="room-desc">敬请期待</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- ===== 聊天页 ===== -->
         <main class="chat-main" id="chatMain" style="display:none;">
             <div class="lace-top-decoration"></div>
             <header class="chat-header">
-                <button class="btn-icon" id="backToHome" title="回到客厅"><i data-lucide="home"></i></button>
+                <button class="btn-icon" id="backToHome" title="回到小家"><i data-lucide="home"></i></button>
                 <button class="btn-icon" id="openSidebar" title="侧边栏"><i data-lucide="menu"></i></button>
                 <div class="chat-title">
                     <span id="currentChatTitle">新对话</span>

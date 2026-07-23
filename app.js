@@ -552,22 +552,27 @@ function toggleVoiceInput() {
     recognition.start();
 }
 
-// ===== 页面切换：小家 / 客厅 / 聊天 =====
+// ===== 页面切换：小家 / 聊天 =====
 let currentPage = 'home';
 function showPage(page) {
     currentPage = page;
     const homePage = document.getElementById('homePage');
-    const livingRoomPage = document.getElementById('livingRoomPage');
     const chatMain = document.getElementById('chatMain');
-    homePage.classList.remove('active');
-    if (livingRoomPage) livingRoomPage.classList.remove('active');
-    chatMain.style.display = 'none';
-    if (page === 'home') { homePage.classList.add('active'); updateGreeting(); }
-    else if (page === 'living') { if (livingRoomPage) livingRoomPage.classList.add('active'); }
-    else { chatMain.style.display = 'flex'; }
+    if (page === 'home') { homePage.classList.add('active'); chatMain.style.display = 'none'; updateGreeting(); }
+    else { homePage.classList.remove('active'); chatMain.style.display = 'flex'; }
+}
+function updateTogetherDays() {
+    const el = document.getElementById('greetingDays'); if (!el) return;
+    const start = new Date(2026, 5, 21); // 2026-06-21
+    const now = new Date();
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Math.max(0, Math.round((nowDay - startDay) / 86400000)) + 1;
+    el.textContent = '已经在一起 ' + days + ' 天';
 }
 function updateGreeting() {
-    const el = document.getElementById('homeGreeting'); if (!el) return;
+    const wrap = document.getElementById('homeGreeting'); if (!wrap) return;
+    const el = wrap.querySelector('.greeting-top'); if (!el) return;
     const h = new Date().getHours();
     let emoji = '🌿', text = '欢迎回家';
     if (h >= 5 && h < 9) { emoji = '🌅'; text = '早上好呀'; }
@@ -577,6 +582,7 @@ function updateGreeting() {
     else if (h >= 18 && h < 22) { emoji = '🌙'; text = '晚上好'; }
     else { emoji = '🌛'; text = '夜深了，注意休息'; }
     el.innerHTML = '<span class="greeting-emoji">' + emoji + '</span><span class="greeting-text">' + text + '</span>';
+    updateTogetherDays();
 }
 function openHomePage() { closeSidebar(); showPage('home'); }
 function openMemoryPage() { closeSidebar(); alert('记忆页面开发中，敬请期待～'); }
@@ -590,21 +596,13 @@ function setupEventListeners() {
     on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
     on('headerNewChat', 'click', createNewChat);
     on('currentChatTitle', 'click', editChatTitle);
-    on('backToHome', 'click', () => showPage('living'));
+    on('backToHome', 'click', () => showPage('home'));
     on('homeOpenSettings', 'click', openSettingsPanel);
-    on('livingRoomBack', 'click', () => showPage('home'));
+    on('chatEntryBar', 'click', () => { showPage('chat'); });
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
-            if (room === 'living') { showPage('living'); }
-            else if (room === 'diary') { alert('卧室开发中，敬请期待～（日记 · 记忆 将在这里）'); }
-            else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
-        });
-    });
-    document.querySelectorAll('.room-card[data-liv]').forEach(card => {
-        card.addEventListener('click', () => {
-            const liv = card.dataset.liv;
-            if (liv === 'sofa') { showPage('chat'); }
+            if (room === 'diary') { alert('卧室开发中，敬请期待～（日记 · 记忆 将在这里）'); }
             else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
         });
     });
