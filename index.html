@@ -54,13 +54,7 @@
                 <button class="btn-icon" id="headerNewChat" title="新建对话"><i data-lucide="message-circle-plus"></i></button>
             </header>
 
-            <div class="messages" id="messages">
-                <div class="welcome-message">
-                    <div class="welcome-icon">💕</div>
-                    <p>开始一段新的对话吧～</p>
-                    <p class="welcome-hint">请先在设置中配置 API 信息</p>
-                </div>
-            </div>
+            <div class="messages" id="messages"></div>
 
             <div class="input-area">
                 <!-- 加号菜单弹层 -->
@@ -91,7 +85,7 @@
 
                 <div class="input-wrapper">
                     <button class="btn-input-icon" id="voiceBtn" title="语音输入"><i data-lucide="mic"></i></button>
-                    <textarea id="messageInput" placeholder="输入消息... (Shift+Enter 换行，Enter 发送)" rows="1"></textarea>
+                    <textarea id="messageInput" placeholder="和ta说点什么..." rows="1"></textarea>
                     <button class="btn-input-icon" id="expandInput" title="全屏输入"><i data-lucide="maximize"></i></button>
                     <button class="btn-send" id="sendBtn" disabled><i data-lucide="corner-right-up"></i></button>
                 </div>

@@ -18,7 +18,9 @@
     --gingham-brown: rgba(180, 150, 110, 0.10);
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+button, a, [role="button"] { outline: none; -webkit-touch-callout: none; }
+button:focus, a:focus, [role="button"]:focus { outline: none; }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -274,6 +276,7 @@ body {
 .wallpaper-option:hover { border-color: var(--primary); }
 .wallpaper-option.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
 .wallpaper-option-none { display: flex; align-items: center; justify-content: center; background: var(--primary-lighter); font-size: 12px; color: var(--text-light); text-align: center; }
+.wallpaper-option-custom { background: var(--primary-lighter); }
 .wallpaper-custom-upload { aspect-ratio: 3/4; border-radius: 8px; border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; background: var(--primary-lighter); font-size: 20px; color: var(--primary); cursor: pointer; transition: all var(--transition); }
 .wallpaper-custom-upload:hover { border-color: var(--primary); }
 
@@ -315,12 +318,14 @@ body {
 .stat-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1; }
 .stat-label { font-size: 12px; color: var(--text-light); }
 
-.assistant-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 250; justify-content: center; align-items: center; }
+.assistant-modal-overlay { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 250; flex-direction: column; }
 .assistant-modal-overlay.active { display: flex; }
-.assistant-modal { background: var(--bg-white); width: 90%; max-width: 420px; max-height: 80vh; border-radius: var(--radius); display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
-.assistant-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.assistant-modal-header h3 { font-size: 16px; color: var(--text); }
-.assistant-modal-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.assistant-modal { background: transparent; width: 100%; height: 100%; max-width: none; max-height: none; border-radius: 0; display: flex; flex-direction: column; box-shadow: none; }
+.assistant-modal-header { padding: 16px 20px 8px; padding-top: max(16px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 12px; border-bottom: none; }
+.assistant-modal-header h3 { font-size: 22px; font-weight: 700; color: var(--text); flex: 1; }
+.assistant-modal-tabs { display: flex; padding: 0 20px; border-bottom: 1px solid var(--border); background: transparent; }
+.assistant-modal-content { padding: 18px 20px; overflow-y: auto; flex: 1; }
+.assistant-modal-footer { padding: 12px 20px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--bg-white); text-align: right; }
 .assistant-modal-tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; cursor: pointer; border: none; background: none; color: var(--text-light); transition: all var(--transition); border-bottom: 2px solid transparent; }
 .assistant-modal-tab.active { color: var(--primary-dark); border-bottom-color: var(--primary); font-weight: 600; }
 .assistant-modal-tab:hover { background: var(--primary-lighter); }
@@ -417,7 +422,7 @@ body {
 .main-nav-btn svg { width: 20px !important; height: 20px !important; }
 
 /* ===== 编辑标题弹窗 ===== */
-.edit-title-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 270; justify-content: center; align-items: center; }
+.edit-title-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 270; justify-content: center; align-items: flex-start; padding-top: 12vh; }
 .edit-title-overlay.active { display: flex; }
 .edit-title-panel { background: var(--bg-white); width: 90%; max-width: 320px; border-radius: var(--radius); padding: 22px 20px 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
 .edit-title-panel h3 { font-size: 15px; color: var(--text); text-align: center; margin-bottom: 14px; font-weight: 600; }
