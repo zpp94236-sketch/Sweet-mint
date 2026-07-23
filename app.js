@@ -389,7 +389,6 @@ function openStats() {
         }
     }));
 
-    // 热力图：从 5 个月前的当周周一 到 今天
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const start = new Date(today);
     start.setMonth(start.getMonth() - 5);
@@ -412,7 +411,6 @@ function openStats() {
     }
     if (cur.length) weeks.push(cur);
 
-    // 月份标签：每个月首次出现在哪个周列
     const monthLabels = []; const seen = new Set();
     weeks.forEach((w, i) => { const m = w[0].month; if (!seen.has(m)) { seen.add(m); monthLabels.push({ col: i, month: m }); } });
     let monthsHtml = '';
@@ -464,7 +462,6 @@ function togglePlusMenu() { const p = document.getElementById('plusMenu'); const
 function toggleStickerPanel() { const s = document.getElementById('stickerPanel'); const p = document.getElementById('plusMenu'); if(p)p.classList.remove('active'); if(s)s.classList.toggle('active'); }
 function closeInputPopups() { const p=document.getElementById('plusMenu'); if(p)p.classList.remove('active'); const s=document.getElementById('stickerPanel'); if(s)s.classList.remove('active'); const u=document.getElementById('uploadMenu'); if(u)u.classList.remove('active'); }
 
-// ===== 压缩对话历史 =====
 async function compressHistory() {
     const chat = getCurrentChat();
     if (!chat || chat.messages.length < 2) { alert('对话内容太少，无需压缩'); return; }
@@ -482,7 +479,6 @@ async function compressHistory() {
     } catch(e) { alert('压缩失败: ' + e.message); }
 }
 
-// ===== 编辑用户信息 =====
 function openEditUser() {
     const overlay = document.getElementById('editUserOverlay'); if (!overlay) return;
     closeSidebar();
@@ -502,7 +498,6 @@ function saveEditUser() {
     closeEditUser();
 }
 
-// ===== 上传菜单 =====
 function toggleUploadMenu() {
     const u = document.getElementById('uploadMenu');
     const p = document.getElementById('plusMenu');
@@ -541,7 +536,6 @@ function toggleModelQuickList() {
     list.style.display = 'block';
 }
 
-// ===== Voice input =====
 let recognition = null; let isRecording = false;
 function toggleVoiceInput() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -557,6 +551,10 @@ function toggleVoiceInput() {
     recognition.start();
 }
 
+// 小屋/记忆页面占位
+function openHomePage() { closeSidebar(); alert('小屋页面开发中，敬请期待～'); }
+function openMemoryPage() { closeSidebar(); alert('记忆页面开发中，敬请期待～'); }
+
 // ===== Event Listeners =====
 function on(id, evt, fn) { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); }
 function setupEventListeners() {
@@ -566,8 +564,12 @@ function setupEventListeners() {
     on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); });
     on('headerNewChat', 'click', createNewChat);
     on('currentChatTitle', 'click', editChatTitle);
-    on('editAiAssistant', 'click', () => { closeSidebar(); openEditAiAssistant(); });
+    // 侧边栏底部导航（5个按钮）
+    on('navHome', 'click', openHomePage);
+    on('navMemory', 'click', openMemoryPage);
     on('openStats', 'click', () => { closeSidebar(); openStats(); });
+    on('editAiAssistant', 'click', () => { closeSidebar(); openEditAiAssistant(); });
+    on('openSettings', 'click', () => { closeSidebar(); openSettingsPanel(); });
     const input = document.getElementById('messageInput');
     if (input) {
         input.addEventListener('input', () => { autoResize(input); updateSendButton(); });
@@ -577,7 +579,6 @@ function setupEventListeners() {
     on('expandInput', 'click', openFullscreenInput);
     on('closeFullscreen', 'click', closeFullscreenInput);
     on('fullscreenSend', 'click', sendFromFullscreen);
-    on('openSettings', 'click', () => { closeSidebar(); openSettingsPanel(); });
     on('closeSettings', 'click', closeSettingsPanel);
     on('settingsOverlay', 'click', e => { if(e.target===e.currentTarget) closeSettingsPanel(); });
     on('settingsBackBtn', 'click', () => { settingsView='main'; renderSettingsView(); });
@@ -611,7 +612,6 @@ function setupEventListeners() {
     on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) closeEditTitle(); });
     const eti = document.getElementById('editTitleInput');
     if (eti) eti.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveEditTitle(); } });
-    document.querySelectorAll('.main-nav-btn').forEach(btn => btn.addEventListener('click', () => switchMainPage(btn.dataset.page)));
     if (window.innerWidth <= 768) closeSidebar();
 }
 
@@ -638,11 +638,6 @@ function saveEditTitle() {
     const t = input.value.trim();
     if (t) { chat.title = t; saveState(); renderChatList(); updateHeader(); }
     closeEditTitle();
-}
-function switchMainPage(page) {
-    if (page === 'chat') { document.querySelectorAll('.main-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === 'chat')); return; }
-    if (page === 'settings') { openSettingsPanel(); return; }
-    alert(page === 'home' ? '小屋页面开发中，敬请期待～' : '记忆页面开发中，敬请期待～');
 }
 function toggleMoreMenu(btn) { document.querySelectorAll('.msg-more-dropdown.show').forEach(el=>el.classList.remove('show')); const dd=btn.parentElement.querySelector('.msg-more-dropdown'); dd.classList.toggle('show'); setTimeout(()=>{document.addEventListener('click',function cl(e){if(!btn.parentElement.contains(e.target)){dd.classList.remove('show');document.removeEventListener('click',cl);}});},0); }
 function toggleThinking(header) { header.classList.toggle('expanded'); header.nextElementSibling.classList.toggle('show'); }
