@@ -658,10 +658,20 @@ function openStats() {
 function closeStats() { document.getElementById('statsOverlay').classList.remove('active'); }
 
 // ===== Input toolbar popups =====
-function togglePlusMenu() { const p = document.getElementById('plusMenu'); const s = document.getElementById('stickerPanel'); if(s)s.classList.remove('active'); if(p)p.classList.toggle('active'); const q=document.getElementById('modelQuickList'); if(q)q.style.display = 'none'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
-function toggleStickerPanel() { const s = document.getElementById('stickerPanel'); const p = document.getElementById('plusMenu'); if(p)p.classList.remove('active'); if(s)s.classList.toggle('active'); }
-function closeInputPopups() { const p = document.getElementById('plusMenu'); if(p) p.classList.remove('active'); const s = document.getElementById('stickerPopup'); if(s) s.classList.remove('active'); }
-function toggleStickerPopup() { const s = document.getElementById('stickerPopup'); const p = document.getElementById('plusMenu'); if (p) p.classList.remove('active'); if (s) s.classList.toggle('active'); }
+function togglePlusMenu() {
+    const sheet = document.getElementById('bottomSheet');
+    const backdrop = document.getElementById('bottomSheetBackdrop');
+    if (!sheet) return;
+    const isOpen = sheet.classList.contains('active');
+    if (isOpen) { closeBottomSheet(); }
+    else { sheet.classList.add('active'); backdrop.classList.add('active'); if(typeof lucide!=='undefined') lucide.createIcons(); }
+}
+function closeBottomSheet() {
+    const sheet = document.getElementById('bottomSheet');
+    const backdrop = document.getElementById('bottomSheetBackdrop');
+    if (sheet) sheet.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+}
 
 async function compressHistory() {
     const chat = getCurrentChat();
@@ -830,6 +840,15 @@ function setupEventListeners() {
     on('modelPill', 'click', (e) => { e.stopPropagation(); togglePlusMenu(); toggleModelQuickList(); });
     on('modelSwitchRow', 'click', (e) => { e.stopPropagation(); toggleModelQuickList(); });
     on('emojiRow', 'click', (e) => { e.stopPropagation(); const s=document.getElementById('stickerPanel'); if(s) s.classList.toggle('active'); });
+    on('bottomSheetBackdrop', 'click', closeBottomSheet);
+    on('bsImage', 'click', () => { closeBottomSheet(); document.getElementById('imageInputHidden').click(); });
+    on('bsCamera', 'click', () => { closeBottomSheet(); document.getElementById('cameraInputHidden').click(); });
+    on('bsModel', 'click', () => { closeBottomSheet(); openSettingsPanel(); });
+    on('bsCompress', 'click', () => { closeBottomSheet(); compressHistory(); });
+    on('bsSearch', 'click', () => { closeBottomSheet(); state.settings.webSearch = !state.settings.webSearch; saveState(); alert('联网搜索：' + (state.settings.webSearch ? '已开启' : '已关闭')); });
+    on('bsMcp', 'click', () => { closeBottomSheet(); state.settings.mcp = !state.settings.mcp; saveState(); alert('MCP：' + (state.settings.mcp ? '已开启' : '已关闭')); });
+    on('bsFile', 'click', () => { closeBottomSheet(); document.getElementById('fileInputHidden').click(); });
+    on('bsStar', 'click', () => { closeBottomSheet(); alert('收藏功能开发中～'); });
     on('compressRow', 'click', (e) => { e.stopPropagation(); closeInputPopups(); compressHistory(); });
     on('plusUploadFile', 'click', () => { document.getElementById('fileInputHidden').click(); });
     on('plusUploadCamera', 'click', () => { document.getElementById('cameraInputHidden').click(); });

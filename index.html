@@ -138,42 +138,9 @@
             <div class="messages" id="messages"></div>
 
             <div class="input-area">
-                <!-- Plus drawer (combined: model, web, mcp, compress, upload, etc.) -->
-                <div class="input-popup plus-menu" id="plusMenu">
-                    <div class="plus-menu-row model-switch-row" id="modelSwitchRow">
-                        <span class="plus-menu-label"><i data-lucide="cpu"></i> 模型</span>
-                        <span class="plus-menu-value" id="plusMenuModel">未配置<i data-lucide="chevron-right"></i></span>
-                    </div>
-                    <div class="model-quick-list" id="modelQuickList" style="display:none;"></div>
-                    <div class="plus-menu-row">
-                        <span class="plus-menu-label"><i data-lucide="globe"></i> 联网搜索</span>
-                        <label class="switch"><input type="checkbox" id="toggleWebSearch"><span class="switch-slider"></span></label>
-                    </div>
-                    <div class="plus-menu-row">
-                        <span class="plus-menu-label"><i data-lucide="blocks"></i> MCP</span>
-                        <label class="switch"><input type="checkbox" id="toggleMcp"><span class="switch-slider"></span></label>
-                    </div>
-                    <div class="plus-menu-row" id="compressRow" style="cursor:pointer;">
-                        <span class="plus-menu-label"><i data-lucide="archive"></i> 压缩对话历史</span>
-                        <i data-lucide="chevron-right" class="emoji-chevron"></i>
-                    </div>
-                    <div class="plus-menu-row upload-row" id="plusUploadFile">
-                        <span class="plus-menu-label"><i data-lucide="file"></i> 上传文件</span>
-                    </div>
-                    <div class="plus-menu-row upload-row" id="plusUploadCamera">
-                        <span class="plus-menu-label"><i data-lucide="camera"></i> 拍照</span>
-                    </div>
-                    <div class="plus-menu-row upload-row" id="plusUploadImage">
-                        <span class="plus-menu-label"><i data-lucide="image"></i> 选择图片</span>
-                    </div>
-                    <div class="plus-menu-row" id="plusFavorite" style="cursor:pointer;">
-                        <span class="plus-menu-label"><i data-lucide="star"></i> 收藏</span>
-                        <i data-lucide="chevron-right" class="emoji-chevron"></i>
-                    </div>
                     <input type="file" id="fileInputHidden" hidden>
                     <input type="file" id="cameraInputHidden" accept="image/*" capture="environment" hidden>
                     <input type="file" id="imageInputHidden" accept="image/*" hidden>
-                </div>
 
                 <!-- Sticker popup -->
                 <div class="input-popup sticker-popup" id="stickerPopup">
@@ -277,5 +244,45 @@
             });
         }
     </script>
+
+<div class="bottom-sheet-backdrop" id="bottomSheetBackdrop"></div>
+<div class="bottom-sheet" id="bottomSheet">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-grid">
+        <div class="bottom-sheet-item" id="bsImage">
+            <div class="bottom-sheet-icon"><i data-lucide="image"></i></div>
+            <span class="bottom-sheet-label">相册</span>
+        </div>
+        <div class="bottom-sheet-item" id="bsCamera">
+            <div class="bottom-sheet-icon"><i data-lucide="camera"></i></div>
+            <span class="bottom-sheet-label">拍摄</span>
+        </div>
+        <div class="bottom-sheet-item" id="bsModel">
+            <div class="bottom-sheet-icon"><i data-lucide="bot"></i></div>
+            <span class="bottom-sheet-label">模型</span>
+        </div>
+        <div class="bottom-sheet-item" id="bsCompress">
+            <div class="bottom-sheet-icon"><i data-lucide="archive"></i></div>
+            <span class="bottom-sheet-label">压缩历史</span>
+        </div>
+        <div class="bottom-sheet-item" id="bsSearch">
+            <div class="bottom-sheet-icon"><i data-lucide="globe"></i></div>
+            <span class="bottom-sheet-label">联网搜索</span>
+        </div>
+        <div class="bottom-sheet-item" id="bsMcp">
+            <div class="bottom-sheet-icon"><i data-lucide="blocks"></i></div>
+            <span class="bottom-sheet-label">MCP</span>
+        </div>
+        <div class="bottom-sheet-item" id="bsFile">
+            <div class="bottom-sheet-icon"><i data-lucide="file"></i></div>
+            <span class="bottom-sheet-label">文件</span>
+        </div>
+        <div class="bottom-sheet-item" id="bsStar">
+            <div class="bottom-sheet-icon"><i data-lucide="star"></i></div>
+            <span class="bottom-sheet-label">收藏</span>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

@@ -169,13 +169,13 @@ body {
 /* Card-style double-layer input: top = text area, bottom = toolbar */
 .input-card { background: var(--input-card-bg, #FCF2E6); border-radius: 26px; border: 1px solid rgba(184, 201, 193, 0.4); transition: border-color var(--transition), box-shadow var(--transition); overflow: hidden; box-shadow: 0 6px 24px rgba(90, 120, 105, 0.16); }
 .input-card:focus-within { border-color: var(--primary); box-shadow: 0 4px 16px var(--shadow); }
-.input-card-top { display: flex; align-items: flex-end; gap: 4px; padding: 10px 8px 4px 14px; }
+.input-card-top { display: flex; align-items: center; gap: 4px; padding: 10px 8px 4px 14px; }
 .input-card-top textarea { flex: 1; border: none; background: transparent; resize: none; font-size: var(--font-size); font-family: inherit; line-height: 1.5; max-height: 120px; outline: none; color: var(--text); padding: 5px 0; }
 .input-card-top textarea::placeholder { color: var(--text-light); }
 .input-card-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 8px 10px; border-top: 1px solid rgba(184, 201, 193, 0.25); margin-top: 2px; padding-top: 6px; }
 .input-card-toolbar-left { display: flex; align-items: center; gap: 2px; }
 
-.btn-input-icon { width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: var(--text-light); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition); flex-shrink: 0; }
+.btn-input-icon { width: 30px; height: 30px; border-radius: 50%; border: none; background: transparent; color: var(--text-light); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition); flex-shrink: 0; margin-bottom: 2px; }
 .btn-input-icon i { width: 18px; height: 18px; }
 .btn-input-icon svg { width: 18px !important; height: 18px !important; }
 .btn-input-icon:hover { background: var(--primary-light); color: var(--primary-dark); }
@@ -599,4 +599,17 @@ body {
 .sticker-popup.active { display: block; animation: fadeIn 0.2s ease; }
 .sticker-popup .sticker-panel { display: grid; max-height: none; }
 
+/* ===== Bottom Sheet 加号抽屉 ===== */
+.bottom-sheet-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 70; }
+.bottom-sheet-backdrop.active { display: block; }
+.bottom-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-white); border-radius: 20px 20px 0 0; padding: 12px 20px 28px; padding-bottom: max(28px, env(safe-area-inset-bottom)); z-index: 71; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
+.bottom-sheet.active { transform: translateY(0); }
+.bottom-sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 16px; }
+.bottom-sheet-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 8px; }
+.bottom-sheet-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: 14px; cursor: pointer; transition: background var(--transition); }
+.bottom-sheet-item:hover { background: var(--primary-lighter); }
+.bottom-sheet-item:active { transform: scale(0.95); }
+.bottom-sheet-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-lighter); display: flex; align-items: center; justify-content: center; }
+.bottom-sheet-icon i, .bottom-sheet-icon svg { width: 20px !important; height: 20px !important; color: var(--primary-dark); }
+.bottom-sheet-label { font-size: 11px; color: var(--text); text-align: center; }
 
