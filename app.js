@@ -2,6 +2,12 @@
 let state = {
     chats: [],
     currentChatId: null,
+    chatHistory: {
+        messages: [],
+        loading: false,
+        loaded: false
+    },
+
     providers: [],
     activeProviderId: null,
     settings: {
@@ -1038,12 +1044,171 @@ function openBedroom() {
 }
 function bedroomGo(view, params) {
     bedroomStack.push(view);
-    bedroomParams = params || {};
+    bedroomParams = { ...bedroomParams, ...params };
     renderBedroom();
 }
 function bedroomBack() {
     if (bedroomStack.length > 1) { bedroomStack.pop(); renderBedroom(); }
     else { const ov = document.getElementById('bedroomOverlay'); if (ov) ov.classList.remove('active'); }
+}
+
+// ===== Chat History =====
+
+function openChatHistory() {
+
+    bedroomGo('chatHistory',{});
+
+    if (!state.chatHistory.loaded) {
+        loadChatHistory();
+    } else {
+        renderChatHistory();
+    }
+
+}
+
+
+async function loadChatHistory() {
+
+    if (!isSupabaseConfigured()) {
+        alert('请先配置 Supabase');
+        return;
+    }
+
+    state.chatHistory.loading = true;
+
+    renderChatHistoryLoading();
+
+
+    try {
+
+        const url =
+            state.memorySystem.settings.supabaseUrl +
+            '/rest/v1/chat_messages?order=created_at.desc&limit=100';
+
+
+        const res = await fetch(url, {
+            headers: getSupabaseHeaders()
+        });
+
+
+        if (!res.ok) {
+            throw new Error('加载聊天记录失败: ' + res.status);
+        }
+
+
+        const data = await res.json();
+
+
+        state.chatHistory.messages = data || [];
+
+        state.chatHistory.loaded = true;
+
+
+        renderChatHistory();
+
+
+    } catch(e) {
+
+        console.error(e);
+
+        document.getElementById('chatHistoryContent').innerHTML =
+            '<div class="empty-state">加载失败：' +
+            escapeHtml(e.message) +
+            '</div>';
+
+    }
+
+
+    state.chatHistory.loading = false;
+}
+
+
+
+function renderChatHistoryLoading() {
+
+    const el =
+        document.getElementById('chatHistoryContent');
+
+    if (!el) return;
+
+
+    el.innerHTML =
+        '<div class="empty-state">正在加载聊天记录...</div>';
+}
+
+
+
+function renderChatHistory() {
+
+    const el =
+        document.getElementById('chatHistoryContent');
+
+
+    if (!el) return;
+
+
+    const list =
+        state.chatHistory.messages;
+
+
+    if (!list.length) {
+
+        el.innerHTML =
+            '<div class="empty-state">暂无聊天记录</div>';
+
+        return;
+    }
+
+
+
+    el.innerHTML =
+        list.map(msg => {
+
+
+            const role =
+                msg.role === 'assistant'
+                ? 'AI'
+                : '你';
+
+
+            const time =
+                msg.created_at
+                ? new Date(msg.created_at)
+                    .toLocaleString()
+                : '';
+
+
+
+            return `
+
+            <div class="history-item">
+
+                <div class="history-meta">
+
+                    <span>
+                    ${role}
+                    </span>
+
+                    <span>
+                    ${time}
+                    </span>
+
+                </div>
+
+
+                <div class="history-content">
+
+                    ${escapeHtml(msg.content || '')}
+
+                </div>
+
+            </div>
+
+            `;
+
+
+        }).join('');
+
 }
 
 function renderBedroom() {
@@ -1078,12 +1243,20 @@ function renderBedroom() {
     else if (view === 'weeklyEdit') { title = bedroomParams.id ? '编辑周记' : '新建周记'; html = renderWeeklyEdit(); }
     else if (view === 'weeklyDetail') { title = '周记详情'; html = renderWeeklyDetail(); }
     else if (view === 'cloudSync') { title = '云端同步'; html = renderCloudSync(); }
+    else if (view === 'chatHistory') { title = '聊天历史'; html = '<div id="chatHistoryContent"></div>'; }
     if (titleEl) titleEl.textContent = title;
     content.innerHTML = html;
     if (extraBtn) {
         if (showAdd) { extraBtn.style.display = 'flex'; extraBtn.onclick = showAdd; }
         else { extraBtn.style.display = 'none'; extraBtn.onclick = null; }
     }
+if (view === 'chatHistory') {
+    if (!state.chatHistory.loaded) {
+        loadChatHistory();
+    } else {
+        renderChatHistory();
+    }
+}
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -1096,6 +1269,7 @@ function renderBedroomGrid() {
         { icon: '🏛️', name: '记忆宫殿', desc: mc + ' 条记忆', go: 'memoryHome' },
         { icon: '📋', name: '周记', desc: wc + ' 篇', go: 'weeklyList' },
         { icon: '☁️', name: '云端同步', desc: syncStatus, go: 'cloudSync' }
+        { icon: '💬', name: '聊天历史', desc: '最近100条对话', go: 'chatHistory' }
     ];
     return '<div class="room-grid bedroom-grid">' + items.map(it =>
         '<div class="room-card" onclick="bedroomGo(\'' + it.go + '\',{})"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
