@@ -96,6 +96,7 @@ function ensureMemorySystem() {
     if (!state.memorySystem.diaries) state.memorySystem.diaries = [];
     if (!state.memorySystem.weeklyReports) state.memorySystem.weeklyReports = [];
     if (!state.memorySystem.settings) state.memorySystem.settings = { supabaseUrl: '', supabaseKey: '', lastSyncAt: null };
+    if (!state.memorySystem.settings.conversationId) state.memorySystem.settings.conversationId = 'sweetmint_' + Date.now();
 }
 
 function getActiveProvider() { return state.providers.find(p => p.id === state.activeProviderId) || null; }
@@ -256,7 +257,13 @@ async function sendMessage() {
             }
         }
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        chat.messages.push({ role: 'assistant', content: assistantContent, timestamp: new Date().toISOString(), usage: usage, duration: duration }); saveState(); renderMessages();
+        const assistantMsg = { role: 'assistant', content: assistantContent, timestamp: new Date().toISOString(), usage: usage, duration: duration };
+        chat.messages.push(assistantMsg);
+        saveState();
+        renderMessages();
+        // 同步到 Supabase
+        syncMessageToSupabase(chat.messages[chat.messages.length - 2], chat.id); // 用户消息
+        syncMessageToSupabase(assistantMsg, chat.id); // AI消息
     } catch (error) { loadingDiv.remove(); const errorDiv = document.createElement('div'); errorDiv.className = 'message assistant'; errorDiv.innerHTML = '<div class="message-avatar">⚠️</div><div class="message-bubble" style="color:#e74c3c;">发送失败: ' + escapeHtml(error.message) + '</div>'; messagesContainer.appendChild(errorDiv); scrollToBottom(); }
     finally { state.isStreaming = false; }
 }
@@ -1306,13 +1313,15 @@ function renderCloudSync() {
     const s = state.memorySystem.settings;
     const status = s.supabaseUrl && s.supabaseKey ? (s.lastSyncAt ? '已连接' : '已配置，未同步') : '未配置';
     return '<div class="settings-list-card">' +
-        '<div class="settings-row"><span class="settings-row-label">连接状态</span><span class="settings-row-value">' + status + '</span></div>' +
+        '<div class="settings-row"><span class="settings-row-label">连接状态</span><span class="settings-row-value" id="cloudStatus">' + status + '</span></div>' +
         '<div class="settings-row"><span class="settings-row-label">上次同步</span><span class="settings-row-value">' + (s.lastSyncAt ? formatMsgTime(s.lastSyncAt) : '从未同步') + '</span></div>' +
+        '<div class="settings-row"><span class="settings-row-label">会话ID</span><span class="settings-row-value" style="font-size:10px;">' + escapeHtml(s.conversationId || '未生成') + '</span></div>' +
         '</div>' +
         '<div class="form-group" style="margin-top:14px;"><label>Supabase URL</label><input type="text" id="csUrl" placeholder="https://xxx.supabase.co" value="' + escapeHtml(s.supabaseUrl || '') + '"></div>' +
-        '<div class="form-group"><label>Supabase Key</label><input type="password" id="csKey" placeholder="anon key" value="' + escapeHtml(s.supabaseKey || '') + '"></div>' +
+        '<div class="form-group"><label>Supabase Anon Key</label><input type="password" id="csKey" placeholder="eyJ..." value="' + escapeHtml(s.supabaseKey || '') + '"></div>' +
         '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="saveCloudSyncConfig()">保存配置</button>' +
-        '<button class="btn-primary bedroom-save-btn" onclick="manualSync()">立即同步</button>';
+        '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="testCloudConnection()">测试连接</button>' +
+        '<button class="btn-primary bedroom-save-btn" onclick="pullMemoriesFromCloud()">拉取云端记忆</button>';
 }
 function saveCloudSyncConfig() {
     ensureMemorySystem();
@@ -1320,14 +1329,127 @@ function saveCloudSyncConfig() {
     state.memorySystem.settings.supabaseKey = document.getElementById('csKey').value.trim();
     saveState(); alert('已保存配置');
 }
-async function manualSync() {
-    ensureMemorySystem();
+
+// ===== Supabase Integration =====
+function getSupabaseHeaders() {
     const s = state.memorySystem.settings;
-    if (!s.supabaseUrl || !s.supabaseKey) { alert('请先配置 Supabase URL 和 Key'); return; }
-    // TODO: 实际同步逻辑待实现 —— 将 memories / diaries / weeklyReports 上传到对应 Supabase 表，并做增量合并
-    alert('同步功能开发中，配置已保存，后续将自动同步～');
-    s.lastSyncAt = new Date().toISOString();
-    saveState(); renderBedroom();
+    return {
+        'apikey': s.supabaseKey,
+        'Authorization': 'Bearer ' + s.supabaseKey,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    };
+}
+
+function isSupabaseConfigured() {
+    const s = state.memorySystem.settings;
+    return !!(s.supabaseUrl && s.supabaseKey);
+}
+
+// 同步单条消息到 Supabase
+async function syncMessageToSupabase(msg, chatId) {
+    if (!msg || !isSupabaseConfigured()) return;
+    const s = state.memorySystem.settings;
+    const url = s.supabaseUrl.replace(/\/$/, '') + '/rest/v1/chat_messages';
+
+    const payload = {
+        conversation_id: s.conversationId || 'sweetmint_default',
+        role: msg.role,
+        content: msg.content,
+        created_at: msg.timestamp || new Date().toISOString(),
+        metadata: JSON.stringify({ chatId: chatId, source: 'sweetmint' })
+    };
+
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: getSupabaseHeaders(),
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+            console.warn('Supabase sync failed:', resp.status);
+        }
+    } catch (e) {
+        console.warn('Supabase sync error:', e);
+    }
+}
+
+// 从 Supabase 读取记忆摘要
+async function fetchMemoriesFromSupabase() {
+    if (!isSupabaseConfigured()) {
+        alert('请先配置 Supabase URL 和 Key');
+        return [];
+    }
+    const s = state.memorySystem.settings;
+    const url = s.supabaseUrl.replace(/\/$/, '') + '/rest/v1/memory_summaries?order=created_at.desc&limit=50';
+
+    try {
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: getSupabaseHeaders()
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return await resp.json();
+    } catch (e) {
+        console.error('Fetch memories error:', e);
+        alert('读取记忆失败: ' + e.message);
+        return [];
+    }
+}
+
+// 测试 Supabase 连接
+async function testSupabaseConnection() {
+    if (!isSupabaseConfigured()) {
+        return { ok: false, msg: '未配置' };
+    }
+    const s = state.memorySystem.settings;
+    const url = s.supabaseUrl.replace(/\/$/, '') + '/rest/v1/chat_messages?limit=1';
+
+    try {
+        const resp = await fetch(url, {
+            method: 'GET',
+            headers: getSupabaseHeaders()
+        });
+        if (resp.ok) return { ok: true, msg: '连接成功' };
+        return { ok: false, msg: 'HTTP ' + resp.status };
+    } catch (e) {
+        return { ok: false, msg: e.message };
+    }
+}
+
+async function testCloudConnection() {
+    const result = await testSupabaseConnection();
+    const el = document.getElementById('cloudStatus');
+    if (el) el.textContent = result.ok ? '✅ ' + result.msg : '❌ ' + result.msg;
+    if (result.ok) {
+        state.memorySystem.settings.lastSyncAt = new Date().toISOString();
+        saveState();
+    }
+}
+
+async function pullMemoriesFromCloud() {
+    const data = await fetchMemoriesFromSupabase();
+    if (!data || data.length === 0) {
+        alert('没有找到云端记忆');
+        return;
+    }
+    data.forEach(item => {
+        const exists = state.memorySystem.memories.find(m => m.id === ('cloud_' + item.id));
+        if (!exists) {
+            state.memorySystem.memories.push({
+                id: 'cloud_' + item.id,
+                content: item.content || item.summary || '',
+                summary: item.summary || '',
+                category: item.category || 'longterm',
+                tags: item.tags ? (typeof item.tags === 'string' ? JSON.parse(item.tags) : item.tags) : [],
+                createdAt: item.created_at,
+                source: 'cloud'
+            });
+        }
+    });
+    saveState();
+    alert('已拉取 ' + data.length + ' 条记忆');
+    renderBedroom();
 }
 
 document.addEventListener('DOMContentLoaded', init);
