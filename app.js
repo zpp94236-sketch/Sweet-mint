@@ -1268,7 +1268,7 @@ function renderBedroomGrid() {
         { icon: '📔', name: '日记本', desc: dc + ' 篇日记', go: 'diaryList' },
         { icon: '🏛️', name: '记忆宫殿', desc: mc + ' 条记忆', go: 'memoryHome' },
         { icon: '📋', name: '周记', desc: wc + ' 篇', go: 'weeklyList' },
-        { icon: '☁️', name: '云端同步', desc: syncStatus, go: 'cloudSync' }
+        { icon: '☁️', name: '云端同步', desc: syncStatus, go: 'cloudSync' },
         { icon: '💬', name: '聊天历史', desc: '最近100条对话', go: 'chatHistory' }
     ];
     return '<div class="room-grid bedroom-grid">' + items.map(it =>
