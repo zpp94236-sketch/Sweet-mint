@@ -21,6 +21,8 @@ let state = {
         cachedModels: [],
         webSearch: false,
         mcp: false,
+        mcpServers: [],
+        searchProvider: 'tavily',
         fontFamily: 'default',
         inputBgColor: '',
         sidebarBgColor: '',
@@ -82,7 +84,18 @@ function loadState() {
         if (!state.settings.regexRules) state.settings.regexRules = [];
         if (!state.settings.cachedModels) state.settings.cachedModels = [];
         if (!state.settings.taMessages) state.settings.taMessages = {};
+        if (!state.settings.mcpServers) state.settings.mcpServers = [];
+        if (!state.settings.searchProvider) state.settings.searchProvider = 'tavily';
     }
+    ensureMemorySystem();
+}
+
+function ensureMemorySystem() {
+    if (!state.memorySystem) state.memorySystem = { memories: [], diaries: [], weeklyReports: [], settings: { supabaseUrl: '', supabaseKey: '', lastSyncAt: null } };
+    if (!state.memorySystem.memories) state.memorySystem.memories = [];
+    if (!state.memorySystem.diaries) state.memorySystem.diaries = [];
+    if (!state.memorySystem.weeklyReports) state.memorySystem.weeklyReports = [];
+    if (!state.memorySystem.settings) state.memorySystem.settings = { supabaseUrl: '', supabaseKey: '', lastSyncAt: null };
 }
 
 function getActiveProvider() { return state.providers.find(p => p.id === state.activeProviderId) || null; }
@@ -664,7 +677,7 @@ function togglePlusMenu() {
     if (!sheet) return;
     const isOpen = sheet.classList.contains('active');
     if (isOpen) { closeBottomSheet(); }
-    else { sheet.classList.add('active'); backdrop.classList.add('active'); if(typeof lucide!=='undefined') lucide.createIcons(); }
+    else { closeInputPopups(); showToolSheetView('grid'); sheet.classList.add('active'); backdrop.classList.add('active'); if(typeof lucide!=='undefined') lucide.createIcons(); }
 }
 function closeBottomSheet() {
     const sheet = document.getElementById('bottomSheet');
@@ -672,6 +685,90 @@ function closeBottomSheet() {
     if (sheet) sheet.classList.remove('active');
     if (backdrop) backdrop.classList.remove('active');
 }
+
+function toggleStickerPopup() {
+    const popup = document.getElementById('stickerPopup');
+    if (!popup) return;
+    const isOpen = popup.classList.contains('active');
+    closeInputPopups();
+    if (!isOpen) { popup.classList.add('active'); if (typeof lucide !== 'undefined') lucide.createIcons(); }
+}
+function closeInputPopups() {
+    const sticker = document.getElementById('stickerPopup');
+    if (sticker) sticker.classList.remove('active');
+    closeBottomSheet();
+    const mq = document.getElementById('modelQuickList');
+    if (mq) mq.style.display = 'none';
+}
+
+// ===== MCP / Search tool sheet =====
+function showToolSheetView(view) {
+    const grid = document.getElementById('bottomSheetGrid');
+    const mcp = document.getElementById('bottomSheetMcp');
+    const search = document.getElementById('bottomSheetSearch');
+    if (grid) grid.style.display = (view === 'grid') ? 'grid' : 'none';
+    if (mcp) mcp.classList.toggle('active', view === 'mcp');
+    if (search) search.classList.toggle('active', view === 'search');
+    if (view === 'mcp') renderMcpSheetInto();
+    if (view === 'search') renderSearchSheetInto();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderMcpSheet() {
+    const list = state.settings.mcpServers || [];
+    let html = list.map(s => {
+        const isErr = s.status === 'error';
+        return '<div class="mcp-item' + (isErr ? ' mcp-item-error' : '') + '">' +
+            '<div class="mcp-item-icon"><i data-lucide="' + (isErr ? 'alert-triangle' : 'puzzle') + '"></i></div>' +
+            '<div class="mcp-item-body"><div class="mcp-item-name">' + escapeHtml(s.name) + '</div>' +
+            (isErr ? '<div class="mcp-item-error-msg">' + escapeHtml(s.errorMsg || '连接失败') + '</div>'
+                : '<div class="mcp-item-sub">Connected</div><span class="mcp-item-tools">' + (s.toolCount || 0) + '/' + (s.toolTotal || s.toolCount || 0) + ' tools</span>') +
+            '</div>' +
+            '<label class="switch"><input type="checkbox" class="mcp-toggle" data-id="' + s.id + '"' + (s.enabled ? ' checked' : '') + (isErr ? ' disabled' : '') + '><span class="switch-slider"></span></label>' +
+            '</div>';
+    }).join('');
+    if (!list.length) html = '<div class="bedroom-empty">还没有连接 MCP 服务器</div>';
+    html += '<button class="btn-secondary mcp-add-btn" onclick="addMcpServer()"><i data-lucide="plus"></i> 添加 MCP 服务器</button>';
+    return html;
+}
+function renderMcpSheetInto() {
+    const el = document.getElementById('mcpSheetList');
+    if (!el) return;
+    el.innerHTML = renderMcpSheet();
+    el.querySelectorAll('.mcp-toggle').forEach(t => t.addEventListener('change', () => {
+        const s = (state.settings.mcpServers || []).find(x => x.id === t.dataset.id);
+        if (s) { s.enabled = t.checked; saveState(); }
+    }));
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function addMcpServer() {
+    const name = prompt('服务器名称（如 supabase）：');
+    if (!name) return;
+    const url = prompt('服务器地址（可留空）：') || '';
+    if (!state.settings.mcpServers) state.settings.mcpServers = [];
+    state.settings.mcpServers.push({ id: 'mcp' + Date.now(), name: name.trim(), url: url.trim(), status: 'connected', toolCount: 0, toolTotal: 0, enabled: true });
+    saveState();
+    renderMcpSheetInto();
+}
+
+function renderSearchSheet() {
+    const ws = !!state.settings.webSearch;
+    const provider = state.settings.searchProvider || 'tavily';
+    return '<div class="tool-sheet-row"><div class="tool-sheet-row-left"><i data-lucide="globe"></i><div><div class="tool-sheet-row-title">网络搜索</div><div class="tool-sheet-row-sub">' + (ws ? '已启用网页搜索抓取' : '已禁用网页搜索抓取') + '</div></div></div><label class="switch"><input type="checkbox" id="sheetWebSearchToggle"' + (ws ? ' checked' : '') + '><span class="switch-slider"></span></label></div>' +
+        '<div class="search-provider-grid">' +
+        '<button class="search-provider-btn' + (provider === 'tavily' ? ' active' : '') + '" onclick="pickSearchProvider(\'tavily\')"><i data-lucide="compass"></i><span>Tavily</span><small>搜索 抓取</small></button>' +
+        '<button class="search-provider-btn' + (provider === 'bing' ? ' active' : '') + '" onclick="pickSearchProvider(\'bing\')"><i data-lucide="search"></i><span>Bing</span><small>搜索</small></button>' +
+        '</div>';
+}
+function renderSearchSheetInto() {
+    const el = document.getElementById('searchSheetList');
+    if (!el) return;
+    el.innerHTML = renderSearchSheet();
+    const t = document.getElementById('sheetWebSearchToggle');
+    if (t) t.addEventListener('change', () => { state.settings.webSearch = t.checked; saveState(); renderSearchSheetInto(); });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function pickSearchProvider(p) { state.settings.searchProvider = p; saveState(); renderSearchSheetInto(); }
 
 async function compressHistory() {
     const chat = getCurrentChat();
@@ -812,7 +909,7 @@ function setupEventListeners() {
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
-            if (room === 'diary') { alert('卧室开发中，敬请期待～（日记 · 记忆 将在这里）'); }
+            if (room === 'diary') { openBedroom(); }
             else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
         });
     });
@@ -834,6 +931,7 @@ function setupEventListeners() {
     on('settingsBackBtn', 'click', () => { settingsView='main'; renderSettingsView(); });
     on('closeStats', 'click', closeStats);
     on('statsOverlay', 'click', e => { if(e.target===e.currentTarget) closeStats(); });
+    on('bedroomBack', 'click', bedroomBack);
     on('plusBtn', 'click', (e) => { e.stopPropagation(); togglePlusMenu(); });
     on('stickerBtn', 'click', (e) => { e.stopPropagation(); toggleStickerPopup(); });
     on('voiceBtn', 'click', toggleVoiceInput);
@@ -845,8 +943,10 @@ function setupEventListeners() {
     on('bsCamera', 'click', () => { closeBottomSheet(); document.getElementById('cameraInputHidden').click(); });
     on('bsModel', 'click', () => { closeBottomSheet(); openSettingsPanel(); });
     on('bsCompress', 'click', () => { closeBottomSheet(); compressHistory(); });
-    on('bsSearch', 'click', () => { closeBottomSheet(); state.settings.webSearch = !state.settings.webSearch; saveState(); alert('联网搜索：' + (state.settings.webSearch ? '已开启' : '已关闭')); });
-    on('bsMcp', 'click', () => { closeBottomSheet(); state.settings.mcp = !state.settings.mcp; saveState(); alert('MCP：' + (state.settings.mcp ? '已开启' : '已关闭')); });
+    on('bsSearch', 'click', () => { showToolSheetView('search'); });
+    on('bsMcp', 'click', () => { showToolSheetView('mcp'); });
+    on('mcpSheetBack', 'click', () => { showToolSheetView('grid'); });
+    on('searchSheetBack', 'click', () => { showToolSheetView('grid'); });
     on('bsFile', 'click', () => { closeBottomSheet(); document.getElementById('fileInputHidden').click(); });
     on('bsStar', 'click', () => { closeBottomSheet(); alert('收藏功能开发中～'); });
     on('compressRow', 'click', (e) => { e.stopPropagation(); closeInputPopups(); compressHistory(); });
@@ -910,5 +1010,324 @@ function escapeHtml(text) { const d=document.createElement('div'); d.textContent
 function renderMarkdown(text) { if(typeof marked!=='undefined'){marked.setOptions({highlight:function(code,lang){if(typeof hljs!=='undefined'&&lang&&hljs.getLanguage(lang))return hljs.highlight(code,{language:lang}).value;return code;},breaks:true});return marked.parse(text);}return escapeHtml(text).replace(/\n/g,'<br>'); }
 function formatTime(iso) { const d=new Date(iso); const now=new Date(); const diff=now-d; if(diff<86400000&&d.getDate()===now.getDate()) return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}); if(diff<172800000) return '昨天'; return d.toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'}); }
 function formatMsgTime(iso) { if(!iso)return''; const d=new Date(iso); const Y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const D=String(d.getDate()).padStart(2,'0'); const h=String(d.getHours()).padStart(2,'0'); const m=String(d.getMinutes()).padStart(2,'0'); return Y+'-'+M+'-'+D+' '+h+':'+m; }
+
+// ===== 卧室 / 记忆系统 (Bedroom / Memory System) =====
+let bedroomStack = ['home'];
+let bedroomParams = {};
+let selectedMood = 'sun';
+let pickedMemCat = 'core';
+
+function dateKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function todayDateKey() { return dateKey(new Date()); }
+function moodEmoji(m) { return ({ sun: '☀️', 'cloud-sun': '🌤️', cloud: '⛅', rain: '🌧️', moon: '🌙' })[m] || '☀️'; }
+
+function openBedroom() {
+    closeSidebar();
+    bedroomStack = ['home'];
+    bedroomParams = {};
+    renderBedroom();
+    const ov = document.getElementById('bedroomOverlay');
+    if (ov) ov.classList.add('active');
+}
+function bedroomGo(view, params) {
+    bedroomStack.push(view);
+    bedroomParams = params || {};
+    renderBedroom();
+}
+function bedroomBack() {
+    if (bedroomStack.length > 1) { bedroomStack.pop(); renderBedroom(); }
+    else { const ov = document.getElementById('bedroomOverlay'); if (ov) ov.classList.remove('active'); }
+}
+
+function renderBedroom() {
+    ensureMemorySystem();
+    const view = bedroomStack[bedroomStack.length - 1];
+    const titleEl = document.getElementById('bedroomTitle');
+    const content = document.getElementById('bedroomContent');
+    const extraBtn = document.getElementById('bedroomExtraBtn');
+    if (!content) return;
+    let title = '卧室', html = '', showAdd = null;
+    if (view === 'home') { title = '卧室'; html = renderBedroomHeatmap() + renderBedroomGrid(); }
+    else if (view === 'diaryList') { title = '日记本'; html = renderDiaryList(); }
+    else if (view === 'diaryEdit') {
+        const d = state.memorySystem.diaries.find(x => x.date === (bedroomParams.date || todayDateKey()));
+        selectedMood = (d && d.mood) || 'sun';
+        title = '写日记'; html = renderDiaryEdit();
+    }
+    else if (view === 'diaryDetail') { title = '日记详情'; html = renderDiaryDetail(); }
+    else if (view === 'memoryHome') { title = '记忆宫殿'; html = renderMemoryHome(); showAdd = () => bedroomGo('memoryEdit', { category: 'core' }); }
+    else if (view === 'memoryList') {
+        const names = { core: '核心记忆', longterm: '长期记忆', shortterm: '短期记忆' };
+        title = names[bedroomParams.category] || '记忆列表'; html = renderMemoryList();
+        showAdd = () => bedroomGo('memoryEdit', { category: bedroomParams.category });
+    }
+    else if (view === 'memoryEdit') {
+        const existing = bedroomParams.id ? state.memorySystem.memories.find(m => m.id === bedroomParams.id) : null;
+        pickedMemCat = (existing && existing.category) || bedroomParams.category || 'core';
+        title = bedroomParams.id ? '编辑记忆' : '添加记忆'; html = renderMemoryEdit();
+    }
+    else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
+    else if (view === 'weeklyList') { title = '周记'; html = renderWeeklyList(); }
+    else if (view === 'weeklyEdit') { title = bedroomParams.id ? '编辑周记' : '新建周记'; html = renderWeeklyEdit(); }
+    else if (view === 'weeklyDetail') { title = '周记详情'; html = renderWeeklyDetail(); }
+    else if (view === 'cloudSync') { title = '云端同步'; html = renderCloudSync(); }
+    if (titleEl) titleEl.textContent = title;
+    content.innerHTML = html;
+    if (extraBtn) {
+        if (showAdd) { extraBtn.style.display = 'flex'; extraBtn.onclick = showAdd; }
+        else { extraBtn.style.display = 'none'; extraBtn.onclick = null; }
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderBedroomGrid() {
+    const dc = state.memorySystem.diaries.length, mc = state.memorySystem.memories.length, wc = state.memorySystem.weeklyReports.length;
+    const s = state.memorySystem.settings;
+    const syncStatus = s.supabaseUrl ? (s.lastSyncAt ? '已同步' : '待同步') : '未配置';
+    const items = [
+        { icon: '📔', name: '日记本', desc: dc + ' 篇日记', go: 'diaryList' },
+        { icon: '🏛️', name: '记忆宫殿', desc: mc + ' 条记忆', go: 'memoryHome' },
+        { icon: '📋', name: '周记', desc: wc + ' 篇', go: 'weeklyList' },
+        { icon: '☁️', name: '云端同步', desc: syncStatus, go: 'cloudSync' }
+    ];
+    return '<div class="room-grid bedroom-grid">' + items.map(it =>
+        '<div class="room-card" onclick="bedroomGo(\'' + it.go + '\',{})"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
+    ).join('') + '</div>';
+}
+
+function renderBedroomHeatmap() {
+    const dailyCount = {};
+    state.memorySystem.diaries.forEach(d => { dailyCount[d.date] = (dailyCount[d.date] || 0) + 1; });
+    state.memorySystem.memories.forEach(m => { const k = (m.createdAt || '').slice(0, 10); if (k) dailyCount[k] = (dailyCount[k] || 0) + 1; });
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const start = new Date(today); start.setMonth(start.getMonth() - 3); start.setDate(1);
+    const sd = start.getDay(); const off = sd === 0 ? 6 : sd - 1; start.setDate(start.getDate() - off);
+    const weeks = []; let cur = [];
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+        const key = dateKey(d); const count = dailyCount[key] || 0;
+        let level = 0; if (count > 0) level = 1; if (count >= 2) level = 2; if (count >= 4) level = 3; if (count >= 6) level = 4;
+        const dayIdx = d.getDay() === 0 ? 6 : d.getDay() - 1;
+        if (dayIdx === 0 && cur.length) { weeks.push(cur); cur = []; }
+        cur.push({ date: key, count, level, dayIdx, month: d.getMonth() + 1 });
+    }
+    if (cur.length) weeks.push(cur);
+    const monthLabels = []; const seen = new Set();
+    weeks.forEach((w, i) => { const m = w[0].month; if (!seen.has(m)) { seen.add(m); monthLabels.push({ col: i, month: m }); } });
+    let monthsHtml = '';
+    weeks.forEach((w, i) => { const f = monthLabels.find(x => x.col === i); monthsHtml += '<span class="month-label">' + (f ? f.month + '月' : '') + '</span>'; });
+    let weeksHtml = '';
+    weeks.forEach(w => {
+        weeksHtml += '<div class="stats-heatmap-week">';
+        for (let day = 0; day < 7; day++) {
+            const c = w.find(x => x.dayIdx === day);
+            if (c) weeksHtml += '<div class="heatmap-cell level-' + c.level + '" onclick="peekDay(\'' + c.date + '\')" title="' + c.date + ': ' + c.count + '条"></div>';
+            else weeksHtml += '<div class="heatmap-cell empty"></div>';
+        }
+        weeksHtml += '</div>';
+    });
+    return '<div class="stats-heatmap-card"><div class="stats-heatmap-title">记忆热力图</div>' +
+        '<div class="stats-heatmap-scroll"><div class="stats-heatmap-wrap">' +
+        '<div class="stats-heatmap-months">' + monthsHtml + '</div>' +
+        '<div class="stats-heatmap-body"><div class="stats-heatmap-labels"><span class="spacer">日</span><span>一</span><span class="spacer">二</span><span>三</span><span class="spacer">四</span><span>五</span><span class="spacer">日</span></div>' +
+        '<div class="stats-heatmap-weeks">' + weeksHtml + '</div></div></div></div>' +
+        '<div class="stats-heatmap-legend"><span>少</span><span class="heatmap-cell level-0"></span><span class="heatmap-cell level-1"></span><span class="heatmap-cell level-2"></span><span class="heatmap-cell level-3"></span><span class="heatmap-cell level-4"></span><span>多</span></div></div>';
+}
+function peekDay(dk) {
+    const items = [];
+    const d = state.memorySystem.diaries.find(x => x.date === dk);
+    if (d) items.push('📔 日记: ' + (d.userNote || '').slice(0, 50));
+    state.memorySystem.memories.filter(m => (m.createdAt || '').slice(0, 10) === dk).forEach(m => items.push('🏛️ ' + (m.summary || m.content.slice(0, 30))));
+    if (!items.length) { alert(dk + '：这天还没有记录'); return; }
+    alert(dk + '\n\n' + items.join('\n'));
+}
+
+// --- 日记本 ---
+function renderDiaryList() {
+    const todayKey = todayDateKey();
+    const today = state.memorySystem.diaries.find(d => d.date === todayKey);
+    let html = '';
+    if (today) {
+        html += '<div class="diary-today-card" onclick="bedroomGo(\'diaryDetail\',{date:\'' + todayKey + '\'})"><div class="diary-today-label">今日日记 ' + moodEmoji(today.mood) + '</div><div class="diary-today-preview">' + escapeHtml((today.userNote || '（还没写内容）').slice(0, 60)) + '</div></div>';
+    } else {
+        html += '<button class="btn-primary diary-write-btn" onclick="bedroomGo(\'diaryEdit\',{date:\'' + todayKey + '\'})">✍️ 写今日日记</button>';
+    }
+    const hist = state.memorySystem.diaries.filter(d => d.date !== todayKey).sort((a, b) => b.date.localeCompare(a.date));
+    html += '<div class="diary-history-list">' + (hist.length ? hist.map(d =>
+        '<div class="diary-history-item" onclick="bedroomGo(\'diaryDetail\',{date:\'' + d.date + '\'})"><span class="diary-history-mood">' + moodEmoji(d.mood) + '</span><div class="diary-history-body"><span class="diary-history-date">' + d.date + '</span><span class="diary-history-preview">' + escapeHtml((d.userNote || '').slice(0, 40)) + '</span></div></div>'
+    ).join('') : '<div class="bedroom-empty">还没有日记，开始写第一篇吧～</div>') + '</div>';
+    return html;
+}
+function renderDiaryEdit() {
+    const date = bedroomParams.date || todayDateKey();
+    const existing = state.memorySystem.diaries.find(d => d.date === date) || { date, mood: 'sun', userNote: '', aiNote: '' };
+    const moods = [{ k: 'sun', e: '☀️' }, { k: 'cloud-sun', e: '🌤️' }, { k: 'cloud', e: '⛅' }, { k: 'rain', e: '🌧️' }, { k: 'moon', e: '🌙' }];
+    return '<div class="diary-edit-date">' + date + '</div>' +
+        '<div class="mood-picker">' + moods.map(m => '<button class="mood-btn' + (selectedMood === m.k ? ' active' : '') + '" onclick="selectMood(\'' + m.k + '\')" data-mood="' + m.k + '">' + m.e + '</button>').join('') + '</div>' +
+        '<div class="form-group"><label>我的记录</label><textarea id="diaryUserNote" rows="4" placeholder="今天发生了什么...">' + escapeHtml(existing.userNote || '') + '</textarea></div>' +
+        '<div class="form-group"><label>晏晏的话</label><textarea id="diaryAiNote" rows="4" placeholder="ta想对你说...">' + escapeHtml(existing.aiNote || '') + '</textarea></div>' +
+        '<button class="btn-primary bedroom-save-btn" onclick="saveDiary(\'' + date + '\')">保存</button>';
+}
+function selectMood(m) { selectedMood = m; document.querySelectorAll('.mood-btn').forEach(b => b.classList.toggle('active', b.dataset.mood === m)); }
+function saveDiary(date) {
+    ensureMemorySystem();
+    const userNote = document.getElementById('diaryUserNote').value.trim();
+    const aiNote = document.getElementById('diaryAiNote').value.trim();
+    let d = state.memorySystem.diaries.find(x => x.date === date);
+    if (!d) { d = { date, createdAt: new Date().toISOString() }; state.memorySystem.diaries.push(d); }
+    d.mood = selectedMood; d.userNote = userNote; d.aiNote = aiNote; d.updatedAt = new Date().toISOString();
+    saveState();
+    bedroomStack = ['home', 'diaryList']; bedroomParams = {}; renderBedroom();
+}
+function renderDiaryDetail() {
+    const date = bedroomParams.date;
+    const d = state.memorySystem.diaries.find(x => x.date === date);
+    if (!d) return '<div class="bedroom-empty">日记不存在</div>';
+    return '<div class="diary-detail-date">' + date + ' ' + moodEmoji(d.mood) + '</div>' +
+        '<div class="diary-detail-section"><div class="diary-detail-label">我的记录</div><div class="diary-detail-text">' + escapeHtml(d.userNote || '（空）') + '</div></div>' +
+        '<div class="diary-detail-section"><div class="diary-detail-label">晏晏的话</div><div class="diary-detail-text">' + escapeHtml(d.aiNote || '（空）') + '</div></div>' +
+        '<div class="bedroom-detail-actions"><button class="btn-secondary" onclick="bedroomGo(\'diaryEdit\',{date:\'' + date + '\'})">编辑</button><button class="btn-danger" onclick="deleteDiary(\'' + date + '\')">删除</button></div>';
+}
+function deleteDiary(date) {
+    if (!confirm('确定删除这篇日记吗？')) return;
+    state.memorySystem.diaries = state.memorySystem.diaries.filter(x => x.date !== date);
+    saveState(); bedroomBack();
+}
+
+// --- 记忆宫殿 ---
+function renderMemoryHome() {
+    const cats = [{ k: 'core', icon: '💎', name: '核心记忆' }, { k: 'longterm', icon: '📚', name: '长期记忆' }, { k: 'shortterm', icon: '🌿', name: '短期记忆' }];
+    return '<div class="memory-cat-list">' + cats.map(c => {
+        const n = state.memorySystem.memories.filter(m => m.category === c.k).length;
+        return '<div class="memory-cat-card" onclick="bedroomGo(\'memoryList\',{category:\'' + c.k + '\'})"><div class="memory-cat-icon">' + c.icon + '</div><div class="memory-cat-info"><span class="memory-cat-name">' + c.name + '</span><span class="memory-cat-count">' + n + ' 条</span></div><i data-lucide="chevron-right"></i></div>';
+    }).join('') + '</div>';
+}
+function renderMemoryList() {
+    const cat = bedroomParams.category;
+    const items = state.memorySystem.memories.filter(m => m.category === cat).sort((a, b) => (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt));
+    if (!items.length) return '<div class="bedroom-empty">还没有记忆，点右上角 + 添加吧～</div>';
+    return '<div class="memory-item-list">' + items.map(m =>
+        '<div class="memory-item" onclick="bedroomGo(\'memoryDetail\',{id:\'' + m.id + '\'})"><div class="memory-item-summary">' + escapeHtml(m.summary || m.content.slice(0, 30)) + '</div><div class="memory-item-meta"><span>' + formatMsgTime(m.createdAt) + '</span>' + (m.tags && m.tags.length ? '<span class="memory-item-tags">' + m.tags.map(t => '#' + escapeHtml(t)).join(' ') + '</span>' : '') + '</div></div>'
+    ).join('') + '</div>';
+}
+function renderMemoryEdit() {
+    const id = bedroomParams.id;
+    const existing = id ? state.memorySystem.memories.find(m => m.id === id) : null;
+    return '<div class="form-group"><label>内容</label><textarea id="memContent" rows="5" placeholder="记录内容...">' + escapeHtml(existing ? existing.content : '') + '</textarea></div>' +
+        '<div class="form-group"><label>摘要</label><input type="text" id="memSummary" placeholder="一句话摘要" value="' + escapeHtml(existing ? (existing.summary || '') : '') + '"></div>' +
+        '<div class="form-group"><label>分类</label><div class="segmented-control" id="memCatPicker">' +
+        ['core', 'longterm', 'shortterm'].map(k => '<button class="segmented-btn' + (pickedMemCat === k ? ' active' : '') + '" data-cat="' + k + '" onclick="pickMemCat(\'' + k + '\')">' + ({ core: '💎核心', longterm: '📚长期', shortterm: '🌿短期' })[k] + '</button>').join('') +
+        '</div></div>' +
+        '<div class="form-group"><label>标签（逗号分隔）</label><input type="text" id="memTags" placeholder="标签1, 标签2" value="' + escapeHtml(existing && existing.tags ? existing.tags.join(', ') : '') + '"></div>' +
+        '<button class="btn-primary bedroom-save-btn" onclick="saveMemory(\'' + (id || '') + '\')">保存</button>';
+}
+function pickMemCat(k) { pickedMemCat = k; document.querySelectorAll('#memCatPicker .segmented-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === k)); }
+function saveMemory(id) {
+    ensureMemorySystem();
+    const content = document.getElementById('memContent').value.trim();
+    if (!content) { alert('内容不能为空'); return; }
+    const summary = document.getElementById('memSummary').value.trim();
+    const tags = document.getElementById('memTags').value.split(',').map(t => t.trim()).filter(Boolean);
+    let m = id ? state.memorySystem.memories.find(x => x.id === id) : null;
+    if (!m) { m = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6), createdAt: new Date().toISOString(), source: 'manual' }; state.memorySystem.memories.push(m); }
+    m.content = content; m.summary = summary; m.category = pickedMemCat; m.tags = tags; m.updatedAt = new Date().toISOString();
+    saveState();
+    bedroomStack = ['home', 'memoryHome', 'memoryList']; bedroomParams = { category: m.category }; renderBedroom();
+}
+function renderMemoryDetail() {
+    const m = state.memorySystem.memories.find(x => x.id === bedroomParams.id);
+    if (!m) return '<div class="bedroom-empty">记忆不存在</div>';
+    const catNames = { core: '💎 核心记忆', longterm: '📚 长期记忆', shortterm: '🌿 短期记忆' };
+    return '<div class="memory-detail-cat">' + catNames[m.category] + '</div>' +
+        '<div class="memory-detail-text">' + escapeHtml(m.content) + '</div>' +
+        (m.tags && m.tags.length ? '<div class="memory-detail-tags">' + m.tags.map(t => '<span class="placeholder-tag">#' + escapeHtml(t) + '</span>').join(' ') + '</div>' : '') +
+        '<div class="memory-detail-time">创建于 ' + formatMsgTime(m.createdAt) + (m.updatedAt && m.updatedAt !== m.createdAt ? ' · 更新于 ' + formatMsgTime(m.updatedAt) : '') + '</div>' +
+        '<div class="bedroom-detail-actions"><button class="btn-secondary" onclick="bedroomGo(\'memoryEdit\',{id:\'' + m.id + '\'})">编辑</button><button class="btn-danger" onclick="deleteMemory(\'' + m.id + '\')">删除</button></div>';
+}
+function deleteMemory(id) {
+    if (!confirm('确定删除这条记忆吗？')) return;
+    const m = state.memorySystem.memories.find(x => x.id === id);
+    state.memorySystem.memories = state.memorySystem.memories.filter(x => x.id !== id);
+    saveState();
+    bedroomStack = ['home', 'memoryHome', 'memoryList']; bedroomParams = { category: m ? m.category : 'core' }; renderBedroom();
+}
+
+// --- 周记 ---
+function renderWeeklyList() {
+    const list = state.memorySystem.weeklyReports.slice().sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+    let html = '<button class="btn-primary diary-write-btn" onclick="bedroomGo(\'weeklyEdit\',{})">✍️ 新建本周周记</button>';
+    html += '<div class="diary-history-list">' + (list.length ? list.map(w =>
+        '<div class="diary-history-item" onclick="bedroomGo(\'weeklyDetail\',{id:\'' + w.id + '\'})"><span class="diary-history-mood">📋</span><div class="diary-history-body"><span class="diary-history-date">' + w.weekStart + ' ~ ' + w.weekEnd + '</span><span class="diary-history-preview">' + escapeHtml((w.summary || '').slice(0, 40)) + '</span></div></div>'
+    ).join('') : '<div class="bedroom-empty">还没有周记</div>') + '</div>';
+    return html;
+}
+function renderWeeklyEdit() {
+    const id = bedroomParams.id;
+    const existing = id ? state.memorySystem.weeklyReports.find(w => w.id === id) : null;
+    const now = new Date(); const day = now.getDay() || 7; const monday = new Date(now); monday.setDate(now.getDate() - day + 1); const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const ws = existing ? existing.weekStart : dateKey(monday);
+    const we = existing ? existing.weekEnd : dateKey(sunday);
+    return '<div class="diary-edit-date">' + ws + ' ~ ' + we + '</div>' +
+        '<div class="form-group"><label>本周聊了什么</label><textarea id="weekSummary" rows="3">' + escapeHtml(existing ? (existing.summary || '') : '') + '</textarea></div>' +
+        '<div class="form-group"><label>重要事件（每行一条）</label><textarea id="weekHighlights" rows="3">' + escapeHtml(existing && existing.highlights ? existing.highlights.join('\n') : '') + '</textarea></div>' +
+        '<div class="form-group"><label>心情变化</label><textarea id="weekMood" rows="2">' + escapeHtml(existing ? (existing.moodChange || '') : '') + '</textarea></div>' +
+        '<div class="form-group"><label>晏晏寄语</label><textarea id="weekAiWords" rows="2">' + escapeHtml(existing ? (existing.aiWords || '') : '') + '</textarea></div>' +
+        '<input type="hidden" id="weekStartHidden" value="' + ws + '"><input type="hidden" id="weekEndHidden" value="' + we + '">' +
+        '<button class="btn-primary bedroom-save-btn" onclick="saveWeekly(\'' + (id || '') + '\')">保存</button>';
+}
+function saveWeekly(id) {
+    ensureMemorySystem();
+    let w = id ? state.memorySystem.weeklyReports.find(x => x.id === id) : null;
+    if (!w) { w = { id: 'w' + Date.now(), createdAt: new Date().toISOString(), weekStart: document.getElementById('weekStartHidden').value, weekEnd: document.getElementById('weekEndHidden').value }; state.memorySystem.weeklyReports.push(w); }
+    w.summary = document.getElementById('weekSummary').value.trim();
+    w.highlights = document.getElementById('weekHighlights').value.split('\n').map(s => s.trim()).filter(Boolean);
+    w.moodChange = document.getElementById('weekMood').value.trim();
+    w.aiWords = document.getElementById('weekAiWords').value.trim();
+    saveState();
+    bedroomStack = ['home', 'weeklyList']; bedroomParams = {}; renderBedroom();
+}
+function renderWeeklyDetail() {
+    const w = state.memorySystem.weeklyReports.find(x => x.id === bedroomParams.id);
+    if (!w) return '<div class="bedroom-empty">周记不存在</div>';
+    return '<div class="diary-detail-date">' + w.weekStart + ' ~ ' + w.weekEnd + '</div>' +
+        '<div class="diary-detail-section"><div class="diary-detail-label">本周聊了什么</div><div class="diary-detail-text">' + escapeHtml(w.summary || '（空）') + '</div></div>' +
+        '<div class="diary-detail-section"><div class="diary-detail-label">重要事件</div><div class="diary-detail-text">' + (w.highlights && w.highlights.length ? w.highlights.map(h => '• ' + escapeHtml(h)).join('<br>') : '（空）') + '</div></div>' +
+        '<div class="diary-detail-section"><div class="diary-detail-label">心情变化</div><div class="diary-detail-text">' + escapeHtml(w.moodChange || '（空）') + '</div></div>' +
+        '<div class="diary-detail-section"><div class="diary-detail-label">晏晏寄语</div><div class="diary-detail-text">' + escapeHtml(w.aiWords || '（空）') + '</div></div>' +
+        '<div class="bedroom-detail-actions"><button class="btn-secondary" onclick="bedroomGo(\'weeklyEdit\',{id:\'' + w.id + '\'})">编辑</button><button class="btn-danger" onclick="deleteWeekly(\'' + w.id + '\')">删除</button></div>';
+}
+function deleteWeekly(id) {
+    if (!confirm('确定删除这篇周记吗？')) return;
+    state.memorySystem.weeklyReports = state.memorySystem.weeklyReports.filter(x => x.id !== id);
+    saveState(); bedroomBack();
+}
+
+// --- 云端同步 ---
+function renderCloudSync() {
+    const s = state.memorySystem.settings;
+    const status = s.supabaseUrl && s.supabaseKey ? (s.lastSyncAt ? '已连接' : '已配置，未同步') : '未配置';
+    return '<div class="settings-list-card">' +
+        '<div class="settings-row"><span class="settings-row-label">连接状态</span><span class="settings-row-value">' + status + '</span></div>' +
+        '<div class="settings-row"><span class="settings-row-label">上次同步</span><span class="settings-row-value">' + (s.lastSyncAt ? formatMsgTime(s.lastSyncAt) : '从未同步') + '</span></div>' +
+        '</div>' +
+        '<div class="form-group" style="margin-top:14px;"><label>Supabase URL</label><input type="text" id="csUrl" placeholder="https://xxx.supabase.co" value="' + escapeHtml(s.supabaseUrl || '') + '"></div>' +
+        '<div class="form-group"><label>Supabase Key</label><input type="password" id="csKey" placeholder="anon key" value="' + escapeHtml(s.supabaseKey || '') + '"></div>' +
+        '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="saveCloudSyncConfig()">保存配置</button>' +
+        '<button class="btn-primary bedroom-save-btn" onclick="manualSync()">立即同步</button>';
+}
+function saveCloudSyncConfig() {
+    ensureMemorySystem();
+    state.memorySystem.settings.supabaseUrl = document.getElementById('csUrl').value.trim();
+    state.memorySystem.settings.supabaseKey = document.getElementById('csKey').value.trim();
+    saveState(); alert('已保存配置');
+}
+async function manualSync() {
+    ensureMemorySystem();
+    const s = state.memorySystem.settings;
+    if (!s.supabaseUrl || !s.supabaseKey) { alert('请先配置 Supabase URL 和 Key'); return; }
+    // TODO: 实际同步逻辑待实现 —— 将 memories / diaries / weeklyReports 上传到对应 Supabase 表，并做增量合并
+    alert('同步功能开发中，配置已保存，后续将自动同步～');
+    s.lastSyncAt = new Date().toISOString();
+    saveState(); renderBedroom();
+}
 
 document.addEventListener('DOMContentLoaded', init);
