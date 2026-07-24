@@ -14,6 +14,9 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css">
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/contrib/auto-render.min.js"></script>
 </head>
 <body>
     <div class="app">
@@ -39,6 +42,7 @@
             <div class="chat-list" id="chatList"></div>
             <div class="sidebar-footer">
                 <button class="nav-icon-btn" id="openStats"><i data-lucide="bar-chart-3"></i><span>统计</span></button>
+                <button class="nav-icon-btn nav-icon-btn-home" id="sidebarBackToHome"><i data-lucide="home"></i><span>小家</span></button>
                 <button class="nav-icon-btn" id="editAiAssistant"><i data-lucide="bot"></i><span>助手</span></button>
             </div>
         </aside>
@@ -53,12 +57,21 @@
                 <div class="home-header-right"></div>
             </div>
             <div class="home-content">
-                <div class="home-greeting" id="homeGreeting">
-                    <div class="greeting-top">
-                        <span class="greeting-emoji">🌿</span>
-                        <span class="greeting-text">欢迎回家</span>
+                <div class="love-record-card" id="homeGreeting">
+                    <div class="love-record-eyebrow">🌿 小小恋爱记录</div>
+                    <div class="love-record-names"><span id="loveNameUser">郑郑</span><span class="love-record-amp">&amp;</span><span id="loveNameAi">晏晏</span></div>
+                    <div class="love-record-days" id="greetingDays">0</div>
+                    <div class="love-record-days-label">已经在一起的日子</div>
+                    <div class="love-record-avatars">
+                        <div class="love-record-avatar" id="loveAvatarUser">🌙</div>
+                        <i data-lucide="heart" class="love-record-heart"></i>
+                        <div class="love-record-avatar" id="loveAvatarAi">✦</div>
                     </div>
-                    <div class="greeting-days" id="greetingDays">已经在一起 0 天</div>
+                    <div class="love-record-since">since 2026.06.21</div>
+                </div>
+                <div class="message-card">
+                    <div class="message-card-title"><i data-lucide="heart-handshake"></i> ta的留言</div>
+                    <div class="message-card-text" id="taMessageText">今天也要元气满满地开始呀～</div>
                 </div>
                 <button class="chat-entry-bar" id="chatEntryBar">
                     <span>💬 和晏晏聊天...</span>
@@ -114,8 +127,7 @@
         <main class="chat-main" id="chatMain" style="display:none;">
             <div class="lace-top-decoration"></div>
             <header class="chat-header">
-                <button class="btn-icon" id="backToHome" title="回到小家"><i data-lucide="home"></i></button>
-                <button class="btn-icon" id="openSidebar" title="侧边栏"><i data-lucide="menu"></i></button>
+                <button class="btn-icon" id="openSidebar" title="侧边栏"><i data-lucide="chevron-left"></i></button>
                 <div class="chat-title">
                     <span id="currentChatTitle">新对话</span>
                     <span class="model-badge" id="modelBadge">未配置模型</span>
@@ -151,15 +163,19 @@
                     <div class="sticker-panel" id="stickerPanel"></div>
                 </div>
 
-                <div class="input-wrapper">
-                    <button class="btn-input-icon" id="voiceBtn" title="语音输入"><i data-lucide="mic"></i></button>
-                    <textarea id="messageInput" placeholder="和ta说点什么..." rows="1"></textarea>
-                    <button class="btn-input-icon" id="expandInput" title="全屏输入"><i data-lucide="maximize"></i></button>
-                    <button class="btn-send" id="sendBtn" disabled><i data-lucide="corner-right-up"></i></button>
-                </div>
-                <div class="plus-btn-row">
-                    <button class="toolbar-btn" id="plusBtn" title="更多"><i data-lucide="menu"></i></button>
-                    <button class="toolbar-btn" id="uploadBtn" title="上传"><i data-lucide="plus"></i></button>
+                <div class="input-card">
+                    <div class="input-card-top">
+                        <textarea id="messageInput" placeholder="和ta说点什么..." rows="1"></textarea>
+                        <button class="btn-input-icon" id="expandInput" title="全屏输入"><i data-lucide="maximize-2"></i></button>
+                    </div>
+                    <div class="input-card-toolbar">
+                        <div class="input-card-toolbar-left">
+                            <button class="toolbar-btn" id="plusBtn" title="更多"><i data-lucide="sparkles"></i></button>
+                            <button class="toolbar-btn" id="uploadBtn" title="上传"><i data-lucide="plus"></i></button>
+                            <button class="toolbar-btn" id="voiceBtn" title="语音输入"><i data-lucide="mic"></i></button>
+                        </div>
+                        <button class="btn-send" id="sendBtn" disabled><i data-lucide="corner-right-up"></i></button>
+                    </div>
                 </div>
 
                 <div class="input-popup upload-menu" id="uploadMenu">

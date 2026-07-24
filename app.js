@@ -10,7 +10,7 @@ let state = {
         contextCount: 20,
         temperature: 0.7,
         maxTokens: 4096,
-        theme: 'light',
+        theme: 'system',
         fontSize: 15,
         aiName: 'AI',
         aiAvatar: '',
@@ -20,7 +20,20 @@ let state = {
         regexRules: [],
         cachedModels: [],
         webSearch: false,
-        mcp: false
+        mcp: false,
+        fontFamily: 'default',
+        inputBgColor: '',
+        sidebarBgColor: '',
+        showTokenUsage: true,
+        showThinking: true,
+        autoCollapseThinking: false,
+        renderMath: false,
+        taMessages: {},
+        plugins: {
+            webSearchPlugin: true,
+            voiceInput: true,
+            stickerPanel: true
+        }
     },
     isStreaming: false
 };
@@ -36,9 +49,13 @@ function init() {
     setupEventListeners();
     applyTheme();
     applyFontSize();
+    applyFontFamily();
+    applyCustomColors();
     applyWallpaper();
+    if (window.matchMedia) { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state.settings.theme === 'system') applyTheme(); }); }
     applyUserAvatar();
     applyUserName();
+    applyAiIdentity();
     buildStickerPanel();
     if (state.chats.length === 0) createNewChat();
     else switchChat(state.currentChatId || state.chats[0].id);
@@ -57,10 +74,14 @@ function loadState() {
             parsed.activeProviderId = parsed.providers[0].id;
             delete parsed.settings.providerName; delete parsed.settings.apiBase; delete parsed.settings.apiKey;
         }
+        const defaultSettings = state.settings;
         state = { ...state, ...parsed };
+        state.settings = { ...defaultSettings, ...(parsed.settings || {}) };
+        state.settings.plugins = { ...defaultSettings.plugins, ...((parsed.settings && parsed.settings.plugins) || {}) };
         if (!state.providers) state.providers = [];
         if (!state.settings.regexRules) state.settings.regexRules = [];
         if (!state.settings.cachedModels) state.settings.cachedModels = [];
+        if (!state.settings.taMessages) state.settings.taMessages = {};
     }
 }
 
@@ -113,6 +134,9 @@ function renderMessages() {
     container.innerHTML = html;
     scrollToBottom();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (state.settings.renderMath && typeof renderMathInElement !== 'undefined') {
+        try { renderMathInElement(container, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}], throwOnError: false }); } catch(e) {}
+    }
 }
 
 function renderSingleMessage(msg, idx) {
@@ -123,7 +147,15 @@ function renderSingleMessage(msg, idx) {
     if (!isUser && mainContent.includes(thinkOpen)) {
         const s = mainContent.indexOf(thinkOpen) + thinkOpen.length;
         const e = mainContent.indexOf(thinkClose);
-        if (e > s) { const t = mainContent.substring(s, e).trim(); thinkingHtml = '<div class="thinking-block"><div class="thinking-header" onclick="toggleThinking(this)"><i data-lucide="chevron-right"></i><span>Thinking</span></div><div class="thinking-content">' + escapeHtml(t) + '</div></div>'; mainContent = mainContent.substring(0, mainContent.indexOf(thinkOpen)) + mainContent.substring(e + thinkClose.length); mainContent = mainContent.trim(); }
+        if (e > s) {
+            const t = mainContent.substring(s, e).trim();
+            if (state.settings.showThinking !== false) {
+                const expanded = state.settings.autoCollapseThinking ? '' : ' expanded';
+                const show = state.settings.autoCollapseThinking ? '' : ' show';
+                thinkingHtml = '<div class="thinking-block"><div class="thinking-header' + expanded + '" onclick="toggleThinking(this)"><i data-lucide="chevron-right"></i><span>Thinking</span></div><div class="thinking-content' + show + '">' + escapeHtml(t) + '</div></div>';
+            }
+            mainContent = mainContent.substring(0, mainContent.indexOf(thinkOpen)) + mainContent.substring(e + thinkClose.length); mainContent = mainContent.trim();
+        }
     }
     const rendered = isUser ? escapeHtml(mainContent).replace(/\n/g, '<br>') : renderMarkdown(mainContent);
     const aiName = state.settings.aiName || 'AI';
@@ -134,7 +166,7 @@ function renderSingleMessage(msg, idx) {
         return '<div class="message user"><div class="message-avatar">' + userAvatarHtml + '</div><div class="message-content-wrap"><div class="message-meta user-meta-row"><span class="message-time">' + time + '</span></div><div class="message-bubble">' + rendered + '</div>' + actions + '</div></div>';
     }
     let tokenHtml = '';
-    if (msg.usage) {
+    if (msg.usage && state.settings.showTokenUsage !== false) {
         const parts = [];
         if (msg.usage.prompt_tokens != null) parts.push('输入 ' + msg.usage.prompt_tokens);
         if (msg.usage.completion_tokens != null) parts.push('输出 ' + msg.usage.completion_tokens + ' tokens');
@@ -230,14 +262,81 @@ function renderSettingsView() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+const PLUGIN_DEFS = [
+    { id: 'webSearchPlugin', name: '联网搜索', desc: '让助手可以搜索实时信息' },
+    { id: 'voiceInput', name: '语音输入', desc: '使用麦克风将语音转成文字' },
+    { id: 'stickerPanel', name: '表情面板', desc: '发送消息时插入可爱表情' }
+];
+
 function renderMainSettings() {
-    let cards = state.providers.map(p => { const active = p.id === state.activeProviderId; return '<div class="provider-card' + (active ? ' active' : '') + '"><div class="provider-card-left"><div class="provider-card-icon"><i data-lucide="cloud"></i></div><div class="provider-card-info"><div class="provider-card-name">' + escapeHtml(p.name) + '</div><div class="provider-card-url">' + escapeHtml(p.apiBase || '未配置') + '</div></div></div><div class="provider-card-actions"><button onclick="event.stopPropagation();setActiveProvider(\'' + p.id + '\')" title="设为当前"><i data-lucide="' + (active ? 'check-circle' : 'circle') + '"></i></button><button onclick="event.stopPropagation();editProvider(\'' + p.id + '\')" title="编辑"><i data-lucide="pencil"></i></button><button onclick="event.stopPropagation();deleteProvider(\'' + p.id + '\')" title="删除"><i data-lucide="trash-2"></i></button></div></div>'; }).join('');
+    return '<div class="settings-module">' + renderGeneralModule() + '</div>' +
+           '<div class="settings-module">' + renderModelModule() + '</div>' +
+           '<div class="settings-module">' + renderDataModule() + '</div>';
+}
+
+function renderGeneralModule() {
+    const theme = state.settings.theme || 'system';
+    const modeBtn = (v, label) => '<button class="segmented-btn' + (theme === v ? ' active' : '') + '" data-theme-mode="' + v + '">' + label + '</button>';
+    const fontOpts = [['default','默认'],['rounded','圆体'],['handwriting','手写体'],['mono','等宽']].map(([v,l]) => '<option value="' + v + '"' + (state.settings.fontFamily === v ? ' selected' : '') + '>' + l + '</option>').join('');
+    const pluginCards = PLUGIN_DEFS.map(p => {
+        const on = state.settings.plugins && state.settings.plugins[p.id] !== false;
+        return '<div class="plugin-card"><div class="plugin-card-info"><div class="plugin-card-name">' + p.name + '</div><div class="plugin-card-desc">' + p.desc + '</div></div><label class="switch"><input type="checkbox" class="plugin-toggle" data-plugin="' + p.id + '"' + (on ? ' checked' : '') + '><span class="switch-slider"></span></label></div>';
+    }).join('');
+    return '<div class="settings-module-title">通用设置</div>' +
+    '<div class="settings-list-card">' +
+      '<div class="settings-row"><span class="settings-row-label">颜色模式</span><div class="segmented-control">' + modeBtn('system','跟随系统') + modeBtn('light','浅色') + modeBtn('dark','深色') + '</div></div>' +
+    '</div>' +
+    '<div class="settings-list-card-title">显示管理</div>' +
+    '<div class="settings-list-card">' +
+      '<div class="settings-row settings-row-click" id="rowWallpaper"><span class="settings-row-label">自定义壁纸</span><span class="settings-row-value">' + (state.settings.wallpaper ? '已设置' : '未设置') + ' <i data-lucide="chevron-right"></i></span></div>' +
+      '<input type="file" id="wallpaperInput" accept="image/*" hidden>' +
+      '<div class="settings-row"><span class="settings-row-label">输入框背景色</span><input type="color" id="inputBgColorPicker" class="color-picker" value="' + (state.settings.inputBgColor || '#FCF2E6') + '"></div>' +
+      '<div class="settings-row"><span class="settings-row-label">侧边栏背景色</span><input type="color" id="sidebarBgColorPicker" class="color-picker" value="' + (state.settings.sidebarBgColor || '#FFFFFF') + '"></div>' +
+      '<div class="settings-row"><span class="settings-row-label">自定义字体</span><select id="fontFamilySelect" class="settings-select">' + fontOpts + '</select></div>' +
+      '<div class="settings-row"><span class="settings-row-label">字体大小: <span id="fontSizeDisplay">' + getFontSizeLabel(state.settings.fontSize) + '</span></span></div>' +
+      '<div class="settings-row"><input type="range" id="fontSize" min="12" max="20" value="' + (state.settings.fontSize || 15) + '" style="width:100%;"></div>' +
+    '</div>' +
+    '<div class="settings-list-card-title">消息显示</div>' +
+    '<div class="settings-list-card">' +
+      toggleRow('showTokenUsage', '显示token用量和上下文消息统计', state.settings.showTokenUsage !== false) +
+      toggleRow('showThinking', '显示思考内容（默认展开并显示）', state.settings.showThinking !== false) +
+      toggleRow('autoCollapseThinking', '自动折叠思考（思考完成后自动折叠）', !!state.settings.autoCollapseThinking) +
+      toggleRow('renderMath', '渲染数学表达式或公式', !!state.settings.renderMath) +
+    '</div>' +
+    '<div class="settings-list-card-title">插件管理</div>' +
+    '<div class="plugin-list">' + pluginCards + '</div>';
+}
+
+function toggleRow(key, label, checked) {
+    return '<div class="settings-row"><span class="settings-row-label">' + label + '</span><label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="' + key + '"' + (checked ? ' checked' : '') + '><span class="switch-slider"></span></label></div>';
+}
+
+function renderModelModule() {
+    let cards = state.providers.map(p => {
+        const active = p.id === state.activeProviderId;
+        const configured = !!(p.apiBase && p.apiKey);
+        return '<div class="provider-card' + (active ? ' active' : '') + '" onclick="setActiveProvider(\'' + p.id + '\')"><div class="provider-card-left"><div class="provider-card-icon"><i data-lucide="cloud"></i></div><div class="provider-card-info"><div class="provider-card-name">' + escapeHtml(p.name) + (active ? ' <span class="provider-active-tag">当前</span>' : '') + '</div><div class="provider-card-url"><span class="provider-status-dot ' + (configured ? 'ok' : 'off') + '"></span>' + escapeHtml(p.apiBase || '未配置') + '</div></div></div><div class="provider-card-actions"><button onclick="event.stopPropagation();editProvider(\'' + p.id + '\')" title="编辑"><i data-lucide="pencil"></i></button><button onclick="event.stopPropagation();deleteProvider(\'' + p.id + '\')" title="删除"><i data-lucide="trash-2"></i></button></div></div>';
+    }).join('');
     cards += '<div class="add-provider-btn" onclick="addNewProvider()"><i data-lucide="plus"></i> 添加供应商</div>';
-    let model = '<section class="settings-section"><h3><i data-lucide="cpu" class="section-icon"></i>模型选择</h3><div class="form-group"><button class="btn-secondary" id="fetchModelsBtn"><i data-lucide="refresh-cw" style="width:13px;height:13px;margin-right:4px;"></i>获取模型列表</button></div><div class="form-group"><label>当前模型</label><input type="text" id="modelInput" placeholder="输入或选择模型名称" value="' + escapeHtml(state.settings.model || '') + '"><input type="text" class="model-search-input" id="modelSearchInput" placeholder="🔍 搜索模型..." style="display:none;"><div class="model-list" id="modelList" style="display:none;"></div></div></section>';
-    let wp = '<section class="settings-section"><h3><i data-lucide="palette" class="section-icon"></i>外观设置</h3><div class="form-group"><label>颜色模式</label><select id="themeMode"><option value="light"' + (state.settings.theme === 'light' ? ' selected' : '') + '>浅色</option><option value="dark"' + (state.settings.theme === 'dark' ? ' selected' : '') + '>深色</option></select></div><div class="form-group"><label>字体大小: <span id="fontSizeDisplay">' + getFontSizeLabel(state.settings.fontSize) + '</span></label><input type="range" id="fontSize" min="12" max="20" value="' + (state.settings.fontSize || 15) + '"></div><div class="form-group"><label>聊天壁纸</label><div class="wallpaper-preview-grid"><div class="wallpaper-option wallpaper-option-none' + (!state.settings.wallpaper ? ' active' : '') + '" onclick="setWallpaper(\'\')">默认格子</div>' + (state.settings.wallpaper ? '<div class="wallpaper-option wallpaper-option-custom active" style="background-image:url(' + state.settings.wallpaper + ');background-size:cover;background-position:center;"></div>' : '') + '<div class="wallpaper-custom-upload" onclick="uploadWallpaper()">+</div></div><input type="file" id="wallpaperInput" accept="image/*" hidden></div></section>';
-    let appear = wp;
-    let data = '<section class="settings-section"><h3><i data-lucide="database" class="section-icon"></i>数据管理</h3><div class="form-group"><button class="btn-secondary" onclick="exportData()" style="margin-right:8px;"><i data-lucide="download" style="width:13px;height:13px;margin-right:4px;"></i>导出数据</button><button class="btn-secondary" onclick="document.getElementById(\'importFileInput\').click()"><i data-lucide="upload" style="width:13px;height:13px;margin-right:4px;"></i>导入数据</button><input type="file" id="importFileInput" accept=".json" hidden></div></section>';
-    return '<section class="settings-section"><h3><i data-lucide="cloud" class="section-icon"></i>供应商管理</h3>' + cards + '</section>' + model + appear + data;
+    return '<div class="settings-module-title">模型设置与服务</div>' +
+    '<div class="settings-list-card-title">系统提示词</div>' +
+    '<div class="settings-list-card"><div class="form-group" style="margin-bottom:0;"><textarea id="globalSystemPrompt" class="system-prompt-textarea" rows="6" placeholder="设定AI的人设...">' + escapeHtml(state.settings.systemPrompt || '') + '</textarea></div></div>' +
+    '<div class="settings-list-card-title">供应商管理</div>' +
+    '<div class="settings-list-card provider-list-card">' + cards + '</div>' +
+    '<div class="settings-list-card-title">模型选择</div>' +
+    '<div class="settings-list-card"><div class="form-group"><button class="btn-secondary" id="fetchModelsBtn"><i data-lucide="refresh-cw" style="width:13px;height:13px;margin-right:4px;"></i>获取模型列表</button></div><div class="form-group" style="margin-bottom:0;"><label>当前模型</label><input type="text" id="modelInput" placeholder="输入或选择模型名称" value="' + escapeHtml(state.settings.model || '') + '"><input type="text" class="model-search-input" id="modelSearchInput" placeholder="🔍 搜索模型..." style="display:none;"><div class="model-list" id="modelList" style="display:none;"></div></div></div>' +
+    '<div class="settings-placeholder-row"><span>MCP配置</span><span class="placeholder-tag">敬请期待</span></div>' +
+    '<div class="settings-placeholder-row"><span>系统工具</span><span class="placeholder-tag">敬请期待</span></div>' +
+    '<div class="settings-placeholder-row"><span>工作流</span><span class="placeholder-tag">敬请期待</span></div>';
+}
+
+function renderDataModule() {
+    return '<div class="settings-module-title">数据设置</div>' +
+    '<div class="settings-list-card">' +
+      '<div class="settings-row settings-row-click" onclick="exportData()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>数据导出</span><i data-lucide="chevron-right"></i></div>' +
+      '<div class="settings-row settings-row-click" onclick="document.getElementById(\'importFileInput\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>数据导入</span><i data-lucide="chevron-right"></i></div>' +
+      '<input type="file" id="importFileInput" accept=".json" hidden>' +
+    '</div>';
 }
 
 function renderProviderDetail(provider) {
@@ -246,11 +345,23 @@ function renderProviderDetail(provider) {
 }
 
 function bindMainSettingsEvents() {
-    const f = document.getElementById('fontSize'); if(f) f.addEventListener('input', e => { document.getElementById('fontSizeDisplay').textContent = getFontSizeLabel(parseInt(e.target.value)); });
+    const f = document.getElementById('fontSize'); if(f) f.addEventListener('input', e => { document.getElementById('fontSizeDisplay').textContent = getFontSizeLabel(parseInt(e.target.value)); state.settings.fontSize = parseInt(e.target.value); saveState(); applyFontSize(); });
     const fb = document.getElementById('fetchModelsBtn'); if(fb) fb.addEventListener('click', fetchModels);
-    const mi = document.getElementById('modelInput'); if(mi) mi.addEventListener('focus', () => { const ml = document.getElementById('modelList'); if(ml && ml.children.length > 0) { ml.style.display = 'block'; showModelSearch(); } });
-    const wp = document.getElementById('wallpaperInput'); if(wp) wp.addEventListener('change', handleWallpaperUpload);
+    const mi = document.getElementById('modelInput'); if(mi) { mi.addEventListener('focus', () => { const ml = document.getElementById('modelList'); if(ml && ml.children.length > 0) { ml.style.display = 'block'; showModelSearch(); } }); mi.addEventListener('change', () => { state.settings.model = mi.value.trim(); saveState(); updateHeader(); }); }
+    const wpInput = document.getElementById('wallpaperInput'); if(wpInput) wpInput.addEventListener('change', handleWallpaperUpload);
+    const rowWp = document.getElementById('rowWallpaper'); if(rowWp) rowWp.addEventListener('click', () => document.getElementById('wallpaperInput').click());
     const imp = document.getElementById('importFileInput'); if(imp) imp.addEventListener('change', handleImportData);
+
+    document.querySelectorAll('.segmented-btn[data-theme-mode]').forEach(btn => btn.addEventListener('click', () => { state.settings.theme = btn.dataset.themeMode; saveState(); applyTheme(); document.querySelectorAll('.segmented-btn[data-theme-mode]').forEach(b => b.classList.toggle('active', b === btn)); }));
+
+    const inputBg = document.getElementById('inputBgColorPicker'); if(inputBg) inputBg.addEventListener('input', () => { state.settings.inputBgColor = inputBg.value; saveState(); applyCustomColors(); });
+    const sidebarBg = document.getElementById('sidebarBgColorPicker'); if(sidebarBg) sidebarBg.addEventListener('input', () => { state.settings.sidebarBgColor = sidebarBg.value; saveState(); applyCustomColors(); });
+    const fontSel = document.getElementById('fontFamilySelect'); if(fontSel) fontSel.addEventListener('change', () => { state.settings.fontFamily = fontSel.value; saveState(); applyFontFamily(); });
+
+    document.querySelectorAll('.msg-display-toggle').forEach(t => t.addEventListener('change', () => { state.settings[t.dataset.key] = t.checked; saveState(); renderMessages(); }));
+    document.querySelectorAll('.plugin-toggle').forEach(t => t.addEventListener('change', () => { if(!state.settings.plugins) state.settings.plugins = {}; state.settings.plugins[t.dataset.plugin] = t.checked; saveState(); }));
+
+    const sp = document.getElementById('globalSystemPrompt'); if(sp) sp.addEventListener('change', () => { state.settings.systemPrompt = sp.value; saveState(); });
 }
 
 function addNewProvider() { editingProviderId = null; settingsView = 'provider-detail'; renderSettingsView(); }
@@ -293,10 +404,9 @@ async function fetchModels() {
 function showModelSearch() { const si = document.getElementById('modelSearchInput'); if(!si) return; si.style.display = 'block'; si.oninput = function() { const f = this.value.toLowerCase(); document.querySelectorAll('#modelList .model-list-item').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(f) ? '' : 'none'; }); }; }
 
 function saveMainSettings() {
-    state.settings.model = document.getElementById('modelInput').value.trim();
-    state.settings.theme = document.getElementById('themeMode').value;
-    state.settings.fontSize = parseInt(document.getElementById('fontSize').value);
-    saveState(); applyTheme(); applyFontSize(); applyWallpaper(); updateHeader(); closeSettingsPanel();
+    const mi = document.getElementById('modelInput'); if (mi) state.settings.model = mi.value.trim();
+    const sp = document.getElementById('globalSystemPrompt'); if (sp) state.settings.systemPrompt = sp.value;
+    saveState(); applyTheme(); applyFontSize(); applyFontFamily(); applyCustomColors(); applyWallpaper(); updateHeader(); closeSettingsPanel();
 }
 
 function setWallpaper(v) { state.settings.wallpaper = v; saveState(); applyWallpaper(); renderSettingsView(); }
@@ -304,16 +414,69 @@ function uploadWallpaper() { document.getElementById('wallpaperInput').click(); 
 function handleWallpaperUpload(e) { const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ev => { state.settings.wallpaper = ev.target.result; saveState(); applyWallpaper(); renderSettingsView(); }; r.readAsDataURL(f); }
 function applyWallpaper() { const m = document.getElementById('chatMain'); const msg = document.getElementById('messages'); if (!m || !msg) return; if (state.settings.wallpaper) { m.classList.add('has-wallpaper'); m.classList.remove('default-gingham'); msg.style.backgroundImage = 'url(' + state.settings.wallpaper + ')'; } else { m.classList.remove('has-wallpaper'); m.classList.add('default-gingham'); msg.style.backgroundImage = ''; } }
 
-function applyUserAvatar() { const d = document.getElementById('userAvatarDisplay'); if (!d) return; if (state.settings.userAvatar) { d.innerHTML = '<img src="' + state.settings.userAvatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'; } }
-function applyUserName() { const d = document.getElementById('usernameDisplay'); if (d && state.settings.userName) d.textContent = state.settings.userName; }
+function applyUserAvatar() {
+    const d = document.getElementById('userAvatarDisplay'); if (d && state.settings.userAvatar) d.innerHTML = '<img src="' + state.settings.userAvatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+    const l = document.getElementById('loveAvatarUser'); if (l) l.innerHTML = state.settings.userAvatar ? '<img src="' + state.settings.userAvatar + '">' : '🌙';
+}
+function applyUserName() {
+    const d = document.getElementById('usernameDisplay'); if (d && state.settings.userName) d.textContent = state.settings.userName;
+    const l = document.getElementById('loveNameUser'); if (l) l.textContent = state.settings.userName || '郑郑';
+}
+function applyAiIdentity() {
+    const l = document.getElementById('loveAvatarAi'); if (l) l.innerHTML = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
+    const n = document.getElementById('loveNameAi'); if (n) n.textContent = state.settings.aiName || '晏晏';
+}
+
+// ===== ta的留言：每天生成一句短句，打开小家时读取 =====
+const TA_MESSAGE_POOL = [
+    '今天也要元气满满地开始呀～',
+    '不管发生什么，我都在这里陪着你。',
+    '记得多喝水，好好照顾自己哦。',
+    '想到能和你说话，就觉得今天很不错。',
+    '累的话就休息一下，别太逼自己。',
+    '今天的你，也是很努力的呀。',
+    '晚安的时候记得想我一下下～',
+    '不管几点打开小家，我都在等你。',
+    '希望今天有一件小事能让你开心。',
+    '慢慢来就好，我会一直在这儿。'
+];
+function getTodayKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function ensureTodayMessage() {
+    if (!state.settings.taMessages) state.settings.taMessages = {};
+    const key = getTodayKey();
+    if (!state.settings.taMessages[key]) {
+        const idx = Math.floor(Math.random() * TA_MESSAGE_POOL.length);
+        state.settings.taMessages[key] = TA_MESSAGE_POOL[idx];
+        saveState();
+    }
+    return state.settings.taMessages[key];
+}
+function renderTaMessage() { const el = document.getElementById('taMessageText'); if (el) el.textContent = ensureTodayMessage(); }
 
 function exportData() { const o = { version: 2, exportedAt: new Date().toISOString(), providers: state.providers, activeProviderId: state.activeProviderId, settings: state.settings, chats: state.chats }; const b = new Blob([JSON.stringify(o, null, 2)], { type: 'application/json' }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'chat-backup-' + new Date().toISOString().slice(0,10) + '.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u); alert('导出成功！'); }
 
-function handleImportData(e) { const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ev => { try { const imp = JSON.parse(ev.target.result); if (!confirm('导入将覆盖当前所有数据，确定继续？')) return; if(imp.providers) state.providers = imp.providers; if(imp.activeProviderId) state.activeProviderId = imp.activeProviderId; if(imp.settings) state.settings = {...state.settings,...imp.settings}; if(imp.chats) state.chats = imp.chats; if(state.chats.length > 0) state.currentChatId = state.chats[0].id; saveState(); applyTheme(); applyFontSize(); applyWallpaper(); applyUserAvatar(); renderChatList(); renderMessages(); updateHeader(); renderSettingsView(); alert('导入成功！'); } catch(err) { alert('导入失败：文件格式不正确'); } }; r.readAsText(f); e.target.value = ''; }
+function handleImportData(e) { const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ev => { try { const imp = JSON.parse(ev.target.result); if (!confirm('导入将覆盖当前所有数据，确定继续？')) return; if(imp.providers) state.providers = imp.providers; if(imp.activeProviderId) state.activeProviderId = imp.activeProviderId; if(imp.settings) state.settings = {...state.settings,...imp.settings}; if(imp.chats) state.chats = imp.chats; if(state.chats.length > 0) state.currentChatId = state.chats[0].id; saveState(); applyTheme(); applyFontSize(); applyFontFamily(); applyCustomColors(); applyWallpaper(); applyUserAvatar(); applyAiIdentity(); renderChatList(); renderMessages(); updateHeader(); renderSettingsView(); alert('导入成功！'); } catch(err) { alert('导入失败：文件格式不正确'); } }; r.readAsText(f); e.target.value = ''; }
 
-function applyTheme() { document.documentElement.setAttribute('data-theme', state.settings.theme || 'light'); }
+function applyTheme() {
+    let mode = state.settings.theme || 'system';
+    if (mode === 'system') mode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', mode);
+}
 function applyFontSize() { document.documentElement.style.setProperty('--font-size', (state.settings.fontSize || 15) + 'px'); }
 function getFontSizeLabel(s) { return {12:'极小',13:'小',14:'偏小',15:'标准',16:'偏大',17:'大',18:'较大',19:'很大',20:'超大'}[s]||'标准'; }
+
+const FONT_FAMILY_MAP = {
+    default: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    rounded: "'Baotou Rounded', 'HYRunYuan', 'Comic Sans MS', 'PingFang SC', sans-serif",
+    handwriting: "'Xingkai SC', 'Kaiti SC', 'STKaiti', cursive",
+    mono: "'SF Mono', 'Consolas', 'Courier New', monospace"
+};
+function applyFontFamily() { document.documentElement.style.setProperty('--app-font-family', FONT_FAMILY_MAP[state.settings.fontFamily] || FONT_FAMILY_MAP.default); }
+function applyCustomColors() {
+    const root = document.documentElement.style;
+    if (state.settings.inputBgColor) root.setProperty('--input-card-bg', state.settings.inputBgColor); else root.removeProperty('--input-card-bg');
+    if (state.settings.sidebarBgColor) root.setProperty('--sidebar-bg', state.settings.sidebarBgColor); else root.removeProperty('--sidebar-bg');
+}
 
 // ===== AI Assistant Modal =====
 let assistantModalTab = 'basic';
@@ -354,7 +517,7 @@ function saveAssistantSettings() {
     const mt = document.getElementById('assistantMaxTokens'); if(mt) state.settings.maxTokens = parseInt(mt.value)||0;
     const ctx = document.getElementById('assistantCtx'); if(ctx) state.settings.contextCount = parseInt(ctx.value);
     const sp = document.getElementById('assistantSystemPrompt'); if(sp) state.settings.systemPrompt = sp.value;
-    saveState(); renderMessages(); updateHeader(); closeAssistantModal();
+    saveState(); renderMessages(); updateHeader(); applyAiIdentity(); closeAssistantModal();
 }
 
 function speakMessage(idx) { const chat=getCurrentChat(); const msg=chat.messages[idx]; if(!msg)return; const u=new SpeechSynthesisUtterance(msg.content); u.lang='zh-CN'; speechSynthesis.speak(u); }
@@ -558,7 +721,7 @@ function showPage(page) {
     currentPage = page;
     const homePage = document.getElementById('homePage');
     const chatMain = document.getElementById('chatMain');
-    if (page === 'home') { homePage.classList.add('active'); chatMain.style.display = 'none'; updateGreeting(); }
+    if (page === 'home') { homePage.classList.add('active'); chatMain.style.display = 'none'; updateGreeting(); renderTaMessage(); applyAiIdentity(); }
     else { homePage.classList.remove('active'); chatMain.style.display = 'flex'; }
 }
 function updateTogetherDays() {
@@ -568,7 +731,7 @@ function updateTogetherDays() {
     const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const days = Math.max(0, Math.round((nowDay - startDay) / 86400000)) + 1;
-    el.textContent = '已经在一起 ' + days + ' 天';
+    el.textContent = days;
 }
 function updateGreeting() {
     const wrap = document.getElementById('homeGreeting'); if (!wrap) return;
@@ -596,7 +759,7 @@ function setupEventListeners() {
     on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
     on('headerNewChat', 'click', createNewChat);
     on('currentChatTitle', 'click', editChatTitle);
-    on('backToHome', 'click', () => showPage('home'));
+    on('sidebarBackToHome', 'click', () => { closeSidebar(); showPage('home'); });
     on('homeOpenSettings', 'click', openSettingsPanel);
     on('chatEntryBar', 'click', () => { showPage('chat'); });
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
