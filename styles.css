@@ -595,3 +595,11 @@ body {
 [data-theme="dark"] .assistant-modal, [data-theme="dark"] .assistant-modal-content, [data-theme="dark"] .assistant-modal-footer { background: var(--bg-white); }
 
 
+
+
+/* v2 input layout */
+.input-card-top{display:flex;align-items:flex-end;gap:6px;padding:10px;}
+.input-card-toolbar{display:flex;align-items:center;justify-content:space-between;padding:4px 10px 10px;}
+.plus-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 12px;padding:8px;}
+.plus-item{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;cursor:pointer;}
+.plus-icon{width:52px;height:52px;border-radius:16px;background:var(--primary-lighter);display:flex;align-items:center;justify-content:center;font-size:26px;}

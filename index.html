@@ -139,42 +139,33 @@
 
             <div class="input-area">
                 <div class="input-popup plus-menu" id="plusMenu">
-                    <div class="plus-menu-row model-switch-row" id="modelSwitchRow">
-                        <span class="plus-menu-label"><i data-lucide="cpu"></i> 模型</span>
-                        <span class="plus-menu-value" id="plusMenuModel">未配置<i data-lucide="chevron-right"></i></span>
+                    <div class="plus-grid">
+                        <div class="plus-item" id="uploadFile"><div class="plus-icon">📁</div><span>上传文件</span></div>
+                        <div class="plus-item" id="uploadCamera"><div class="plus-icon">📷</div><span>拍照</span></div>
+                        <div class="plus-item" id="uploadImage"><div class="plus-icon">🖼</div><span>选择图片</span></div>
+                        <div class="plus-item" id="modelSwitchRow"><div class="plus-icon">🤖</div><span>选择模型</span></div>
+                        <div class="plus-item"><div class="plus-icon">🔍</div><span>联网搜索</span></div>
+                        <div class="plus-item" id="compressRow"><div class="plus-icon">📦</div><span>压缩历史</span></div>
+                        <div class="plus-item"><div class="plus-icon">⭐</div><span>收藏</span></div>
                     </div>
                     <div class="model-quick-list" id="modelQuickList" style="display:none;"></div>
-                    <div class="plus-menu-row">
-                        <span class="plus-menu-label"><i data-lucide="globe"></i> 联网搜索</span>
-                        <label class="switch"><input type="checkbox" id="toggleWebSearch"><span class="switch-slider"></span></label>
-                    </div>
-                    <div class="plus-menu-row">
-                        <span class="plus-menu-label"><i data-lucide="blocks"></i> MCP</span>
-                        <label class="switch"><input type="checkbox" id="toggleMcp"><span class="switch-slider"></span></label>
-                    </div>
-                    <div class="plus-menu-row" id="compressRow" style="cursor:pointer;">
-                        <span class="plus-menu-label"><i data-lucide="archive"></i> 压缩对话历史</span>
-                        <i data-lucide="chevron-right" class="emoji-chevron"></i>
-                    </div>
-                    <div class="plus-menu-row emoji-row" id="emojiRow">
-                        <span class="plus-menu-label"><i data-lucide="smile"></i> 表情</span>
-                        <i data-lucide="chevron-down" class="emoji-chevron"></i>
-                    </div>
+                    <input type="checkbox" id="toggleWebSearch" hidden>
+                    <input type="checkbox" id="toggleMcp" hidden>
                     <div class="sticker-panel" id="stickerPanel"></div>
                 </div>
 
                 <div class="input-card">
                     <div class="input-card-top">
+                        <button class="btn-input-icon" id="voiceBtn" title="语音输入"><i data-lucide="mic"></i></button>
                         <textarea id="messageInput" placeholder="和ta说点什么..." rows="1"></textarea>
                         <button class="btn-input-icon" id="expandInput" title="全屏输入"><i data-lucide="maximize-2"></i></button>
+                        <button class="btn-send" id="sendBtn" disabled><i data-lucide="corner-right-up"></i></button>
                     </div>
                     <div class="input-card-toolbar">
                         <div class="input-card-toolbar-left">
-                            <button class="toolbar-btn" id="plusBtn" title="更多"><i data-lucide="sparkles"></i></button>
-                            <button class="toolbar-btn" id="uploadBtn" title="上传"><i data-lucide="plus"></i></button>
-                            <button class="toolbar-btn" id="voiceBtn" title="语音输入"><i data-lucide="mic"></i></button>
+                            <button class="toolbar-btn" id="emojiRow" title="表情"><i data-lucide="smile"></i></button>
                         </div>
-                        <button class="btn-send" id="sendBtn" disabled><i data-lucide="corner-right-up"></i></button>
+                        <button class="toolbar-btn" id="plusBtn" title="更多"><i data-lucide="plus"></i></button>
                     </div>
                 </div>
 
