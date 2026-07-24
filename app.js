@@ -12,7 +12,7 @@ let state = {
         maxTokens: 4096,
         theme: 'system',
         fontSize: 15,
-        aiName: 'AI',
+        aiName: '晏晏',
         aiAvatar: '',
         userAvatar: '',
         userName: '郑郑',
@@ -290,8 +290,10 @@ function renderGeneralModule() {
     '<div class="settings-list-card">' +
       '<div class="settings-row settings-row-click" id="rowWallpaper"><span class="settings-row-label">自定义壁纸</span><span class="settings-row-value">' + (state.settings.wallpaper ? '已设置' : '未设置') + ' <i data-lucide="chevron-right"></i></span></div>' +
       '<input type="file" id="wallpaperInput" accept="image/*" hidden>' +
-      '<div class="settings-row"><span class="settings-row-label">输入框背景色</span><input type="color" id="inputBgColorPicker" class="color-picker" value="' + (state.settings.inputBgColor || '#FCF2E6') + '"></div>' +
-      '<div class="settings-row"><span class="settings-row-label">侧边栏背景色</span><input type="color" id="sidebarBgColorPicker" class="color-picker" value="' + (state.settings.sidebarBgColor || '#FFFFFF') + '"></div>' +
+      '<div class="settings-row" style="border-bottom:none;"><span class="settings-row-label">输入框背景色</span><span class="color-swatch" id="swatch-inputBgColor"></span></div>' +
+      colorSliderRows('inputBgColor', state.settings.inputBgColor || '#FCF2E6') +
+      '<div class="settings-row" style="border-bottom:none;"><span class="settings-row-label">侧边栏背景色</span><span class="color-swatch" id="swatch-sidebarBgColor"></span></div>' +
+      colorSliderRows('sidebarBgColor', state.settings.sidebarBgColor || '#FFFFFF') +
       '<div class="settings-row"><span class="settings-row-label">自定义字体</span><select id="fontFamilySelect" class="settings-select">' + fontOpts + '</select></div>' +
       '<div class="settings-row"><span class="settings-row-label">字体大小: <span id="fontSizeDisplay">' + getFontSizeLabel(state.settings.fontSize) + '</span></span></div>' +
       '<div class="settings-row"><input type="range" id="fontSize" min="12" max="20" value="' + (state.settings.fontSize || 15) + '" style="width:100%;"></div>' +
@@ -307,24 +309,61 @@ function renderGeneralModule() {
     '<div class="plugin-list">' + pluginCards + '</div>';
 }
 
+function hexToHsl(hex) {
+    hex = (hex || '#FCF2E6').replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const r = parseInt(hex.substr(0,2),16)/255, g = parseInt(hex.substr(2,2),16)/255, b = parseInt(hex.substr(4,2),16)/255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b); let h, s, l = (max+min)/2;
+    if (max === min) { h = 0; s = 0; }
+    else { const d = max - min; s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+        switch(max) { case r: h = (g-b)/d + (g<b?6:0); break; case g: h = (b-r)/d + 2; break; default: h = (r-g)/d + 4; }
+        h *= 60;
+    }
+    return { h: Math.round(h), s: Math.round(s*100), l: Math.round(l*100) };
+}
+function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h/30) % 12;
+    const a = s * Math.min(l, 1-l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1)));
+    const toHex = x => Math.round(255*x).toString(16).padStart(2,'0');
+    return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+}
+function colorSliderRows(key, hex) {
+    const hsl = hexToHsl(hex);
+    return '<div class="color-slider-rows" data-color-key="' + key + '">' +
+        '<div class="color-slider-row"><span class="color-slider-tag">色相</span><input type="range" class="color-slider hue" min="0" max="360" value="' + hsl.h + '"></div>' +
+        '<div class="color-slider-row"><span class="color-slider-tag">饱和度</span><input type="range" class="color-slider sat" min="0" max="100" value="' + hsl.s + '"></div>' +
+        '<div class="color-slider-row"><span class="color-slider-tag">明度</span><input type="range" class="color-slider light" min="0" max="100" value="' + hsl.l + '"></div>' +
+    '</div>';
+}
+function bindColorSliderGroup(key) {
+    const group = document.querySelector('.color-slider-rows[data-color-key="' + key + '"]');
+    const swatch = document.getElementById('swatch-' + key);
+    if (!group) return;
+    const hueEl = group.querySelector('.hue'), satEl = group.querySelector('.sat'), lightEl = group.querySelector('.light');
+    function update(save) {
+        const h = parseInt(hueEl.value), s = parseInt(satEl.value), l = parseInt(lightEl.value);
+        const hex = hslToHex(h, s, l);
+        if (swatch) swatch.style.background = hex;
+        satEl.style.background = 'linear-gradient(90deg, hsl(' + h + ',0%,' + l + '%), hsl(' + h + ',100%,' + l + '%))';
+        lightEl.style.background = 'linear-gradient(90deg, #000, hsl(' + h + ',' + s + '%,50%), #fff)';
+        if (save) { state.settings[key] = hex; saveState(); applyCustomColors(); }
+    }
+    [hueEl, satEl, lightEl].forEach(el => el.addEventListener('input', () => update(true)));
+    update(false);
+}
 function toggleRow(key, label, checked) {
     return '<div class="settings-row"><span class="settings-row-label">' + label + '</span><label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="' + key + '"' + (checked ? ' checked' : '') + '><span class="switch-slider"></span></label></div>';
 }
 
 function renderModelModule() {
-    let cards = state.providers.map(p => {
-        const active = p.id === state.activeProviderId;
-        const configured = !!(p.apiBase && p.apiKey);
-        return '<div class="provider-card' + (active ? ' active' : '') + '" onclick="setActiveProvider(\'' + p.id + '\')"><div class="provider-card-left"><div class="provider-card-icon"><i data-lucide="cloud"></i></div><div class="provider-card-info"><div class="provider-card-name">' + escapeHtml(p.name) + (active ? ' <span class="provider-active-tag">当前</span>' : '') + '</div><div class="provider-card-url"><span class="provider-status-dot ' + (configured ? 'ok' : 'off') + '"></span>' + escapeHtml(p.apiBase || '未配置') + '</div></div></div><div class="provider-card-actions"><button onclick="event.stopPropagation();editProvider(\'' + p.id + '\')" title="编辑"><i data-lucide="pencil"></i></button><button onclick="event.stopPropagation();deleteProvider(\'' + p.id + '\')" title="删除"><i data-lucide="trash-2"></i></button></div></div>';
-    }).join('');
+    let cards = state.providers.map(p => { const active = p.id === state.activeProviderId; return '<div class="provider-card' + (active ? ' active' : '') + '"><div class="provider-card-left"><div class="provider-card-icon"><i data-lucide="cloud"></i></div><div class="provider-card-info"><div class="provider-card-name">' + escapeHtml(p.name) + '</div><div class="provider-card-url">' + escapeHtml(p.apiBase || '未配置') + '</div></div></div><div class="provider-card-actions"><button onclick="event.stopPropagation();setActiveProvider(\'' + p.id + '\')" title="设为当前"><i data-lucide="' + (active ? 'check-circle' : 'circle') + '"></i></button><button onclick="event.stopPropagation();editProvider(\'' + p.id + '\')" title="编辑"><i data-lucide="pencil"></i></button><button onclick="event.stopPropagation();deleteProvider(\'' + p.id + '\')" title="删除"><i data-lucide="trash-2"></i></button></div></div>'; }).join('');
     cards += '<div class="add-provider-btn" onclick="addNewProvider()"><i data-lucide="plus"></i> 添加供应商</div>';
+    let model = '<section class="settings-section"><h3><i data-lucide="cpu" class="section-icon"></i>模型选择</h3><div class="form-group"><button class="btn-secondary" id="fetchModelsBtn"><i data-lucide="refresh-cw" style="width:13px;height:13px;margin-right:4px;"></i>获取模型列表</button></div><div class="form-group"><label>当前模型</label><input type="text" id="modelInput" placeholder="输入或选择模型名称" value="' + escapeHtml(state.settings.model || '') + '"><input type="text" class="model-search-input" id="modelSearchInput" placeholder="🔍 搜索模型..." style="display:none;"><div class="model-list" id="modelList" style="display:none;"></div></div></section>';
     return '<div class="settings-module-title">模型设置与服务</div>' +
-    '<div class="settings-list-card-title">系统提示词</div>' +
-    '<div class="settings-list-card"><div class="form-group" style="margin-bottom:0;"><textarea id="globalSystemPrompt" class="system-prompt-textarea" rows="6" placeholder="设定AI的人设...">' + escapeHtml(state.settings.systemPrompt || '') + '</textarea></div></div>' +
-    '<div class="settings-list-card-title">供应商管理</div>' +
-    '<div class="settings-list-card provider-list-card">' + cards + '</div>' +
-    '<div class="settings-list-card-title">模型选择</div>' +
-    '<div class="settings-list-card"><div class="form-group"><button class="btn-secondary" id="fetchModelsBtn"><i data-lucide="refresh-cw" style="width:13px;height:13px;margin-right:4px;"></i>获取模型列表</button></div><div class="form-group" style="margin-bottom:0;"><label>当前模型</label><input type="text" id="modelInput" placeholder="输入或选择模型名称" value="' + escapeHtml(state.settings.model || '') + '"><input type="text" class="model-search-input" id="modelSearchInput" placeholder="🔍 搜索模型..." style="display:none;"><div class="model-list" id="modelList" style="display:none;"></div></div></div>' +
+    '<section class="settings-section"><h3><i data-lucide="cloud" class="section-icon"></i>供应商管理</h3>' + cards + '</section>' +
+    model +
     '<div class="settings-placeholder-row"><span>MCP配置</span><span class="placeholder-tag">敬请期待</span></div>' +
     '<div class="settings-placeholder-row"><span>系统工具</span><span class="placeholder-tag">敬请期待</span></div>' +
     '<div class="settings-placeholder-row"><span>工作流</span><span class="placeholder-tag">敬请期待</span></div>';
@@ -354,14 +393,12 @@ function bindMainSettingsEvents() {
 
     document.querySelectorAll('.segmented-btn[data-theme-mode]').forEach(btn => btn.addEventListener('click', () => { state.settings.theme = btn.dataset.themeMode; saveState(); applyTheme(); document.querySelectorAll('.segmented-btn[data-theme-mode]').forEach(b => b.classList.toggle('active', b === btn)); }));
 
-    const inputBg = document.getElementById('inputBgColorPicker'); if(inputBg) inputBg.addEventListener('input', () => { state.settings.inputBgColor = inputBg.value; saveState(); applyCustomColors(); });
-    const sidebarBg = document.getElementById('sidebarBgColorPicker'); if(sidebarBg) sidebarBg.addEventListener('input', () => { state.settings.sidebarBgColor = sidebarBg.value; saveState(); applyCustomColors(); });
+    bindColorSliderGroup('inputBgColor');
+    bindColorSliderGroup('sidebarBgColor');
     const fontSel = document.getElementById('fontFamilySelect'); if(fontSel) fontSel.addEventListener('change', () => { state.settings.fontFamily = fontSel.value; saveState(); applyFontFamily(); });
 
     document.querySelectorAll('.msg-display-toggle').forEach(t => t.addEventListener('change', () => { state.settings[t.dataset.key] = t.checked; saveState(); renderMessages(); }));
     document.querySelectorAll('.plugin-toggle').forEach(t => t.addEventListener('change', () => { if(!state.settings.plugins) state.settings.plugins = {}; state.settings.plugins[t.dataset.plugin] = t.checked; saveState(); }));
-
-    const sp = document.getElementById('globalSystemPrompt'); if(sp) sp.addEventListener('change', () => { state.settings.systemPrompt = sp.value; saveState(); });
 }
 
 function addNewProvider() { editingProviderId = null; settingsView = 'provider-detail'; renderSettingsView(); }
@@ -405,7 +442,6 @@ function showModelSearch() { const si = document.getElementById('modelSearchInpu
 
 function saveMainSettings() {
     const mi = document.getElementById('modelInput'); if (mi) state.settings.model = mi.value.trim();
-    const sp = document.getElementById('globalSystemPrompt'); if (sp) state.settings.systemPrompt = sp.value;
     saveState(); applyTheme(); applyFontSize(); applyFontFamily(); applyCustomColors(); applyWallpaper(); updateHeader(); closeSettingsPanel();
 }
 

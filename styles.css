@@ -164,10 +164,10 @@ body {
 @keyframes typing { 0%, 60% { opacity: 0.3; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1); } }
 
 /* ===== 输入区（沉浸式：底部贴屏，安全区留出） ===== */
-.input-area { padding: 8px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); background: var(--bg-white); border-top: 1px solid var(--border); position: relative; }
+.input-area { padding: 10px 14px; padding-bottom: max(14px, env(safe-area-inset-bottom)); background: transparent; border-top: none; position: relative; }
 
 /* Card-style double-layer input: top = text area, bottom = toolbar */
-.input-card { background: var(--input-card-bg, #FCF2E6); border-radius: 26px; border: 1px solid rgba(184, 201, 193, 0.4); transition: border-color var(--transition), box-shadow var(--transition); overflow: hidden; box-shadow: 0 2px 10px var(--shadow); }
+.input-card { background: var(--input-card-bg, #FCF2E6); border-radius: 26px; border: 1px solid rgba(184, 201, 193, 0.4); transition: border-color var(--transition), box-shadow var(--transition); overflow: hidden; box-shadow: 0 6px 24px rgba(90, 120, 105, 0.16); }
 .input-card:focus-within { border-color: var(--primary); box-shadow: 0 4px 16px var(--shadow); }
 .input-card-top { display: flex; align-items: flex-end; gap: 4px; padding: 10px 8px 4px 14px; }
 .input-card-top textarea { flex: 1; border: none; background: transparent; resize: none; font-size: var(--font-size); font-family: inherit; line-height: 1.5; max-height: 120px; outline: none; color: var(--text); padding: 5px 0; }
@@ -266,7 +266,14 @@ body {
 .segmented-btn { border: none; background: transparent; padding: 6px 12px; font-size: 12px; border-radius: 999px; color: var(--text-light); cursor: pointer; transition: all var(--transition); }
 .segmented-btn.active { background: var(--bg-white); color: var(--primary-dark); font-weight: 600; box-shadow: 0 1px 4px var(--shadow); }
 
-.color-picker { width: 36px; height: 26px; border: 1px solid var(--border); border-radius: 8px; background: none; cursor: pointer; padding: 2px; }
+.color-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--bg-white); box-shadow: 0 0 0 1px var(--border); flex-shrink: 0; }
+.color-slider-rows { padding: 2px 16px 14px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid rgba(184, 201, 193, 0.25); }
+.color-slider-row { display: flex; align-items: center; gap: 10px; }
+.color-slider-tag { font-size: 11px; color: var(--text-light); width: 40px; flex-shrink: 0; }
+.color-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 999px; outline: none; cursor: pointer; }
+.color-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2px solid var(--primary-dark); box-shadow: 0 1px 4px rgba(0,0,0,0.25); cursor: pointer; }
+.color-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2px solid var(--primary-dark); box-shadow: 0 1px 4px rgba(0,0,0,0.25); cursor: pointer; }
+.color-slider.hue { background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
 .settings-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-white); font-size: 13px; color: var(--text); outline: none; font-family: inherit; }
 
 .plugin-list { display: flex; flex-direction: column; gap: 8px; }
@@ -573,7 +580,7 @@ body {
 
 [data-theme="dark"] { --bg: #1a2420; --bg-white: #243530; --text: #e0e0d8; --text-light: #8a9990; --border: #3a5448; --primary-lighter: #2a3d35; --shadow: rgba(0,0,0,0.3); --gingham-green: rgba(123, 175, 158, 0.10); --gingham-brown: rgba(120, 100, 70, 0.08); }
 [data-theme="dark"] .chat-main.default-gingham .messages { background-color: #17201c; }
-[data-theme="dark"] .chat-header, [data-theme="dark"] .input-area { background: rgba(36, 53, 48, 0.72); }
+[data-theme="dark"] .chat-header { background: rgba(36, 53, 48, 0.72); }
 [data-theme="dark"] .sidebar-footer { background: rgba(36, 53, 48, 0.8); }
 [data-theme="dark"] .message.assistant .message-bubble { background: rgba(45, 63, 56, 0.82); border-color: #3a5448; }
 [data-theme="dark"] .message.user .message-bubble { background: rgba(61, 74, 58, 0.82); border-color: #4a5a48; color: #e0e0d8; }
