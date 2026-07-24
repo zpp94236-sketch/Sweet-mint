@@ -127,7 +127,7 @@
         <main class="chat-main" id="chatMain" style="display:none;">
             <div class="lace-top-decoration"></div>
             <header class="chat-header">
-                <button class="btn-icon" id="openSidebar" title="侧边栏"><i data-lucide="chevron-left"></i></button>
+                <button class="btn-icon" id="openSidebar" title="侧边栏"><i data-lucide="menu"></i></button>
                 <div class="chat-title">
                     <span id="currentChatTitle">新对话</span>
                     <span class="model-badge" id="modelBadge">未配置模型</span>
@@ -138,20 +138,46 @@
             <div class="messages" id="messages"></div>
 
             <div class="input-area">
+                <!-- Plus drawer (combined: model, web, mcp, compress, upload, etc.) -->
                 <div class="input-popup plus-menu" id="plusMenu">
-                    <div class="plus-grid">
-                        <div class="plus-item" id="uploadFile"><div class="plus-icon">📁</div><span>上传文件</span></div>
-                        <div class="plus-item" id="uploadCamera"><div class="plus-icon">📷</div><span>拍照</span></div>
-                        <div class="plus-item" id="uploadImage"><div class="plus-icon">🖼</div><span>选择图片</span></div>
-                        <div class="plus-item" id="modelSwitchRow"><div class="plus-icon">🤖</div><span>选择模型</span></div>
-                        <div class="plus-item"><div class="plus-icon">🔍</div><span>联网搜索</span></div>
-                        <div class="plus-item" id="compressRow"><div class="plus-icon">📦</div><span>压缩历史</span></div>
-                        <div class="plus-item"><div class="plus-icon">⭐</div><span>收藏</span></div>
+                    <div class="plus-menu-row model-switch-row" id="modelSwitchRow">
+                        <span class="plus-menu-label"><i data-lucide="cpu"></i> 模型</span>
+                        <span class="plus-menu-value" id="plusMenuModel">未配置<i data-lucide="chevron-right"></i></span>
                     </div>
                     <div class="model-quick-list" id="modelQuickList" style="display:none;"></div>
-                    <input type="checkbox" id="toggleWebSearch" hidden>
-                    <input type="checkbox" id="toggleMcp" hidden>
-                    <div class="sticker-panel" id="stickerPanel"></div>
+                    <div class="plus-menu-row">
+                        <span class="plus-menu-label"><i data-lucide="globe"></i> 联网搜索</span>
+                        <label class="switch"><input type="checkbox" id="toggleWebSearch"><span class="switch-slider"></span></label>
+                    </div>
+                    <div class="plus-menu-row">
+                        <span class="plus-menu-label"><i data-lucide="blocks"></i> MCP</span>
+                        <label class="switch"><input type="checkbox" id="toggleMcp"><span class="switch-slider"></span></label>
+                    </div>
+                    <div class="plus-menu-row" id="compressRow" style="cursor:pointer;">
+                        <span class="plus-menu-label"><i data-lucide="archive"></i> 压缩对话历史</span>
+                        <i data-lucide="chevron-right" class="emoji-chevron"></i>
+                    </div>
+                    <div class="plus-menu-row upload-row" id="plusUploadFile">
+                        <span class="plus-menu-label"><i data-lucide="file"></i> 上传文件</span>
+                    </div>
+                    <div class="plus-menu-row upload-row" id="plusUploadCamera">
+                        <span class="plus-menu-label"><i data-lucide="camera"></i> 拍照</span>
+                    </div>
+                    <div class="plus-menu-row upload-row" id="plusUploadImage">
+                        <span class="plus-menu-label"><i data-lucide="image"></i> 选择图片</span>
+                    </div>
+                    <div class="plus-menu-row" id="plusFavorite" style="cursor:pointer;">
+                        <span class="plus-menu-label"><i data-lucide="star"></i> 收藏</span>
+                        <i data-lucide="chevron-right" class="emoji-chevron"></i>
+                    </div>
+                    <input type="file" id="fileInputHidden" hidden>
+                    <input type="file" id="cameraInputHidden" accept="image/*" capture="environment" hidden>
+                    <input type="file" id="imageInputHidden" accept="image/*" hidden>
+                </div>
+
+                <!-- Sticker popup -->
+                <div class="input-popup sticker-popup" id="stickerPopup">
+                    <div class="sticker-panel active" id="stickerPanel"></div>
                 </div>
 
                 <div class="input-card">
@@ -163,25 +189,12 @@
                     </div>
                     <div class="input-card-toolbar">
                         <div class="input-card-toolbar-left">
-                            <button class="toolbar-btn" id="emojiRow" title="表情"><i data-lucide="smile"></i></button>
+                            <button class="toolbar-btn" id="stickerBtn" title="表情"><i data-lucide="smile"></i></button>
                         </div>
-                        <button class="toolbar-btn" id="plusBtn" title="更多"><i data-lucide="plus"></i></button>
+                        <div class="input-card-toolbar-right">
+                            <button class="toolbar-btn" id="plusBtn" title="更多"><i data-lucide="plus"></i></button>
+                        </div>
                     </div>
-                </div>
-
-                <div class="input-popup upload-menu" id="uploadMenu">
-                    <div class="plus-menu-row upload-row" id="uploadFile">
-                        <span class="plus-menu-label"><i data-lucide="file"></i> 上传文件</span>
-                    </div>
-                    <div class="plus-menu-row upload-row" id="uploadCamera">
-                        <span class="plus-menu-label"><i data-lucide="camera"></i> 拍照</span>
-                    </div>
-                    <div class="plus-menu-row upload-row" id="uploadImage">
-                        <span class="plus-menu-label"><i data-lucide="image"></i> 选择图片</span>
-                    </div>
-                    <input type="file" id="fileInputHidden" hidden>
-                    <input type="file" id="cameraInputHidden" accept="image/*" capture="environment" hidden>
-                    <input type="file" id="imageInputHidden" accept="image/*" hidden>
                 </div>
             </div>
 

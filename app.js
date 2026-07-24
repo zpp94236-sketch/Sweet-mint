@@ -660,7 +660,8 @@ function closeStats() { document.getElementById('statsOverlay').classList.remove
 // ===== Input toolbar popups =====
 function togglePlusMenu() { const p = document.getElementById('plusMenu'); const s = document.getElementById('stickerPanel'); if(s)s.classList.remove('active'); if(p)p.classList.toggle('active'); const q=document.getElementById('modelQuickList'); if(q)q.style.display = 'none'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
 function toggleStickerPanel() { const s = document.getElementById('stickerPanel'); const p = document.getElementById('plusMenu'); if(p)p.classList.remove('active'); if(s)s.classList.toggle('active'); }
-function closeInputPopups() { const p=document.getElementById('plusMenu'); if(p)p.classList.remove('active'); const s=document.getElementById('stickerPanel'); if(s)s.classList.remove('active'); const u=document.getElementById('uploadMenu'); if(u)u.classList.remove('active'); }
+function closeInputPopups() { const p = document.getElementById('plusMenu'); if(p) p.classList.remove('active'); const s = document.getElementById('stickerPopup'); if(s) s.classList.remove('active'); }
+function toggleStickerPopup() { const s = document.getElementById('stickerPopup'); const p = document.getElementById('plusMenu'); if (p) p.classList.remove('active'); if (s) s.classList.toggle('active'); }
 
 async function compressHistory() {
     const chat = getCurrentChat();
@@ -824,16 +825,15 @@ function setupEventListeners() {
     on('closeStats', 'click', closeStats);
     on('statsOverlay', 'click', e => { if(e.target===e.currentTarget) closeStats(); });
     on('plusBtn', 'click', (e) => { e.stopPropagation(); togglePlusMenu(); });
-    on('stickerBtn', 'click', (e) => { e.stopPropagation(); toggleStickerPanel(); });
+    on('stickerBtn', 'click', (e) => { e.stopPropagation(); toggleStickerPopup(); });
     on('voiceBtn', 'click', toggleVoiceInput);
     on('modelPill', 'click', (e) => { e.stopPropagation(); togglePlusMenu(); toggleModelQuickList(); });
     on('modelSwitchRow', 'click', (e) => { e.stopPropagation(); toggleModelQuickList(); });
     on('emojiRow', 'click', (e) => { e.stopPropagation(); const s=document.getElementById('stickerPanel'); if(s) s.classList.toggle('active'); });
     on('compressRow', 'click', (e) => { e.stopPropagation(); closeInputPopups(); compressHistory(); });
-    on('uploadBtn', 'click', (e) => { e.stopPropagation(); toggleUploadMenu(); });
-    on('uploadFile', 'click', () => { document.getElementById('fileInputHidden').click(); });
-    on('uploadCamera', 'click', () => { document.getElementById('cameraInputHidden').click(); });
-    on('uploadImage', 'click', () => { document.getElementById('imageInputHidden').click(); });
+    on('plusUploadFile', 'click', () => { document.getElementById('fileInputHidden').click(); });
+    on('plusUploadCamera', 'click', () => { document.getElementById('cameraInputHidden').click(); });
+    on('plusUploadImage', 'click', () => { document.getElementById('imageInputHidden').click(); });
     on('userInfoClickable', 'click', openEditUser);
     on('closeEditUser', 'click', closeEditUser);
     on('saveEditUser', 'click', saveEditUser);
