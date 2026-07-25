@@ -963,16 +963,24 @@ body {
 .stats-heatmap-labels span { height: 8px; line-height: 8px; }
 .stats-heatmap-months .month-label { text-align: left; white-space: nowrap; flex-shrink: 0; overflow: visible; }
 
-/* ===== AI助手弹窗：补回边距 ===== */
-.assistant-modal-content { padding: 18px 20px !important; }
-.assistant-modal-footer { padding: 12px 20px !important; }
-.assistant-modal-tabs { padding: 0 20px !important; margin-top: 14px !important; }
-.assistant-modal-tab { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
-.assistant-modal-tab.active { background: transparent !important; }
-.assistant-modal-tab::after {
-    content: '' !important; position: absolute !important;
-    left: 50% !important; right: 50% !important; bottom: -1px !important;
-    height: 2px !important; background: var(--primary) !important;
-    border-radius: 2px 2px 0 0 !important; transition: all .3s ease !important;
-}
-.assistant-modal-tab.active::after { left: 22% !important; right: 22% !important; }
+/* ===== 热力图改为按月日历视图 ===== */
+.cal-heatmap-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-heatmap-nav { display: flex; align-items: center; gap: 4px; }
+.cal-nav-btn { width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent; color: var(--text-light); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.cal-nav-btn:active { background: var(--primary-lighter); }
+.cal-nav-btn svg { width: 16px !important; height: 16px !important; }
+.cal-nav-btn[disabled] { opacity: 0.3; pointer-events: none; }
+.cal-nav-label { font-size: 12.5px; color: var(--text-light); min-width: 74px; text-align: center; }
+.cal-heatmap-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+.cal-heatmap-weekdays span { text-align: center; font-size: 10.5px; color: var(--text-light); }
+.cal-heatmap-grid { display: flex; flex-direction: column; gap: 4px; }
+.cal-heatmap-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-day { aspect-ratio: 1; border-radius: 8px; background: var(--primary-lighter); display: flex; align-items: center; justify-content: center; position: relative; }
+.cal-day.empty { background: transparent; }
+.cal-day[onclick] { cursor: pointer; }
+.cal-day-num { font-size: 11px; color: var(--text); }
+.cal-day.level-1 { background: var(--primary-light); }
+.cal-day.level-2 { background: color-mix(in srgb, var(--primary) 55%, #fff); }
+.cal-day.level-3 { background: var(--primary); }
+.cal-day.level-4 { background: var(--primary-dark); }
+.cal-day.level-2 .cal-day-num, .cal-day.level-3 .cal-day-num, .cal-day.level-4 .cal-day-num { color: #fff; }

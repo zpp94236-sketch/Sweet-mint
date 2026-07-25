@@ -48,6 +48,72 @@ let state = {
 
 const STICKERS = ['😊','🥰','😘','😂','🫠','🙊','😳','🥺','😝','😴','😍','😒','🙋‍♀️','🐶','🌞','🌝','🌙','💦','🍟','🍵','🧋','🦐','🐟','🐱','🐰','🐾','💕','❤️','💔','✨','🌸','🌿','🙏','👍','👌','🙌','🤗','🥲','🙋','🤍'];
 
+let statsHeatmapDate = new Date();
+let bedroomHeatmapDate = new Date();
+
+function buildMonthWeeks(year, month) {
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7;
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let day = 1; day <= totalDays; day++) cells.push(new Date(year, month, day));
+    while (cells.length % 7 !== 0) cells.push(null);
+    const weeks = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    return weeks;
+}
+
+function monthHeatmapLevel(count, steps) {
+    let level = 0;
+    for (let i = 0; i < steps.length; i++) if (count >= steps[i]) level = i + 1;
+    return level;
+}
+
+function renderCalendarHeatmapCard(opts) {
+    const year = opts.date.getFullYear(), month = opts.date.getMonth();
+    const weeks = buildMonthWeeks(year, month);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+    let bodyHtml = '';
+    weeks.forEach(week => {
+        bodyHtml += '<div class="cal-heatmap-row">';
+        week.forEach(d => {
+            if (!d) { bodyHtml += '<div class="cal-day empty"></div>'; return; }
+            const key = dateKey(d);
+            const count = opts.dailyCount[key] || 0;
+            const isFuture = d > today;
+            const level = isFuture ? 0 : monthHeatmapLevel(count, opts.steps);
+            const clickAttr = (!isFuture && opts.onCellClick) ? ' onclick="' + opts.onCellClick(key) + '"' : '';
+            bodyHtml += '<div class="cal-day level-' + level + '"' + clickAttr + ' title="' + key + ': ' + count + '条"><span class="cal-day-num">' + d.getDate() + '</span></div>';
+        });
+        bodyHtml += '</div>';
+    });
+    const nextDisabled = isCurrentMonth ? ' disabled' : '';
+    return '<div class="stats-heatmap-card">' +
+        '<div class="cal-heatmap-header">' +
+        '<div class="stats-heatmap-title">' + opts.title + '</div>' +
+        '<div class="cal-heatmap-nav">' +
+        '<button class="cal-nav-btn" onclick="' + opts.navPrev + '"><i data-lucide="chevron-left"></i></button>' +
+        '<span class="cal-nav-label">' + year + '年' + (month + 1) + '月</span>' +
+        '<button class="cal-nav-btn"' + nextDisabled + ' onclick="' + opts.navNext + '"><i data-lucide="chevron-right"></i></button>' +
+        '</div></div>' +
+        '<div class="cal-heatmap-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>' +
+        '<div class="cal-heatmap-grid">' + bodyHtml + '</div>' +
+        '<div class="stats-heatmap-legend"><span>少</span><span class="heatmap-cell level-0"></span><span class="heatmap-cell level-1"></span><span class="heatmap-cell level-2"></span><span class="heatmap-cell level-3"></span><span class="heatmap-cell level-4"></span><span>多</span></div>' +
+        '</div>';
+}
+
+function changeStatsHeatmapMonth(delta) {
+    statsHeatmapDate = new Date(statsHeatmapDate.getFullYear(), statsHeatmapDate.getMonth() + delta, 1);
+    openStats();
+}
+
+function changeBedroomHeatmapMonth(delta) {
+    bedroomHeatmapDate = new Date(bedroomHeatmapDate.getFullYear(), bedroomHeatmapDate.getMonth() + delta, 1);
+    renderBedroom();
+}
+
 function init() {
     loadState();
     state.isStreaming = false;
@@ -830,57 +896,14 @@ function openStats() {
         }
     }));
 
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const start = new Date(today.getFullYear(), 0, 1);
-    const sd = start.getDay(); const off = sd === 0 ? 6 : sd - 1;
-    start.setDate(start.getDate() - off);
-
-    const weeks = []; let cur = [];
-    const yearEnd = new Date(today.getFullYear(), 11, 31);
-    for (let d = new Date(start); d <= yearEnd; d.setDate(d.getDate() + 1)) {
-        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-        const count = dailyCount[key] || 0;
-        let level = 0;
-        if (count > 0) level = 1;
-        if (count >= 3) level = 2;
-        if (count >= 8) level = 3;
-        if (count >= 20) level = 4;
-        const dayIdx = d.getDay() === 0 ? 6 : d.getDay() - 1;
-        if (dayIdx === 0 && cur.length) { weeks.push(cur); cur = []; }
-        cur.push({ date: key, count, level, dayIdx, month: d.getMonth() + 1 });
-    }
-    if (cur.length) weeks.push(cur);
-
-    const monthLabels = []; const seen = new Set();
-    weeks.forEach((w, i) => { const m = w[0].month; if (!seen.has(m)) { seen.add(m); monthLabels.push({ col: i, month: m }); } });
-    let monthsHtml = '';
-    weeks.forEach((w, i) => {
-        const found = monthLabels.find(x => x.col === i);
-        const show = found && found.month % 2 === 1;
-        monthsHtml += '<span class="month-label" style="width:11px">' + (show ? found.month + '月' : '') + '</span>';
+    const heatmapHtml = renderCalendarHeatmapCard({
+        title: '聊天热力图',
+        date: statsHeatmapDate,
+        dailyCount: dailyCount,
+        steps: [1, 3, 8, 20],
+        navPrev: 'changeStatsHeatmapMonth(-1)',
+        navNext: 'changeStatsHeatmapMonth(1)'
     });
-
-    let weeksHtml = '';
-    weeks.forEach(w => {
-        weeksHtml += '<div class="stats-heatmap-week">';
-        for (let day = 0; day < 7; day++) {
-            const c = w.find(x => x.dayIdx === day);
-            if (c) weeksHtml += '<div class="heatmap-cell level-' + c.level + '" title="' + c.date + ': ' + c.count + '条"></div>';
-            else weeksHtml += '<div class="heatmap-cell empty"></div>';
-        }
-        weeksHtml += '</div>';
-    });
-
-    const heatmapHtml = '<div class="stats-heatmap-card">' +
-        '<div class="stats-heatmap-title">聊天热力图</div>' +
-        '<div class="stats-heatmap-scroll"><div class="stats-heatmap-wrap">' +
-        '<div class="stats-heatmap-months">' + monthsHtml + '</div>' +
-        '<div class="stats-heatmap-body">' +
-        '<div class="stats-heatmap-labels"><span>一</span><span class="spacer">二</span><span>三</span><span class="spacer">四</span><span>五</span><span class="spacer">六</span><span>日</span></div>' +
-        '<div class="stats-heatmap-weeks">' + weeksHtml + '</div>' +
-        '</div></div></div>' +
-        '<div class="stats-heatmap-legend"><span>少</span><span class="heatmap-cell level-0"></span><span class="heatmap-cell level-1"></span><span class="heatmap-cell level-2"></span><span class="heatmap-cell level-3"></span><span class="heatmap-cell level-4"></span><span>多</span></div>' +
-        '</div>';
 
     const cards = [
         { icon: 'bar-chart-3', label: '总对话数', value: fmtNum(state.chats.length) },
@@ -1531,39 +1554,15 @@ function renderBedroomHeatmap() {
     const dailyCount = {};
     state.memorySystem.diaries.forEach(d => { dailyCount[d.date] = (dailyCount[d.date] || 0) + 1; });
     state.memorySystem.memories.forEach(m => { const k = (m.createdAt || '').slice(0, 10); if (k) dailyCount[k] = (dailyCount[k] || 0) + 1; });
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const start = new Date(today.getFullYear(), 0, 1);
-    const sd = start.getDay(); const off = sd === 0 ? 6 : sd - 1; start.setDate(start.getDate() - off);
-    const weeks = []; let cur = [];
-    const yearEnd = new Date(today.getFullYear(), 11, 31);
-    for (let d = new Date(start); d <= yearEnd; d.setDate(d.getDate() + 1)) {
-        const key = dateKey(d); const count = dailyCount[key] || 0;
-        let level = 0; if (count > 0) level = 1; if (count >= 2) level = 2; if (count >= 4) level = 3; if (count >= 6) level = 4;
-        const dayIdx = d.getDay() === 0 ? 6 : d.getDay() - 1;
-        if (dayIdx === 0 && cur.length) { weeks.push(cur); cur = []; }
-        cur.push({ date: key, count, level, dayIdx, month: d.getMonth() + 1 });
-    }
-    if (cur.length) weeks.push(cur);
-    const monthLabels = []; const seen = new Set();
-    weeks.forEach((w, i) => { const m = w[0].month; if (!seen.has(m)) { seen.add(m); monthLabels.push({ col: i, month: m }); } });
-    let monthsHtml = '';
-    weeks.forEach((w, i) => { const f = monthLabels.find(x => x.col === i); const show = f && f.month % 2 === 1; monthsHtml += '<span class="month-label" style="width:11px">' + (show ? f.month + '月' : '') + '</span>'; });
-    let weeksHtml = '';
-    weeks.forEach(w => {
-        weeksHtml += '<div class="stats-heatmap-week">';
-        for (let day = 0; day < 7; day++) {
-            const c = w.find(x => x.dayIdx === day);
-            if (c) weeksHtml += '<div class="heatmap-cell level-' + c.level + '" onclick="peekDay(\'' + c.date + '\')" title="' + c.date + ': ' + c.count + '条"></div>';
-            else weeksHtml += '<div class="heatmap-cell empty"></div>';
-        }
-        weeksHtml += '</div>';
+    return renderCalendarHeatmapCard({
+        title: '记忆热力图',
+        date: bedroomHeatmapDate,
+        dailyCount: dailyCount,
+        steps: [1, 2, 4, 6],
+        onCellClick: key => "peekDay('" + key + "')",
+        navPrev: 'changeBedroomHeatmapMonth(-1)',
+        navNext: 'changeBedroomHeatmapMonth(1)'
     });
-    return '<div class="stats-heatmap-card"><div class="stats-heatmap-title">记忆热力图</div>' +
-        '<div class="stats-heatmap-scroll"><div class="stats-heatmap-wrap">' +
-        '<div class="stats-heatmap-months">' + monthsHtml + '</div>' +
-        '<div class="stats-heatmap-body"><div class="stats-heatmap-labels"><span>一</span><span class="spacer">二</span><span>三</span><span class="spacer">四</span><span>五</span><span class="spacer">六</span><span>日</span></div>' +
-        '<div class="stats-heatmap-weeks">' + weeksHtml + '</div></div></div></div>' +
-        '<div class="stats-heatmap-legend"><span>少</span><span class="heatmap-cell level-0"></span><span class="heatmap-cell level-1"></span><span class="heatmap-cell level-2"></span><span class="heatmap-cell level-3"></span><span class="heatmap-cell level-4"></span><span>多</span></div></div>';
 }
 function peekDay(dk) {
     const items = [];
