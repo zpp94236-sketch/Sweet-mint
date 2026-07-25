@@ -322,6 +322,7 @@ function renderGeneralModule() {
     '<div class="settings-list-card">' +
       '<div class="settings-row"><span class="settings-row-label">颜色模式</span><div class="segmented-control">' + modeBtn('system','跟随系统') + modeBtn('light','浅色') + modeBtn('dark','深色') + '</div></div>' +
     '</div>' +
+    renderThemeSection() +
     '<div class="settings-list-card-title">显示管理</div>' +
     '<div class="settings-list-card">' +
       wallpaperRow('wallpaper', '聊天壁纸', state.settings.wallpaper) +
@@ -411,7 +412,7 @@ function bindColorSliderGroup(key) {
         if (swatch) swatch.style.background = hex;
         satEl.style.background = 'linear-gradient(90deg, hsl(' + h + ',0%,' + l + '%), hsl(' + h + ',100%,' + l + '%))';
         lightEl.style.background = 'linear-gradient(90deg, #000, hsl(' + h + ',' + s + '%,50%), #fff)';
-        if (save) { state.settings[key] = hex; saveState(); applyCustomColors(); }
+        if (save) { state.settings[key] = hex; saveState(); if (key === 'themeSeed') applyThemeColor(); else applyCustomColors(); }
     }
     [hueEl, satEl, lightEl].forEach(el => el.addEventListener('input', () => update(true)));
     update(false);
@@ -457,6 +458,7 @@ function bindMainSettingsEvents() {
 
     document.querySelectorAll('.segmented-btn[data-theme-mode]').forEach(btn => btn.addEventListener('click', () => { state.settings.theme = btn.dataset.themeMode; saveState(); applyTheme(); document.querySelectorAll('.segmented-btn[data-theme-mode]').forEach(b => b.classList.toggle('active', b === btn)); }));
 
+    bindColorSliderGroup('themeSeed');
     bindColorSliderGroup('inputBgColor');
     bindColorSliderGroup('sidebarBgColor');
     const fontSel = document.getElementById('fontFamilySelect'); if(fontSel) fontSel.addEventListener('change', () => { state.settings.fontFamily = fontSel.value; saveState(); applyFontFamily(); });
@@ -522,16 +524,50 @@ function uploadWallpaper() { document.getElementById('wallpaperInput').click(); 
 function handleWallpaperPick(e) {
     const f = e.target.files[0]; if (!f) return;
     const key = e.target.dataset.wpKey;
-    const r = new FileReader();
-    r.onload = ev => {
-        state.settings[key] = ev.target.result;
-        state.settings[key + 'Name'] = f.name + ' · ' + Math.round(f.size / 1024) + 'KB';
-        saveState();
+    const origKB = Math.round(f.size / 1024);
+    compressImage(f, 1200, 0.82).then(dataUrl => {
+        const newKB = Math.round(dataUrl.length * 0.75 / 1024);
+        try {
+            state.settings[key] = dataUrl;
+            state.settings[key + 'Name'] = f.name + ' · ' + origKB + 'KB → ' + newKB + 'KB';
+            saveState();
+        } catch (err) {
+            state.settings[key] = '';
+            state.settings[key + 'Name'] = '';
+            alert('存储空间不足，图片没能保存。\n试试更小的图，或者先清掉另一张壁纸。');
+            renderSettingsView();
+            return;
+        }
         if (key === 'wallpaper') applyWallpaper(); else applyHomeBg();
         renderSettingsView();
-    };
-    r.readAsDataURL(f);
+    }).catch(err => {
+        alert('图片处理失败：' + err.message);
+    });
     e.target.value = '';
+}
+
+function compressImage(file, maxWidth, quality) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('读取失败'));
+        reader.onload = ev => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('不是有效的图片'));
+            img.onload = () => {
+                let w = img.naturalWidth, h = img.naturalHeight;
+                if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 function applyWallpaper() { const m = document.getElementById('chatMain'); const msg = document.getElementById('messages'); if (!m || !msg) return; if (state.settings.wallpaper) { m.classList.add('has-wallpaper'); m.classList.remove('default-gingham'); msg.style.backgroundImage = 'url(' + state.settings.wallpaper + ')'; } else { m.classList.remove('has-wallpaper'); m.classList.add('default-gingham'); msg.style.backgroundImage = ''; } }
 
@@ -588,6 +624,7 @@ function applyTheme() {
     let mode = state.settings.theme || 'system';
     if (mode === 'system') mode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', mode);
+    applyThemeColor();
 }
 function applyFontSize() { document.documentElement.style.setProperty('--font-size', (state.settings.fontSize || 15) + 'px'); }
 function getFontSizeLabel(s) { return {12:'极小',13:'小',14:'偏小',15:'标准',16:'偏大',17:'大',18:'较大',19:'很大',20:'超大'}[s]||'标准'; }
@@ -603,6 +640,82 @@ function applyCustomColors() {
     const root = document.documentElement.style;
     if (state.settings.inputBgColor) root.setProperty('--input-card-bg', state.settings.inputBgColor); else root.removeProperty('--input-card-bg');
     if (state.settings.sidebarBgColor) root.setProperty('--sidebar-bg', state.settings.sidebarBgColor); else root.removeProperty('--sidebar-bg');
+}
+
+// ===== 主题色系统（HSL 推导，近似 HCT）=====
+const THEME_PRESETS = [
+    { id: 'mint',    name: '薄荷绿', seed: '#7BAF9E' },
+    { id: 'sakura',  name: '樱花粉', seed: '#D98A9A' },
+    { id: 'bay',     name: '海湾蓝', seed: '#5B8FB9' },
+    { id: 'pearl',   name: '珍珠潮汐', seed: '#7A93A8' },
+    { id: 'field',   name: '原野绿', seed: '#7A9B5B' },
+    { id: 'autumn',  name: '秋黄',   seed: '#C9A25B' },
+    { id: 'lilac',   name: '薰衣草', seed: '#9B8AC4' },
+    { id: 'clay',    name: '陶土橘', seed: '#C98B6B' }
+];
+
+function deriveTheme(seedHex) {
+    const hsl = hexToHsl(seedHex);
+    const h = hsl.h, s = hsl.s;
+    return {
+        primary:        hslToHex(h, s, 58),
+        primaryDark:    hslToHex(h, Math.min(100, s + 4), 44),
+        primaryLight:   hslToHex(h, Math.max(18, s - 18), 87),
+        primaryLighter: hslToHex(h, Math.max(12, s - 28), 94),
+        bg:             hslToHex(h, Math.max(10, s - 32), 96),
+        accentRose:     hslToHex((h + 178) % 360, Math.max(28, s - 6), 72),
+        border:         hslToHex(h, Math.max(8, s - 26), 76),
+        shadow:         'hsla(' + h + ',' + Math.max(20, s - 20) + '%,45%,0.13)'
+    };
+}
+
+function applyThemeColor() {
+    const seed = state.settings.themeSeed || '#7BAF9E';
+    const t = deriveTheme(seed);
+    const r = document.documentElement.style;
+    r.setProperty('--primary', t.primary);
+    r.setProperty('--primary-dark', t.primaryDark);
+    r.setProperty('--primary-light', t.primaryLight);
+    r.setProperty('--primary-lighter', t.primaryLighter);
+    r.setProperty('--accent-rose', t.accentRose);
+    r.setProperty('--shadow', t.shadow);
+    const mode = document.documentElement.getAttribute('data-theme');
+    if (mode !== 'dark') {
+        r.setProperty('--bg', t.bg);
+        r.setProperty('--border', t.border);
+    } else {
+        r.removeProperty('--bg');
+        r.removeProperty('--border');
+    }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', mode === 'dark' ? '#1a2420' : t.bg);
+}
+
+function setThemeSeed(hex) {
+    state.settings.themeSeed = hex;
+    saveState();
+    applyThemeColor();
+    renderSettingsView();
+}
+
+function renderThemeSection() {
+    const cur = state.settings.themeSeed || '#7BAF9E';
+    const swatches = THEME_PRESETS.map(p => {
+        const t = deriveTheme(p.seed);
+        const active = cur.toLowerCase() === p.seed.toLowerCase();
+        return '<div class="theme-swatch' + (active ? ' active' : '') + '" onclick="setThemeSeed(\'' + p.seed + '\')">' +
+            '<div class="theme-swatch-ring" style="background:' + t.primaryLight + '">' +
+                '<div class="theme-swatch-dot" style="background:' + t.primaryDark + '">' + (active ? '✓' : '') + '</div>' +
+            '</div>' +
+            '<span class="theme-swatch-name" style="color:' + t.primaryDark + '">' + p.name + '</span>' +
+        '</div>';
+    }).join('');
+    return '<div class="settings-list-card-title">主题外观</div>' +
+        '<div class="settings-list-card">' +
+            '<div class="theme-swatch-grid">' + swatches + '</div>' +
+            '<div class="settings-row"><span class="settings-row-label">自定义主色</span><span class="color-swatch" id="swatch-themeSeed" style="background:' + cur + '"></span></div>' +
+            colorSliderRows('themeSeed', cur) +
+        '</div>';
 }
 
 // ===== AI Assistant Modal =====
