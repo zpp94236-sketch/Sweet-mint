@@ -155,7 +155,7 @@ function renderMessages() {
     chat.messages.forEach((msg, idx) => {
         const curTime = msg.timestamp ? new Date(msg.timestamp).getTime() : 0;
         if (curTime && (idx === 0 || curTime - lastTime > 30 * 60 * 1000)) {
-            html += '<div class="time-divider">' + formatMsgTime(msg.timestamp) + '</div>';
+            html += '<div class="time-divider">' + formatDivider(msg.timestamp) + '</div>';
         }
         html += renderSingleMessage(msg, idx);
         if (curTime) lastTime = curTime;
@@ -170,7 +170,7 @@ function renderMessages() {
 
 function renderSingleMessage(msg, idx) {
     const isUser = msg.role === 'user';
-    const time = msg.timestamp ? formatMsgTime(msg.timestamp) : '';
+    const time = msg.timestamp ? formatHM(msg.timestamp) : '';
     let thinkingHtml = ''; let mainContent = msg.content || '';
     const thinkOpen = '<' + 'think>'; const thinkClose = '</' + 'think>';
     if (!isUser && mainContent.includes(thinkOpen)) {
@@ -187,22 +187,35 @@ function renderSingleMessage(msg, idx) {
         }
     }
     const rendered = isUser ? escapeHtml(mainContent).replace(/\n/g, '<br>') : renderMarkdown(mainContent);
-    const aiName = state.settings.aiName || 'AI';
     const actions = isUser ? getUserActions(idx) : getAiActions(idx);
     const userAvatarHtml = state.settings.userAvatar ? '<img src="' + state.settings.userAvatar + '">' : '🌙';
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     if (isUser) {
-        return '<div class="message user"><div class="message-avatar">' + userAvatarHtml + '</div><div class="message-content-wrap"><div class="message-meta user-meta-row"><span class="message-time">' + time + '</span></div><div class="message-bubble">' + rendered + '</div>' + actions + '</div></div>';
+        return '<div class="message user"><div class="message-avatar">' + userAvatarHtml + '</div><div class="message-content-wrap"><div class="message-bubble">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div></div></div>';
     }
     let tokenHtml = '';
     if (msg.usage && state.settings.showTokenUsage !== false) {
         const parts = [];
         if (msg.usage.prompt_tokens != null) parts.push('输入 ' + msg.usage.prompt_tokens);
-        if (msg.usage.completion_tokens != null) parts.push('输出 ' + msg.usage.completion_tokens + ' tokens');
-        if (msg.duration) parts.push('耗时 ' + msg.duration + 's');
+        if (msg.usage.completion_tokens != null) parts.push('输出 ' + msg.usage.completion_tokens);
+        if (msg.duration) parts.push(msg.duration + 's');
         if (parts.length) tokenHtml = '<div class="message-tokens">' + parts.join(' · ') + '</div>';
     }
-    return '<div class="message assistant"><div class="message-avatar">' + aiAvatarHtml + '</div><div class="message-content-wrap"><div class="message-meta"><span class="message-time">' + time + '</span></div>' + thinkingHtml + '<div class="message-bubble">' + rendered + '</div>' + actions + tokenHtml + '</div></div>';
+    return '<div class="message assistant"><div class="message-avatar">' + aiAvatarHtml + '</div><div class="message-content-wrap">' + thinkingHtml + '<div class="message-bubble">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div>' + tokenHtml + '</div></div>';
+}
+
+function formatHM(iso) { if (!iso) return ''; const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+
+function formatDivider(iso) {
+    if (!iso) return '';
+    const d = new Date(iso), now = new Date();
+    const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return hm;
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return '昨天 ' + hm;
+    if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
 }
 
 function getUserActions(idx) { return '<div class="message-actions"><button class="msg-action-btn" onclick="copyMessage(' + idx + ')" title="复制"><i data-lucide="copy"></i></button><button class="msg-action-btn" onclick="regenerateMessage(' + idx + ')" title="重新生成"><i data-lucide="refresh-cw"></i></button><div class="msg-more-menu"><button class="msg-action-btn" onclick="toggleMoreMenu(this)" title="更多"><i data-lucide="more-horizontal"></i></button><div class="msg-more-dropdown"><button class="msg-dropdown-item" onclick="editMessage(' + idx + ')"><i data-lucide="pencil"></i>编辑</button><button class="msg-dropdown-item" onclick="branchChat(' + idx + ')"><i data-lucide="git-branch"></i>分支</button><button class="msg-dropdown-item danger" onclick="deleteMessage(' + idx + ')"><i data-lucide="trash-2"></i>删除</button></div></div></div>'; }
@@ -818,14 +831,13 @@ function openStats() {
     }));
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const start = new Date(today);
-    start.setMonth(start.getMonth() - 5);
-    start.setDate(1);
+    const start = new Date(today.getFullYear(), 0, 1);
     const sd = start.getDay(); const off = sd === 0 ? 6 : sd - 1;
     start.setDate(start.getDate() - off);
 
     const weeks = []; let cur = [];
-    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    const yearEnd = new Date(today.getFullYear(), 11, 31);
+    for (let d = new Date(start); d <= yearEnd; d.setDate(d.getDate() + 1)) {
         const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         const count = dailyCount[key] || 0;
         let level = 0;
@@ -844,7 +856,8 @@ function openStats() {
     let monthsHtml = '';
     weeks.forEach((w, i) => {
         const found = monthLabels.find(x => x.col === i);
-        monthsHtml += '<span class="month-label" style="width:14px">' + (found ? found.month + '月' : '') + '</span>';
+        const show = found && found.month % 2 === 1;
+        monthsHtml += '<span class="month-label" style="width:11px">' + (show ? found.month + '月' : '') + '</span>';
     });
 
     let weeksHtml = '';
@@ -1267,14 +1280,14 @@ function setupEventListeners() {
     on('bottomSheetBackdrop', 'click', closeBottomSheet);
     on('bsImage', 'click', () => { closeBottomSheet(); document.getElementById('imageInputHidden').click(); });
     on('bsCamera', 'click', () => { closeBottomSheet(); document.getElementById('cameraInputHidden').click(); });
-    on('bsModel', 'click', () => { closeBottomSheet(); openSettingsPanel(); });
-    on('bsCompress', 'click', () => { closeBottomSheet(); compressHistory(); });
+    on('bsModel', 'click', () => { closeBottomSheet(); setTimeout(openSettingsPanel, 320); });
+    on('bsCompress', 'click', () => { closeBottomSheet(); setTimeout(compressHistory, 320); });
     on('bsSearch', 'click', () => { showToolSheetView('search'); });
     on('bsMcp', 'click', () => { showToolSheetView('mcp'); });
     on('mcpSheetBack', 'click', () => { showToolSheetView('grid'); });
     on('searchSheetBack', 'click', () => { showToolSheetView('grid'); });
     on('bsFile', 'click', () => { closeBottomSheet(); document.getElementById('fileInputHidden').click(); });
-    on('bsStar', 'click', () => { closeBottomSheet(); alert('收藏功能开发中～'); });
+    on('bsStar', 'click', () => { closeBottomSheet(); setTimeout(() => alert('收藏功能开发中～'), 320); });
     on('compressRow', 'click', (e) => { e.stopPropagation(); closeInputPopups(); compressHistory(); });
     on('plusUploadFile', 'click', () => { document.getElementById('fileInputHidden').click(); });
     on('plusUploadCamera', 'click', () => { document.getElementById('cameraInputHidden').click(); });
@@ -1519,10 +1532,11 @@ function renderBedroomHeatmap() {
     state.memorySystem.diaries.forEach(d => { dailyCount[d.date] = (dailyCount[d.date] || 0) + 1; });
     state.memorySystem.memories.forEach(m => { const k = (m.createdAt || '').slice(0, 10); if (k) dailyCount[k] = (dailyCount[k] || 0) + 1; });
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const start = new Date(today); start.setMonth(start.getMonth() - 3); start.setDate(1);
+    const start = new Date(today.getFullYear(), 0, 1);
     const sd = start.getDay(); const off = sd === 0 ? 6 : sd - 1; start.setDate(start.getDate() - off);
     const weeks = []; let cur = [];
-    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    const yearEnd = new Date(today.getFullYear(), 11, 31);
+    for (let d = new Date(start); d <= yearEnd; d.setDate(d.getDate() + 1)) {
         const key = dateKey(d); const count = dailyCount[key] || 0;
         let level = 0; if (count > 0) level = 1; if (count >= 2) level = 2; if (count >= 4) level = 3; if (count >= 6) level = 4;
         const dayIdx = d.getDay() === 0 ? 6 : d.getDay() - 1;
@@ -1533,7 +1547,7 @@ function renderBedroomHeatmap() {
     const monthLabels = []; const seen = new Set();
     weeks.forEach((w, i) => { const m = w[0].month; if (!seen.has(m)) { seen.add(m); monthLabels.push({ col: i, month: m }); } });
     let monthsHtml = '';
-    weeks.forEach((w, i) => { const f = monthLabels.find(x => x.col === i); monthsHtml += '<span class="month-label" style="width:14px">' + (f ? f.month + '月' : '') + '</span>'; });
+    weeks.forEach((w, i) => { const f = monthLabels.find(x => x.col === i); const show = f && f.month % 2 === 1; monthsHtml += '<span class="month-label" style="width:11px">' + (show ? f.month + '月' : '') + '</span>'; });
     let weeksHtml = '';
     weeks.forEach(w => {
         weeksHtml += '<div class="stats-heatmap-week">';

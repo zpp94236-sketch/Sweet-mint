@@ -915,3 +915,64 @@ body {
     background-color: transparent !important;
 }
 .input-area { background: transparent !important; }
+
+/* ===== 消息布局修正 ===== */
+.message { max-width: 88%; gap: 8px; }
+.message-content-wrap { min-width: 0; flex: 1; }
+.message.user .message-content-wrap { align-items: flex-end; display: flex; flex-direction: column; }
+.message-bubble { max-width: 100%; }
+
+.message-footer { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.message.user .message-footer { flex-direction: row-reverse; }
+.message-footer .message-time {
+    font-size: 10px; color: var(--text-light); opacity: 0.85; flex-shrink: 0;
+    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
+}
+.message-footer .message-actions { margin-top: 0; }
+
+.message-tokens {
+    margin-top: 2px; font-size: 10px; color: var(--text-light); padding-left: 2px; opacity: 0.9;
+    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
+}
+.message.user .message-tokens { text-align: right; }
+[data-theme="dark"] .message-footer .message-time,
+[data-theme="dark"] .message-tokens { text-shadow: 0 0 4px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.6); }
+
+.msg-action-btn { color: var(--text-light); opacity: 0.75; }
+.msg-action-btn:hover { opacity: 1; }
+
+/* 列表边距 */
+.message-bubble ul, .message-bubble ol { margin: 6px 0; padding-left: 20px; }
+.message-bubble li { margin-bottom: 3px; line-height: 1.6; }
+.message-bubble li:last-child { margin-bottom: 0; }
+.message-bubble ul li::marker { color: var(--primary-dark); }
+
+/* 时间分隔线也去掉年月日 */
+.time-divider { text-shadow: 0 0 4px rgba(255,255,255,0.9); }
+
+/* 顶栏遮挡 */
+.messages { padding-top: 8px; }
+
+/* 统计页底部留白 */
+.stats-content { padding: 8px 16px 16px; }
+
+/* 热力图格子缩小以放下 53 周 */
+.heatmap-cell { width: 8px; height: 8px; border-radius: 2px; background: var(--primary-lighter); }
+.stats-heatmap-weeks { display: flex; gap: 3px; }
+.stats-heatmap-week { display: flex; flex-direction: column; gap: 3px; }
+.stats-heatmap-labels span { height: 8px; line-height: 8px; }
+.stats-heatmap-months .month-label { text-align: left; white-space: nowrap; flex-shrink: 0; overflow: visible; }
+
+/* ===== AI助手弹窗：补回边距 ===== */
+.assistant-modal-content { padding: 18px 20px !important; }
+.assistant-modal-footer { padding: 12px 20px !important; }
+.assistant-modal-tabs { padding: 0 20px !important; margin-top: 14px !important; }
+.assistant-modal-tab { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; }
+.assistant-modal-tab.active { background: transparent !important; }
+.assistant-modal-tab::after {
+    content: '' !important; position: absolute !important;
+    left: 50% !important; right: 50% !important; bottom: -1px !important;
+    height: 2px !important; background: var(--primary) !important;
+    border-radius: 2px 2px 0 0 !important; transition: all .3s ease !important;
+}
+.assistant-modal-tab.active::after { left: 22% !important; right: 22% !important; }
