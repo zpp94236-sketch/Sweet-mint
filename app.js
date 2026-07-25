@@ -844,7 +844,7 @@ function openStats() {
     let monthsHtml = '';
     weeks.forEach((w, i) => {
         const found = monthLabels.find(x => x.col === i);
-        monthsHtml += '<span class="month-label">' + (found ? found.month + '月' : '') + '</span>';
+        monthsHtml += '<span class="month-label" style="width:14px">' + (found ? found.month + '月' : '') + '</span>';
     });
 
     let weeksHtml = '';
@@ -863,7 +863,7 @@ function openStats() {
         '<div class="stats-heatmap-scroll"><div class="stats-heatmap-wrap">' +
         '<div class="stats-heatmap-months">' + monthsHtml + '</div>' +
         '<div class="stats-heatmap-body">' +
-        '<div class="stats-heatmap-labels"><span class="spacer">日</span><span>一</span><span class="spacer">二</span><span>三</span><span class="spacer">四</span><span>五</span><span class="spacer">日</span></div>' +
+        '<div class="stats-heatmap-labels"><span>一</span><span class="spacer">二</span><span>三</span><span class="spacer">四</span><span>五</span><span class="spacer">六</span><span>日</span></div>' +
         '<div class="stats-heatmap-weeks">' + weeksHtml + '</div>' +
         '</div></div></div>' +
         '<div class="stats-heatmap-legend"><span>少</span><span class="heatmap-cell level-0"></span><span class="heatmap-cell level-1"></span><span class="heatmap-cell level-2"></span><span class="heatmap-cell level-3"></span><span class="heatmap-cell level-4"></span><span>多</span></div>' +
@@ -874,8 +874,7 @@ function openStats() {
         { icon: 'message-circle', label: '总消息数', value: fmtNum(totalMsg) },
         { icon: 'cpu', label: '输入 Token', value: fmtNum(totalIn) },
         { icon: 'cpu', label: '输出 Token', value: fmtNum(totalOut) },
-        { icon: 'zap', label: '缓存节省 Token', value: fmtNum(totalCached), wide: true },
-        { icon: 'rocket', label: '应用启动次数', value: fmtNum(state.settings.launchCount || 1), wide: true }
+        { icon: 'zap', label: '缓存节省 Token', value: fmtNum(totalCached), wide: true }
     ];
     const cardsHtml = '<div class="stats-grid">' + cards.map(c => '<div class="stat-card' + (c.wide ? ' wide' : '') + '"><div class="stat-icon"><i data-lucide="' + c.icon + '"></i></div><div class="stat-value">' + c.value + '</div><div class="stat-label">' + c.label + '</div></div>').join('') + '</div>';
 
@@ -1534,7 +1533,7 @@ function renderBedroomHeatmap() {
     const monthLabels = []; const seen = new Set();
     weeks.forEach((w, i) => { const m = w[0].month; if (!seen.has(m)) { seen.add(m); monthLabels.push({ col: i, month: m }); } });
     let monthsHtml = '';
-    weeks.forEach((w, i) => { const f = monthLabels.find(x => x.col === i); monthsHtml += '<span class="month-label">' + (f ? f.month + '月' : '') + '</span>'; });
+    weeks.forEach((w, i) => { const f = monthLabels.find(x => x.col === i); monthsHtml += '<span class="month-label" style="width:14px">' + (f ? f.month + '月' : '') + '</span>'; });
     let weeksHtml = '';
     weeks.forEach(w => {
         weeksHtml += '<div class="stats-heatmap-week">';
@@ -1548,7 +1547,7 @@ function renderBedroomHeatmap() {
     return '<div class="stats-heatmap-card"><div class="stats-heatmap-title">记忆热力图</div>' +
         '<div class="stats-heatmap-scroll"><div class="stats-heatmap-wrap">' +
         '<div class="stats-heatmap-months">' + monthsHtml + '</div>' +
-        '<div class="stats-heatmap-body"><div class="stats-heatmap-labels"><span class="spacer">日</span><span>一</span><span class="spacer">二</span><span>三</span><span class="spacer">四</span><span>五</span><span class="spacer">日</span></div>' +
+        '<div class="stats-heatmap-body"><div class="stats-heatmap-labels"><span>一</span><span class="spacer">二</span><span>三</span><span class="spacer">四</span><span>五</span><span class="spacer">六</span><span>日</span></div>' +
         '<div class="stats-heatmap-weeks">' + weeksHtml + '</div></div></div></div>' +
         '<div class="stats-heatmap-legend"><span>少</span><span class="heatmap-cell level-0"></span><span class="heatmap-cell level-1"></span><span class="heatmap-cell level-2"></span><span class="heatmap-cell level-3"></span><span class="heatmap-cell level-4"></span><span>多</span></div></div>';
 }
