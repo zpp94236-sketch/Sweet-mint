@@ -103,6 +103,13 @@ function ensureMemorySystem() {
     if (!state.memorySystem.weeklyReports) state.memorySystem.weeklyReports = [];
     if (!state.memorySystem.settings) state.memorySystem.settings = { supabaseUrl: '', supabaseKey: '', lastSyncAt: null };
     if (!state.memorySystem.settings.conversationId) state.memorySystem.settings.conversationId = 'sweetmint_' + Date.now();
+   // 一次性迁移：把云端拉下来的记忆从长期记忆搬到记忆宫殿
+  if (!state.memorySystem.migratedToPalace) {
+      state.memorySystem.memories.forEach(m => {
+          if (m.source === 'cloud') m.category = 'palace';
+      });
+      state.memorySystem.migratedToPalace = true;
+  }
 }
 
 function getActiveProvider() { return state.providers.find(p => p.id === state.activeProviderId) || null; }
@@ -1128,7 +1135,7 @@ function renderBedroom() {
     else if (view === 'diaryDetail') { title = '日记详情'; html = renderDiaryDetail(); }
     else if (view === 'memoryHome') { title = '琥珀'; html = renderMemoryHome(); showAdd = () => bedroomGo('memoryEdit', { category: 'core' }); }
     else if (view === 'memoryList') {
-        const names = { core: '核心记忆', longterm: '长期记忆', shortterm: '短期记忆' };
+        const names = { core: '核心记忆', palace: '记忆宫殿', longterm: '长期记忆', shortterm: '短期记忆' };
         title = names[bedroomParams.category] || '记忆列表'; html = renderMemoryList();
         showAdd = () => bedroomGo('memoryEdit', { category: bedroomParams.category });
     }
@@ -1303,14 +1310,17 @@ function deleteDiary(date) {
     saveState(); bedroomBack();
 }
 
-// --- 记忆宫殿 ---
+// --- 琥珀 ---
 function renderMemoryHome() {
     const cats = [{ k: 'core', icon: '💎', name: '核心记忆' }, { k: 'longterm', icon: '📚', name: '长期记忆' }, { k: 'shortterm', icon: '🌿', name: '短期记忆' }];
     const cardFor = c => {
         const n = state.memorySystem.memories.filter(m => m.category === c.k).length;
         return '<div class="memory-cat-card" onclick="bedroomGo(\'memoryList\',{category:\'' + c.k + '\'})"><div class="memory-cat-icon">' + c.icon + '</div><div class="memory-cat-info"><span class="memory-cat-name">' + c.name + '</span><span class="memory-cat-count">' + n + ' 条</span></div><i data-lucide="chevron-right"></i></div>';
     };
-    const palaceCard = '<div class="memory-cat-card" onclick="alert(\'记忆宫殿开发中，敬请期待～\')"><div class="memory-cat-icon">🏛️</div><div class="memory-cat-info"><span class="memory-cat-name">记忆宫殿</span><span class="memory-cat-count">敬请期待</span></div><i data-lucide="chevron-right"></i></div>';
+  const palaceCard = (() => {
+    const n = state.memorySystem.memories.filter(m => m.category === 'palace').length;
+    return '<div class="memory-cat-card" onclick="bedroomGo(\'memoryList\',{category:\'palace\'})"><div class="memory-cat-icon">🏛️</div><div class="memory-cat-info"><span class="memory-cat-name">记忆宫殿</span><span class="memory-cat-count">' + n + ' 条</span></div><i data-lucide="chevron-right"></i></div>';
+})();
     return '<div class="memory-cat-list">' + cardFor(cats[0]) + palaceCard + cardFor(cats[1]) + cardFor(cats[2]) + '</div>';
 }
 function renderMemoryList() {
@@ -1348,7 +1358,7 @@ function saveMemory(id) {
 function renderMemoryDetail() {
     const m = state.memorySystem.memories.find(x => x.id === bedroomParams.id);
     if (!m) return '<div class="bedroom-empty">记忆不存在</div>';
-    const catNames = { core: '💎 核心记忆', longterm: '📚 长期记忆', shortterm: '🌿 短期记忆' };
+    const catNames = { core: '💎 核心记忆', palace: '🏛️ 记忆宫殿', longterm: '📚 长期记忆', shortterm: '🌿 短期记忆' };
     return '<div class="memory-detail-cat">' + catNames[m.category] + '</div>' +
         '<div class="memory-detail-text">' + escapeHtml(m.content) + '</div>' +
         (m.tags && m.tags.length ? '<div class="memory-detail-tags">' + m.tags.map(t => '<span class="placeholder-tag">#' + escapeHtml(t) + '</span>').join(' ') + '</div>' : '') +
@@ -1545,7 +1555,7 @@ async function pullMemoriesFromCloud() {
                 id: 'cloud_' + item.id,
                 content: item.content || item.summary || '',
                 summary: item.summary || '',
-                category: item.category || 'longterm',
+                category: 'palace',
                 tags: item.tags ? (typeof item.tags === 'string' ? JSON.parse(item.tags) : item.tags) : [],
                 createdAt: item.created_at,
                 source: 'cloud'
