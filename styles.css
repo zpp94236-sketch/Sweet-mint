@@ -692,3 +692,40 @@ body {
 .memory-detail-text { font-size: 14px; color: var(--text); line-height: 1.7; white-space: pre-wrap; background: var(--bg-white); border-radius: var(--radius-small); padding: 14px; box-shadow: 0 1px 4px var(--shadow); margin-bottom: 12px; }
 .memory-detail-tags { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
 .memory-detail-time { font-size: 11px; color: var(--text-light); margin-bottom: 6px; }
+
+/* ===== 回声 · 便签 ===== */
+.echo-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding:0 2px; }
+.echo-count { font-size:12px; color:var(--text-light); }
+.echo-refresh { background:none; border:none; font-size:12px; color:var(--text-light); cursor:pointer; padding:4px 6px; }
+.echo-list { display:flex; flex-direction:column; gap:8px; }
+
+.echo-note {
+    position:relative;
+    padding:10px 12px 10px 14px;
+    border-radius:4px 10px 10px 4px;
+    background:#FFFDF5;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+    cursor:pointer;
+    transition:box-shadow .18s ease;
+}
+.echo-note::before {
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    border-radius:4px 0 0 4px; background:#C8DFD2;
+}
+.echo-note.echo-user { background:#FFF7F3; }
+.echo-note.echo-user::before { background:#F0C8C0; }
+.echo-note:active { box-shadow:0 1px 2px rgba(0,0,0,.1); }
+
+.echo-note-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.echo-note-who { font-size:12px; font-weight:600; color:var(--text-color,#5A4636); }
+.echo-note-time { font-size:10px; color:var(--text-light); }
+
+.echo-note-preview { font-size:13px; line-height:1.5; color:var(--text-color,#5A4636); }
+.echo-note-full { display:none; font-size:13px; line-height:1.7; color:var(--text-color,#5A4636); white-space:normal; word-break:break-word; }
+
+.echo-note.expanded .echo-note-preview { display:none; }
+.echo-note.expanded .echo-note-full { display:block; }
+.echo-note.echo-short { cursor:default; }
+.echo-note.echo-short .echo-note-preview { display:block; }
+.echo-note.echo-short.expanded .echo-note-preview { display:block; }
+.echo-note.echo-short .echo-note-full { display:none !important; }

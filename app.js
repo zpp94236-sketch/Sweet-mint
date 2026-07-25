@@ -285,6 +285,7 @@ function renderSettingsView() {
     const title = document.getElementById('settingsTitle'); const backBtn = document.getElementById('settingsBackBtn');
     if (settingsView === 'main') { title.textContent = '设置'; backBtn.style.display = 'none'; content.innerHTML = renderMainSettings(); footer.innerHTML = '<button class="btn-primary" onclick="saveMainSettings()">保存设置</button>'; bindMainSettingsEvents(); }
     else if (settingsView === 'provider-detail') { const p = state.providers.find(x => x.id === editingProviderId); title.textContent = p ? '编辑供应商' : '添加供应商'; backBtn.style.display = 'flex'; content.innerHTML = renderProviderDetail(p); footer.innerHTML = '<button class="btn-primary" onclick="saveProviderDetail()">保存供应商</button>'; }
+    else if (settingsView === 'cloud-sync') { ensureMemorySystem(); title.textContent = '云端同步'; backBtn.style.display = 'flex'; content.innerHTML = renderCloudSync(); footer.innerHTML = ''; }
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -400,6 +401,7 @@ function renderDataModule() {
     '<div class="settings-list-card">' +
       '<div class="settings-row settings-row-click" onclick="exportData()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>数据导出</span><i data-lucide="chevron-right"></i></div>' +
       '<div class="settings-row settings-row-click" onclick="document.getElementById(\'importFileInput\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>数据导入</span><i data-lucide="chevron-right"></i></div>' +
+      '<div class="settings-row settings-row-click" onclick="openCloudSyncSettings()"><span class="settings-row-label"><i data-lucide="cloud" class="settings-row-icon"></i>云端同步</span><i data-lucide="chevron-right"></i></div>' +
       '<input type="file" id="importFileInput" accept=".json" hidden>' +
     '</div>';
 }
@@ -427,6 +429,7 @@ function bindMainSettingsEvents() {
     document.querySelectorAll('.plugin-toggle').forEach(t => t.addEventListener('change', () => { if(!state.settings.plugins) state.settings.plugins = {}; state.settings.plugins[t.dataset.plugin] = t.checked; saveState(); }));
 }
 
+function openCloudSyncSettings() { ensureMemorySystem(); settingsView = 'cloud-sync'; renderSettingsView(); }
 function addNewProvider() { editingProviderId = null; settingsView = 'provider-detail'; renderSettingsView(); }
 function editProvider(id) { editingProviderId = id; settingsView = 'provider-detail'; renderSettingsView(); }
 function deleteProvider(id) { if (!confirm('确定删除这个供应商？')) return; state.providers = state.providers.filter(p => p.id !== id); if (state.activeProviderId === id) state.activeProviderId = state.providers.length > 0 ? state.providers[0].id : null; saveState(); renderSettingsView(); updateHeader(); }
@@ -922,7 +925,8 @@ function setupEventListeners() {
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
-            if (room === 'diary') { openBedroom(); }
+            const rootViews = { diary: 'home', living: 'livingHome', study: 'studyHome', kitchen: 'kitchenHome', balcony: 'balconyHome', garden: 'gardenHome' };
+            if (rootViews[room]) { openRoom(rootViews[room]); }
             else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
         });
     });
@@ -1034,9 +1038,10 @@ function dateKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).pa
 function todayDateKey() { return dateKey(new Date()); }
 function moodEmoji(m) { return ({ sun: '☀️', 'cloud-sun': '🌤️', cloud: '⛅', rain: '🌧️', moon: '🌙' })[m] || '☀️'; }
 
-function openBedroom() {
+function openBedroom() { openRoom('home'); }
+function openRoom(rootView) {
     closeSidebar();
-    bedroomStack = ['home'];
+    bedroomStack = [rootView];
     bedroomParams = {};
     renderBedroom();
     const ov = document.getElementById('bedroomOverlay');
@@ -1052,164 +1057,58 @@ function bedroomBack() {
     else { const ov = document.getElementById('bedroomOverlay'); if (ov) ov.classList.remove('active'); }
 }
 
-// ===== Chat History =====
+// ===== 回声（Echo）：云端聊天历史，仅供查阅 =====
 
-function openChatHistory() {
-
-    bedroomGo('chatHistory',{});
-
-    if (!state.chatHistory.loaded) {
-        loadChatHistory();
-    } else {
-        renderChatHistory();
-    }
-
-}
-
-
-async function loadChatHistory() {
-
+async function loadEcho(force) {
+    const el = document.getElementById('echoContent');
+    if (!el) return;
     if (!isSupabaseConfigured()) {
-        alert('请先配置 Supabase');
+        el.innerHTML = '<div class="bedroom-empty">还没有配置云端同步<br>去「设置 → 数据设置 → 云端同步」填一下 Supabase 吧～</div>';
         return;
     }
-
+    if (state.chatHistory.loaded && !force) { renderEcho(); return; }
     state.chatHistory.loading = true;
-
-    renderChatHistoryLoading();
-
-
+    el.innerHTML = '<div class="bedroom-empty">正在把回声捞上来…</div>';
     try {
-
-        const url =
-            state.memorySystem.settings.supabaseUrl +
-            '/rest/v1/chat_messages?order=created_at.desc&limit=100';
-
-
-        const res = await fetch(url, {
-            headers: getSupabaseHeaders()
-        });
-
-
-        if (!res.ok) {
-            throw new Error('加载聊天记录失败: ' + res.status);
-        }
-
-
-        const data = await res.json();
-
-
-        state.chatHistory.messages = data || [];
-
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const url = base + '/rest/v1/chat_messages?select=id,role,content,created_at&order=created_at.desc&limit=50';
+        const res = await fetch(url, { headers: getSupabaseHeaders() });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        state.chatHistory.messages = (await res.json()) || [];
         state.chatHistory.loaded = true;
+        renderEcho();
+    } catch (e) {
+        el.innerHTML = '<div class="bedroom-empty">加载失败：' + escapeHtml(e.message) + '</div>';
+    } finally {
+        state.chatHistory.loading = false;
+    }
+}
 
-
-        renderChatHistory();
-
-
-    } catch(e) {
-
-        console.error(e);
-
-        document.getElementById('chatHistoryContent').innerHTML =
-            '<div class="empty-state">加载失败：' +
-            escapeHtml(e.message) +
+function renderEcho() {
+    const el = document.getElementById('echoContent');
+    if (!el) return;
+    const list = state.chatHistory.messages || [];
+    if (!list.length) { el.innerHTML = '<div class="bedroom-empty">云端还没有聊天记录</div>'; return; }
+    const aiName = state.settings.aiName || '晏晏';
+    const userName = state.settings.userName || '郑郑';
+    const notes = list.map(m => {
+        const isAi = m.role === 'assistant';
+        const who = isAi ? aiName : userName;
+        const text = (m.content || '').trim();
+        const flat = text.replace(/\s+/g, ' ');
+        const long = flat.length > 40;
+        const preview = long ? flat.slice(0, 40) + '…' : flat;
+        return '<div class="echo-note ' + (isAi ? 'echo-ai' : 'echo-user') + (long ? '' : ' echo-short') + '" onclick="toggleEchoNote(this)">' +
+            '<div class="echo-note-head"><span class="echo-note-who">' + escapeHtml(who) + '</span><span class="echo-note-time">' + formatMsgTime(m.created_at) + '</span></div>' +
+            '<div class="echo-note-preview">' + escapeHtml(preview) + '</div>' +
+            '<div class="echo-note-full">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div>' +
             '</div>';
-
-    }
-
-
-    state.chatHistory.loading = false;
+    }).join('');
+    el.innerHTML = '<div class="echo-bar"><span class="echo-count">最近 ' + list.length + ' 条</span><button class="echo-refresh" onclick="loadEcho(true)">↻ 刷新</button></div>' +
+        '<div class="echo-list">' + notes + '</div>';
 }
 
-
-
-function renderChatHistoryLoading() {
-
-    const el =
-        document.getElementById('chatHistoryContent');
-
-    if (!el) return;
-
-
-    el.innerHTML =
-        '<div class="empty-state">正在加载聊天记录...</div>';
-}
-
-
-
-function renderChatHistory() {
-
-    const el =
-        document.getElementById('chatHistoryContent');
-
-
-    if (!el) return;
-
-
-    const list =
-        state.chatHistory.messages;
-
-
-    if (!list.length) {
-
-        el.innerHTML =
-            '<div class="empty-state">暂无聊天记录</div>';
-
-        return;
-    }
-
-
-
-    el.innerHTML =
-        list.map(msg => {
-
-
-            const role =
-                msg.role === 'assistant'
-                ? 'AI'
-                : '你';
-
-
-            const time =
-                msg.created_at
-                ? new Date(msg.created_at)
-                    .toLocaleString()
-                : '';
-
-
-
-            return `
-
-            <div class="history-item">
-
-                <div class="history-meta">
-
-                    <span>
-                    ${role}
-                    </span>
-
-                    <span>
-                    ${time}
-                    </span>
-
-                </div>
-
-
-                <div class="history-content">
-
-                    ${escapeHtml(msg.content || '')}
-
-                </div>
-
-            </div>
-
-            `;
-
-
-        }).join('');
-
-}
+function toggleEchoNote(el) { el.classList.toggle('expanded'); }
 
 function renderBedroom() {
     ensureMemorySystem();
@@ -1227,7 +1126,7 @@ function renderBedroom() {
         title = '写日记'; html = renderDiaryEdit();
     }
     else if (view === 'diaryDetail') { title = '日记详情'; html = renderDiaryDetail(); }
-    else if (view === 'memoryHome') { title = '记忆宫殿'; html = renderMemoryHome(); showAdd = () => bedroomGo('memoryEdit', { category: 'core' }); }
+    else if (view === 'memoryHome') { title = '琥珀'; html = renderMemoryHome(); showAdd = () => bedroomGo('memoryEdit', { category: 'core' }); }
     else if (view === 'memoryList') {
         const names = { core: '核心记忆', longterm: '长期记忆', shortterm: '短期记忆' };
         title = names[bedroomParams.category] || '记忆列表'; html = renderMemoryList();
@@ -1239,40 +1138,70 @@ function renderBedroom() {
         title = bedroomParams.id ? '编辑记忆' : '添加记忆'; html = renderMemoryEdit();
     }
     else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
-    else if (view === 'weeklyList') { title = '周记'; html = renderWeeklyList(); }
-    else if (view === 'weeklyEdit') { title = bedroomParams.id ? '编辑周记' : '新建周记'; html = renderWeeklyEdit(); }
-    else if (view === 'weeklyDetail') { title = '周记详情'; html = renderWeeklyDetail(); }
-    else if (view === 'cloudSync') { title = '云端同步'; html = renderCloudSync(); }
-    else if (view === 'chatHistory') { title = '聊天历史'; html = '<div id="chatHistoryContent"></div>'; }
+    else if (view === 'livingHome') { title = '客厅'; html = renderPlaceholderGrid([
+        { icon: '🛋️', name: '沙发', desc: '', go: 'sofaHome' },
+        { icon: '🐠', name: '鱼缸', desc: '敬请期待' },
+        { icon: '🔊', name: '音响', desc: '敬请期待' },
+        { icon: '📺', name: '电视', desc: '敬请期待' }
+    ]); }
+    else if (view === 'sofaHome') { title = '沙发'; html = renderPlaceholderGrid([
+        { icon: '📱', name: '朋友圈', desc: '敬请期待' },
+        { icon: '🔊', name: '回声', desc: '聊天历史', go: 'echoHome' }
+    ]); }
+    else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
+    else if (view === 'studyHome') { title = '书房'; html = renderPlaceholderGrid([
+        { icon: '📖', name: '共读室', desc: '敬请期待' },
+        { icon: '🖋️', name: '创作室', desc: '敬请期待' },
+        { icon: '🎮', name: '游戏屋', desc: '敬请期待' },
+        { icon: '✏️', name: '自习室', desc: '', go: 'zixiHome' } 
+    ]); }
+    else if (view === 'zixiHome') { title = '自习室'; html = renderPlaceholderGrid([
+        { icon: '💻', name: '工作台', desc: '敬请期待' },
+        { icon: '🗓️', name: '计划板', desc: '敬请期待' }
+    ]); }
+    else if (view === 'kitchenHome') { title = '厨房'; html = renderPlaceholderGrid([
+        { icon: '🍽️', name: '饮食记录', desc: '敬请期待' },
+        { icon: '🛵', name: '外卖点单', desc: '敬请期待' },
+        { icon: '📖', name: '菜谱研究', desc: '敬请期待' }
+    ]); }
+    else if (view === 'balconyHome') { title = '阳台'; html = renderPlaceholderGrid([
+        { icon: '🍵', name: '榻榻米', desc: '敬请期待' },
+        { icon: '⛅', name: '天气角', desc: '敬请期待' },
+        { icon: '🪴', name: '植物架', desc: '敬请期待' },
+        { icon: '🏙️', name: '城市窗', desc: '敬请期待' }
+    ]); }
+    else if (view === 'gardenHome') { title = '花园'; html = renderPlaceholderGrid([
+        { icon: '🐾', name: '宠物', desc: '敬请期待' },
+        { icon: '🏃', name: '运动', desc: '敬请期待' }
+    ]); }
     if (titleEl) titleEl.textContent = title;
     content.innerHTML = html;
     if (extraBtn) {
         if (showAdd) { extraBtn.style.display = 'flex'; extraBtn.onclick = showAdd; }
         else { extraBtn.style.display = 'none'; extraBtn.onclick = null; }
     }
-if (view === 'chatHistory') {
-    if (!state.chatHistory.loaded) {
-        loadChatHistory();
-    } else {
-        renderChatHistory();
-    }
-}
+    if (view === 'echoHome') { loadEcho(); }
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+function renderPlaceholderGrid(items) {
+    return '<div class="room-grid bedroom-grid">' + items.map(it => {
+        const action = it.go ? "bedroomGo('" + it.go + "',{})" : "alert('" + it.name + "开发中，敬请期待～')";
+        return '<div class="room-card" onclick="' + action + '"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + (it.desc || '') + '</span></div></div>';
+    }).join('') + '</div>';
+}
+
 function renderBedroomGrid() {
-    const dc = state.memorySystem.diaries.length, mc = state.memorySystem.memories.length, wc = state.memorySystem.weeklyReports.length;
-    const s = state.memorySystem.settings;
-    const syncStatus = s.supabaseUrl ? (s.lastSyncAt ? '已同步' : '待同步') : '未配置';
+    const dc = state.memorySystem.diaries.length, mc = state.memorySystem.memories.length;
     const items = [
-        { icon: '📔', name: '日记本', desc: dc + ' 篇日记', go: 'diaryList' },
-        { icon: '🏛️', name: '记忆宫殿', desc: mc + ' 条记忆', go: 'memoryHome' },
-        { icon: '📋', name: '周记', desc: wc + ' 篇', go: 'weeklyList' },
-        { icon: '☁️', name: '云端同步', desc: syncStatus, go: 'cloudSync' },
-        { icon: '💬', name: '聊天历史', desc: '最近100条对话', go: 'chatHistory' }
+        { icon: '📔', name: '拾光', desc: dc + ' 篇日记', go: 'diaryList' },
+        { icon: '🟠', name: '琥珀', desc: mc + ' 条记忆', go: 'memoryHome' },
+        { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true }
     ];
     return '<div class="room-grid bedroom-grid">' + items.map(it =>
-        '<div class="room-card" onclick="bedroomGo(\'' + it.go + '\',{})"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
+        it.placeholder
+        ? '<div class="room-card" onclick="alert(\'' + it.name + '开发中，敬请期待～\')"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
+        : '<div class="room-card" onclick="bedroomGo(\'' + it.go + '\',{})"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
     ).join('') + '</div>';
 }
 
@@ -1377,10 +1306,12 @@ function deleteDiary(date) {
 // --- 记忆宫殿 ---
 function renderMemoryHome() {
     const cats = [{ k: 'core', icon: '💎', name: '核心记忆' }, { k: 'longterm', icon: '📚', name: '长期记忆' }, { k: 'shortterm', icon: '🌿', name: '短期记忆' }];
-    return '<div class="memory-cat-list">' + cats.map(c => {
+    const cardFor = c => {
         const n = state.memorySystem.memories.filter(m => m.category === c.k).length;
         return '<div class="memory-cat-card" onclick="bedroomGo(\'memoryList\',{category:\'' + c.k + '\'})"><div class="memory-cat-icon">' + c.icon + '</div><div class="memory-cat-info"><span class="memory-cat-name">' + c.name + '</span><span class="memory-cat-count">' + n + ' 条</span></div><i data-lucide="chevron-right"></i></div>';
-    }).join('') + '</div>';
+    };
+    const palaceCard = '<div class="memory-cat-card" onclick="alert(\'记忆宫殿开发中，敬请期待～\')"><div class="memory-cat-icon">🏛️</div><div class="memory-cat-info"><span class="memory-cat-name">记忆宫殿</span><span class="memory-cat-count">敬请期待</span></div><i data-lucide="chevron-right"></i></div>';
+    return '<div class="memory-cat-list">' + cardFor(cats[0]) + palaceCard + cardFor(cats[1]) + cardFor(cats[2]) + '</div>';
 }
 function renderMemoryList() {
     const cat = bedroomParams.category;
