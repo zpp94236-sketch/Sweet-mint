@@ -497,6 +497,7 @@ function applyUserName() {
 function applyAiIdentity() {
     const l = document.getElementById('loveAvatarAi'); if (l) l.innerHTML = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     const n = document.getElementById('loveNameAi'); if (n) n.textContent = state.settings.aiName || '晏晏';
+    const sign = document.querySelector('.letter-sign-name'); if (sign) sign.textContent = state.settings.aiName || '晏晏';
 }
 
 // ===== ta的留言：每天生成一句短句，打开小家时读取 =====
@@ -901,17 +902,6 @@ function updateTogetherDays() {
     el.textContent = days;
 }
 function updateGreeting() {
-    const wrap = document.getElementById('homeGreeting'); if (!wrap) return;
-    const el = wrap.querySelector('.greeting-top'); if (!el) return;
-    const h = new Date().getHours();
-    let emoji = '🌿', text = '欢迎回家';
-    if (h >= 5 && h < 9) { emoji = '🌅'; text = '早上好呀'; }
-    else if (h >= 9 && h < 12) { emoji = '☀️'; text = '上午好'; }
-    else if (h >= 12 && h < 14) { emoji = '🍙'; text = '午安'; }
-    else if (h >= 14 && h < 18) { emoji = '🌤️'; text = '下午好'; }
-    else if (h >= 18 && h < 22) { emoji = '🌙'; text = '晚上好'; }
-    else { emoji = '🌛'; text = '夜深了，注意休息'; }
-    el.innerHTML = '<span class="greeting-emoji">' + emoji + '</span><span class="greeting-text">' + text + '</span>';
     updateTogetherDays();
 }
 function openHomePage() { closeSidebar(); showPage('home'); }
