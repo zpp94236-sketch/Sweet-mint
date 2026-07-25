@@ -324,13 +324,11 @@ function renderGeneralModule() {
     '</div>' +
     '<div class="settings-list-card-title">显示管理</div>' +
     '<div class="settings-list-card">' +
-      '<div class="settings-row settings-row-click" id="rowWallpaper"><span class="settings-row-label">自定义壁纸</span><span class="settings-row-value">' + (state.settings.wallpaper ? '已设置' : '未设置') + ' <i data-lucide="chevron-right"></i></span></div>' +
-      '<input type="file" id="wallpaperInput" accept="image/*" hidden>' +
-      '<div class="settings-row settings-row-click" id="rowHomeWallpaper"><span class="settings-row-label">小家背景</span><span class="settings-row-value">' + (state.settings.homeWallpaper ? '已设置' : '未设置') + ' <i data-lucide="chevron-right"></i></span></div>' +
-      '<input type="file" id="homeWallpaperInput" accept="image/*" hidden>' +
-      '<div class="settings-row"><span class="settings-row-label">和风天气 Key</span><input type="password" id="weatherKeyInput" class="settings-select" style="width:130px;" placeholder="留空=不启用" value="' + escapeHtml((state.settings.weather && state.settings.weather.key) || '') + '"></div>' +
-      '<div class="settings-row"><span class="settings-row-label">城市 / LocationID</span><input type="text" id="weatherLocInput" class="settings-select" style="width:130px;" placeholder="如 101180901" value="' + escapeHtml((state.settings.weather && state.settings.weather.location) || '') + '"></div>' +
-      '<div class="settings-row"><span class="settings-row-label">API Host</span><input type="text" id="weatherHostInput" class="settings-select" style="width:130px;" placeholder="devapi.qweather.com" value="' + escapeHtml((state.settings.weather && state.settings.weather.host) || '') + '"></div>' +
+      wallpaperRow('wallpaper', '聊天壁纸', state.settings.wallpaper) +
+      wallpaperRow('homeWallpaper', '小家背景', state.settings.homeWallpaper) +
+      '<div class="settings-row"><span class="settings-row-label">和风天气 Key</span><input type="password" id="weatherKeyInput" class="settings-input-inline" placeholder="留空=不启用" value="' + escapeHtml((state.settings.weather && state.settings.weather.key) || '') + '"></div>' +
+      '<div class="settings-row"><span class="settings-row-label">城市 / LocationID</span><input type="text" id="weatherLocInput" class="settings-input-inline" placeholder="如 101180901" value="' + escapeHtml((state.settings.weather && state.settings.weather.location) || '') + '"></div>' +
+      '<div class="settings-row"><span class="settings-row-label">API Host</span><input type="text" id="weatherHostInput" class="settings-input-inline" placeholder="devapi.qweather.com" value="' + escapeHtml((state.settings.weather && state.settings.weather.host) || '') + '"></div>' +
       '<div class="settings-row" style="border-bottom:none;"><span class="settings-row-label">输入框背景色</span><span class="color-swatch" id="swatch-inputBgColor"></span></div>' +
       colorSliderRows('inputBgColor', state.settings.inputBgColor || '#FCF2E6') +
       '<div class="settings-row" style="border-bottom:none;"><span class="settings-row-label">侧边栏背景色</span><span class="color-swatch" id="swatch-sidebarBgColor"></span></div>' +
@@ -349,6 +347,29 @@ function renderGeneralModule() {
     '</div>' +
     '<div class="settings-list-card-title">插件管理</div>' +
     '<div class="plugin-list">' + pluginCards + '</div>';
+}
+
+function wallpaperRow(key, label, value) {
+    const meta = state.settings[key + 'Name'] || (value ? '已设置（本地图片）' : '未设置');
+    return '<div class="wp-row">' +
+        '<div class="wp-row-info">' +
+            '<div class="wp-row-label">' + label + '</div>' +
+            '<div class="wp-row-meta">' + escapeHtml(meta) + '</div>' +
+        '</div>' +
+        '<div class="wp-row-actions">' +
+            (value ? '<button class="wp-btn wp-btn-clear" onclick="clearWallpaperSetting(\'' + key + '\')">清除</button>' : '') +
+            '<label class="wp-btn wp-btn-pick" for="' + key + 'Input">选择图片</label>' +
+        '</div>' +
+        '<input type="file" id="' + key + 'Input" class="wp-hidden-input" accept="image/*" data-wp-key="' + key + '">' +
+        '</div>';
+}
+
+function clearWallpaperSetting(key) {
+    state.settings[key] = '';
+    state.settings[key + 'Name'] = '';
+    saveState();
+    if (key === 'wallpaper') applyWallpaper(); else applyHomeBg();
+    renderSettingsView();
 }
 
 function hexToHsl(hex) {
@@ -430,10 +451,7 @@ function bindMainSettingsEvents() {
     const f = document.getElementById('fontSize'); if(f) f.addEventListener('input', e => { document.getElementById('fontSizeDisplay').textContent = getFontSizeLabel(parseInt(e.target.value)); state.settings.fontSize = parseInt(e.target.value); saveState(); applyFontSize(); });
     const fb = document.getElementById('fetchModelsBtn'); if(fb) fb.addEventListener('click', fetchModels);
     const mi = document.getElementById('modelInput'); if(mi) { mi.addEventListener('focus', () => { const ml = document.getElementById('modelList'); if(ml && ml.children.length > 0) { ml.style.display = 'block'; showModelSearch(); } }); mi.addEventListener('change', () => { state.settings.model = mi.value.trim(); saveState(); updateHeader(); }); }
-    const wpInput = document.getElementById('wallpaperInput'); if(wpInput) wpInput.addEventListener('change', handleWallpaperUpload);
-    const rowWp = document.getElementById('rowWallpaper'); if(rowWp) rowWp.addEventListener('click', () => document.getElementById('wallpaperInput').click());
-    const rowHwp = document.getElementById('rowHomeWallpaper'); if(rowHwp) rowHwp.addEventListener('click', () => document.getElementById('homeWallpaperInput').click());
-    const hwpInput = document.getElementById('homeWallpaperInput'); if(hwpInput) hwpInput.addEventListener('change', e => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{ state.settings.homeWallpaper=ev.target.result; saveState(); applyHomeBg(); renderSettingsView(); }; r.readAsDataURL(f); });
+    document.querySelectorAll('.wp-hidden-input').forEach(inp => inp.addEventListener('change', handleWallpaperPick));
     ['weatherKeyInput','weatherLocInput','weatherHostInput'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', saveWeatherConfig); });
     const imp = document.getElementById('importFileInput'); if(imp) imp.addEventListener('change', handleImportData);
 
@@ -501,7 +519,20 @@ function saveMainSettings() {
 
 function setWallpaper(v) { state.settings.wallpaper = v; saveState(); applyWallpaper(); renderSettingsView(); }
 function uploadWallpaper() { document.getElementById('wallpaperInput').click(); }
-function handleWallpaperUpload(e) { const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ev => { state.settings.wallpaper = ev.target.result; saveState(); applyWallpaper(); renderSettingsView(); }; r.readAsDataURL(f); }
+function handleWallpaperPick(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const key = e.target.dataset.wpKey;
+    const r = new FileReader();
+    r.onload = ev => {
+        state.settings[key] = ev.target.result;
+        state.settings[key + 'Name'] = f.name + ' · ' + Math.round(f.size / 1024) + 'KB';
+        saveState();
+        if (key === 'wallpaper') applyWallpaper(); else applyHomeBg();
+        renderSettingsView();
+    };
+    r.readAsDataURL(f);
+    e.target.value = '';
+}
 function applyWallpaper() { const m = document.getElementById('chatMain'); const msg = document.getElementById('messages'); if (!m || !msg) return; if (state.settings.wallpaper) { m.classList.add('has-wallpaper'); m.classList.remove('default-gingham'); msg.style.backgroundImage = 'url(' + state.settings.wallpaper + ')'; } else { m.classList.remove('has-wallpaper'); m.classList.add('default-gingham'); msg.style.backgroundImage = ''; } }
 
 function applyUserAvatar() {

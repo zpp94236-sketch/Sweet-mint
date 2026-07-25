@@ -854,3 +854,31 @@ body {
 [data-theme="dark"][data-glass="on"] .bottom-sheet { background: rgba(36,53,48,0.7); border-color: rgba(255,255,255,0.08); }
 [data-theme="dark"][data-glass="on"] .message-avatar { background: rgba(45,63,56,0.5) !important; border-color: rgba(255,255,255,0.1); }
 [data-theme="dark"][data-glass="on"] .chat-title span:first-child { text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
+/* ===== 壁纸选择行 ===== */
+.wp-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid rgba(184,201,193,0.25); }
+.wp-row-info { flex: 1; min-width: 0; }
+.wp-row-label { font-size: 14px; color: var(--text); }
+.wp-row-meta { font-size: 11px; color: var(--text-light); margin-top: 3px; word-break: break-all; line-height: 1.4; }
+.wp-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.wp-btn { font-size: 12px; padding: 6px 12px; border-radius: 999px; border: none; cursor: pointer; transition: all var(--transition); white-space: nowrap; display: inline-flex; align-items: center; }
+.wp-btn-pick { background: var(--primary-light); color: var(--primary-dark); font-weight: 600; }
+.wp-btn-pick:active { transform: scale(0.94); }
+.wp-btn-clear { background: transparent; color: var(--text-light); }
+.wp-btn-clear:hover { color: #C75F58; }
+.wp-hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.settings-input-inline { width: 130px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-white); font-size: 12px; color: var(--text); outline: none; font-family: inherit; }
+.settings-input-inline:focus { border-color: var(--primary); }
+
+/* ===== 输入框去掉绿影 ===== */
+.input-card {
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06) !important;
+    border-color: rgba(0,0,0,0.06) !important;
+}
+.input-card:focus-within {
+    box-shadow: 0 1px 8px rgba(0,0,0,0.08) !important;
+    border-color: rgba(0,0,0,0.1) !important;
+}
+[data-glass="on"] .input-card {
+    box-shadow: 0 1px 8px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.5) !important;
+}
