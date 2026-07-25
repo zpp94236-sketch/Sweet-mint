@@ -57,21 +57,32 @@
                 <div class="home-header-right"></div>
             </div>
             <div class="home-content">
-                <div class="love-record-card" id="homeGreeting">
-                    <div class="love-record-eyebrow">🌿 小小恋爱记录</div>
-                    <div class="love-record-names"><span id="loveNameUser">郑郑</span><span class="love-record-amp">&amp;</span><span id="loveNameAi">晏晏</span></div>
-                    <div class="love-record-days" id="greetingDays">0</div>
-                    <div class="love-record-days-label">已经在一起的日子</div>
-                    <div class="love-record-avatars">
-                        <div class="love-record-avatar" id="loveAvatarUser">🌙</div>
-                        <i data-lucide="heart" class="love-record-heart"></i>
-                        <div class="love-record-avatar" id="loveAvatarAi">✦</div>
+                <div class="love-calendar-card" id="homeGreeting">
+                    <div class="cal-topbar">
+                        <div class="cal-avatars">
+                            <div class="cal-avatar" id="loveAvatarUser">🌙</div>
+                            <svg class="cal-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.6-7-9.4A4 4 0 0 1 12 7.6 4 4 0 0 1 19 10.6C19 15.4 12 20 12 20z"/></svg>
+                            <div class="cal-avatar" id="loveAvatarAi">✦</div>
+                        </div>
+                        <div class="cal-days-badge">
+                            <span class="cal-days-num" id="greetingDays">0</span>
+                            <span class="cal-days-unit">天</span>
+                        </div>
                     </div>
-                    <div class="love-record-since">since 2026.06.21</div>
+                    <div class="cal-names"><span id="loveNameUser">郑郑</span><span class="cal-names-amp">&amp;</span><span id="loveNameAi">晏晏</span></div>
+                    <div class="cal-header">
+                        <button class="cal-nav" id="calPrev" aria-label="上个月">‹</button>
+                        <div class="cal-title"><span class="cal-month" id="calMonth">July</span><span class="cal-year" id="calYear">2026</span></div>
+                        <button class="cal-nav" id="calNext" aria-label="下个月">›</button>
+                    </div>
+                    <div class="cal-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+                    <div class="cal-grid" id="calGrid"></div>
                 </div>
-                <div class="message-card">
-                    <div class="message-card-title"><i data-lucide="heart-handshake"></i> ta的留言</div>
-                    <div class="message-card-text" id="taMessageText">今天也要元气满满地开始呀～</div>
+                <div class="letter-card">
+                    <div class="letter-paper">
+                        <div class="letter-text" id="taMessageText">今天也要元气满满地开始呀～</div>
+                        <div class="letter-sign"><span class="letter-sign-name">晏晏</span></div>
+                    </div>
                 </div>
                 <button class="chat-entry-bar" id="chatEntryBar">
                     <span>💬 和晏晏聊天...</span>
@@ -81,21 +92,21 @@
                         <div class="room-icon">🛋️</div>
                         <div class="room-info">
                             <span class="room-name">客厅</span>
-                            <span class="room-desc">敬请期待</span>
+                            <span class="room-desc">沙发 · 鱼缸</span>
                         </div>
                     </div>
                     <div class="room-card" data-room="diary">
                         <div class="room-icon">🛏️</div>
                         <div class="room-info">
                             <span class="room-name">卧室</span>
-                            <span class="room-desc">写日记</span>
+                            <span class="room-desc">拾光 · 琥珀</span>
                         </div>
                     </div>
                     <div class="room-card" data-room="study">
                         <div class="room-icon">📚</div>
                         <div class="room-info">
                             <span class="room-name">书房</span>
-                            <span class="room-desc">敬请期待</span>
+                            <span class="room-desc">创作 · 自习</span>
                         </div>
                     </div>
                     <div class="room-card" data-room="kitchen">

@@ -497,6 +497,7 @@ function applyUserName() {
 function applyAiIdentity() {
     const l = document.getElementById('loveAvatarAi'); if (l) l.innerHTML = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     const n = document.getElementById('loveNameAi'); if (n) n.textContent = state.settings.aiName || '晏晏';
+    const sign = document.querySelector('.letter-sign-name'); if (sign) sign.textContent = state.settings.aiName || '晏晏';
 }
 
 // ===== ta的留言：每天生成一句短句，打开小家时读取 =====
@@ -891,28 +892,53 @@ function showPage(page) {
     if (page === 'home') { homePage.classList.add('active'); chatMain.style.display = 'none'; updateGreeting(); renderTaMessage(); applyAiIdentity(); }
     else { homePage.classList.remove('active'); chatMain.style.display = 'flex'; }
 }
+const LOVE_START = { y: 2026, m: 5, d: 21 };
+const CAL_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let calViewYear = null, calViewMonth = null;
+
 function updateTogetherDays() {
     const el = document.getElementById('greetingDays'); if (!el) return;
-    const start = new Date(2026, 5, 21); // 2026-06-21
+    const start = new Date(LOVE_START.y, LOVE_START.m, LOVE_START.d);
     const now = new Date();
-    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
     const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const days = Math.max(0, Math.round((nowDay - startDay) / 86400000)) + 1;
-    el.textContent = days;
+    el.textContent = Math.max(0, Math.round((nowDay - start) / 86400000)) + 1;
 }
+
+function renderCalendar() {
+    const grid = document.getElementById('calGrid'); if (!grid) return;
+    const now = new Date();
+    if (calViewYear === null) { calViewYear = now.getFullYear(); calViewMonth = now.getMonth(); }
+    const mEl = document.getElementById('calMonth'); if (mEl) mEl.textContent = CAL_MONTH_NAMES[calViewMonth];
+    const yEl = document.getElementById('calYear'); if (yEl) yEl.textContent = calViewYear;
+    const first = new Date(calViewYear, calViewMonth, 1);
+    const startOffset = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+    const todayKey = dateKey(now);
+    const startDate = new Date(LOVE_START.y, LOVE_START.m, LOVE_START.d);
+    let html = '';
+    for (let i = 0; i < startOffset; i++) html += '<div class="cal-cell empty"></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+        const cur = new Date(calViewYear, calViewMonth, d);
+        const cls = ['cal-cell'];
+        if (dateKey(cur) === todayKey) cls.push('today');
+        if (calViewMonth === LOVE_START.m && d === LOVE_START.d) cls.push('anniversary');
+        if (cur < startDate) cls.push('before-start');
+        html += '<div class="' + cls.join(' ') + '">' + d + '</div>';
+    }
+    grid.innerHTML = html;
+}
+
+function calShiftMonth(delta) {
+    if (calViewYear === null) { const n = new Date(); calViewYear = n.getFullYear(); calViewMonth = n.getMonth(); }
+    calViewMonth += delta;
+    if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+    if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+    renderCalendar();
+}
+
 function updateGreeting() {
-    const wrap = document.getElementById('homeGreeting'); if (!wrap) return;
-    const el = wrap.querySelector('.greeting-top'); if (!el) return;
-    const h = new Date().getHours();
-    let emoji = '🌿', text = '欢迎回家';
-    if (h >= 5 && h < 9) { emoji = '🌅'; text = '早上好呀'; }
-    else if (h >= 9 && h < 12) { emoji = '☀️'; text = '上午好'; }
-    else if (h >= 12 && h < 14) { emoji = '🍙'; text = '午安'; }
-    else if (h >= 14 && h < 18) { emoji = '🌤️'; text = '下午好'; }
-    else if (h >= 18 && h < 22) { emoji = '🌙'; text = '晚上好'; }
-    else { emoji = '🌛'; text = '夜深了，注意休息'; }
-    el.innerHTML = '<span class="greeting-emoji">' + emoji + '</span><span class="greeting-text">' + text + '</span>';
     updateTogetherDays();
+    renderCalendar();
 }
 function openHomePage() { closeSidebar(); showPage('home'); }
 function openMemoryPage() { closeSidebar(); alert('记忆页面开发中，敬请期待～'); }
@@ -929,6 +955,8 @@ function setupEventListeners() {
     on('sidebarBackToHome', 'click', () => { closeSidebar(); showPage('home'); });
     on('homeOpenSettings', 'click', openSettingsPanel);
     on('chatEntryBar', 'click', () => { showPage('chat'); });
+    on('calPrev', 'click', () => calShiftMonth(-1));
+    on('calNext', 'click', () => calShiftMonth(1));
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
