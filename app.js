@@ -1889,41 +1889,51 @@ async function pullMemoriesFromCloud() {
 let fishTankRAF = null;
 let fishTank = null;
 
-const TANK_W = 140, TANK_H = 105;
+const TANK_W = 140, TANK_H = 160;
+const TANK_MAX_FISH = 40;
 const FISH_KINDS = {
     diary:  { color: '#E8A05C', dark: '#C97F3E', name: '日记' },
-    memory: { color: '#E8B84B', dark: '#C79A2E', name: '记忆' },
+    note:   { color: '#E8A0BF', dark: '#C77E9C', name: '留言' },
     chat:   { color: '#7FB3D5', dark: '#5E90B3', name: '对话' },
-    note:   { color: '#E8A0BF', dark: '#C77E9C', name: '便签' }
+    memory: { color: '#E8C04B', dark: '#C79A2E', name: '记忆' }
 };
 
 function buildFishData() {
     const list = [];
     (state.memorySystem.diaries || []).forEach(d => {
-        list.push({ kind: 'diary', title: '日记 · ' + ((d.userNote || '（空）').replace(/\s+/g, ' ').slice(0, 18)), time: d.date });
+        list.push({ kind: 'diary', title: (d.userNote || '（空日记）').replace(/\s+/g, ' '), time: d.date });
     });
-    (state.memorySystem.memories || []).forEach(m => {
-        list.push({ kind: 'memory', title: (m.summary || m.content || '').replace(/\s+/g, ' ').slice(0, 18), time: (m.createdAt || '').slice(0, 10) });
+    Object.keys(state.settings.taMessages || {}).forEach(k => {
+        list.push({ kind: 'note', title: state.settings.taMessages[k], time: k });
     });
     (state.chats || []).forEach(c => {
-        if (c.messages && c.messages.length) list.push({ kind: 'chat', title: '对话 · ' + (c.title || '新对话').slice(0, 16), time: (c.createdAt || '').slice(0, 10) });
+        if (c.messages && c.messages.length) list.push({ kind: 'chat', title: c.title || '新对话', time: (c.createdAt || '').slice(0, 10) });
     });
-    return list.slice(-26);
+    (state.memorySystem.memories || []).forEach(m => {
+        list.push({ kind: 'memory', title: (m.summary || m.content || '').replace(/\s+/g, ' '), time: (m.createdAt || '').slice(0, 10) });
+    });
+    list.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    return list;
 }
 
 function renderFishTank() {
-    const data = buildFishData();
-    const counts = {};
-    data.forEach(d => counts[d.kind] = (counts[d.kind] || 0) + 1);
-    const legend = Object.keys(FISH_KINDS).filter(k => counts[k]).map(k =>
-        '<span class="tank-legend-item"><i style="background:' + FISH_KINDS[k].color + '"></i>' + FISH_KINDS[k].name + ' ' + counts[k] + '</span>'
-    ).join('');
+    const all = buildFishData();
+    const shown = all.slice(-TANK_MAX_FISH);
+    const counts = {}, totals = {};
+    all.forEach(d => totals[d.kind] = (totals[d.kind] || 0) + 1);
+    shown.forEach(d => counts[d.kind] = (counts[d.kind] || 0) + 1);
+    const legend = Object.keys(FISH_KINDS).filter(k => totals[k]).map(k => {
+        const more = totals[k] > counts[k] ? ' <em>/' + totals[k] + '</em>' : '';
+        return '<span class="tank-legend-item"><i style="background:' + FISH_KINDS[k].color + '"></i>' + FISH_KINDS[k].name + ' ' + (counts[k] || 0) + more + '</span>';
+    }).join('');
+    const overflow = all.length > TANK_MAX_FISH
+        ? '<div class="tank-overflow">缸里养着最近 ' + TANK_MAX_FISH + ' 条 · 一共 ' + all.length + ' 件事</div>' : '';
     return '<div class="tank-wrap">' +
         '<canvas id="fishTankCanvas" class="tank-canvas" width="' + TANK_W + '" height="' + TANK_H + '"></canvas>' +
-        '<div class="tank-tip" id="tankTip"></div>' +
         '</div>' +
+        '<div class="tank-info" id="tankInfo"><div class="tank-info-empty">点一条鱼，看看它是什么</div></div>' +
         '<div class="tank-legend">' + (legend || '<span class="tank-legend-empty">鱼缸还是空的</span>') + '</div>' +
-        '<div class="tank-hint">每一条鱼是一件留下来的事 · 点一下看看它是什么</div>';
+        overflow;
 }
 
 function stopFishTank() {
@@ -1936,33 +1946,63 @@ function startFishTank() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    const data = buildFishData();
+    const data = buildFishData().slice(-TANK_MAX_FISH);
+    const FLOOR = TANK_H - 16;
 
-    const fishes = data.map((d, i) => {
+    const fishes = data.map(d => {
         const k = FISH_KINDS[d.kind] || FISH_KINDS.chat;
         return {
             x: 12 + Math.random() * (TANK_W - 24),
-            y: 18 + Math.random() * (TANK_H - 40),
-            vx: (Math.random() < 0.5 ? -1 : 1) * (0.18 + Math.random() * 0.22),
+            y: 20 + Math.random() * (FLOOR - 42),
+            vx: (Math.random() < 0.5 ? -1 : 1) * (0.14 + Math.random() * 0.2),
             phase: Math.random() * Math.PI * 2,
-            amp: 0.25 + Math.random() * 0.35,
+            amp: 0.22 + Math.random() * 0.3,
             color: k.color, dark: k.dark,
             title: d.title, time: d.time, kindName: k.name
         };
     });
 
+    // 底层：短草
+    const grass = [];
+    for (let i = 0; i < 46; i++) {
+        grass.push({ x: Math.random() * TANK_W, h: 3 + Math.random() * 5, seed: Math.random() * 6, c: Math.random() < 0.4 ? '#2A7A62' : '#35937A' });
+    }
+    // 中层：海藻
     const weeds = [];
-    for (let i = 0; i < 6; i++) {
-        weeds.push({ x: 6 + i * 24 + Math.random() * 8, h: 16 + Math.random() * 22, seed: Math.random() * 6, wide: Math.random() < 0.4 });
+    for (let i = 0; i < 7; i++) {
+        weeds.push({ x: 8 + i * 20 + Math.random() * 8, h: 22 + Math.random() * 30, seed: Math.random() * 6, wide: i % 3 === 1 });
     }
+    // 珊瑚
+    const corals = [
+        { x: 18, y: FLOOR, c1: '#E08098', c2: '#C0687F', kind: 0 },
+        { x: 62, y: FLOOR, c1: '#D9905E', c2: '#B87748', kind: 1 },
+        { x: 108, y: FLOOR, c1: '#B885C9', c2: '#9A6BAA', kind: 0 },
+        { x: 88, y: FLOOR, c1: '#E8A8B8', c2: '#C98A98', kind: 2 }
+    ];
+    // 石头
+    const rocks = [
+        { x: 34, w: 11, h: 5 }, { x: 74, w: 8, h: 4 }, { x: 120, w: 13, h: 6 }, { x: 6, w: 7, h: 3 }
+    ];
+    // 贝壳
+    const shells = [
+        { x: 48, c: '#F0DCC8' }, { x: 96, c: '#E8D0E0' }, { x: 128, c: '#DCE8E0' }
+    ];
     const bubbles = [];
-    for (let i = 0; i < 9; i++) {
-        bubbles.push({ x: Math.random() * TANK_W, y: Math.random() * TANK_H, v: 0.16 + Math.random() * 0.24, s: Math.random() < 0.35 ? 2 : 1 });
+    for (let i = 0; i < 12; i++) {
+        bubbles.push({ x: Math.random() * TANK_W, y: Math.random() * TANK_H, v: 0.14 + Math.random() * 0.22, s: Math.random() < 0.3 ? 2 : 1 });
     }
-    const jelly = { x: TANK_W * 0.24, y: 40, phase: 0, dir: 1 };
-    const jelly2 = { x: TANK_W * 0.78, y: 58, phase: 2, dir: -1 };
+    const jellies = [
+        { x: TANK_W * 0.2, y: 42, phase: 0, drift: 0.05 },
+        { x: TANK_W * 0.55, y: 30, phase: 2.1, drift: -0.04 },
+        { x: TANK_W * 0.84, y: 56, phase: 4.2, drift: 0.035 }
+    ];
+    // 发光小鱼群
+    const school = { x: -30, y: 70, dir: 1, active: false, cd: 200, members: [] };
+    for (let i = 0; i < 11; i++) {
+        school.members.push({ ox: -i * 4 - Math.random() * 3, oy: (Math.random() - 0.5) * 9, glow: Math.random() < 0.5 ? '#7FE0F0' : '#4A9FD8' });
+    }
 
-    fishTank = { canvas, ctx, fishes, weeds, bubbles, jelly, jelly2, t: 0, picked: null, pickTimer: 0 };
+    fishTank = { canvas, ctx, fishes, grass, weeds, corals, rocks, shells, bubbles, jellies, school, t: 0, picked: null, FLOOR };
 
     canvas.onclick = e => {
         if (!fishTank) return;
@@ -1974,13 +2014,13 @@ function startFishTank() {
             const d = Math.hypot(f.x - cx, f.y - cy);
             if (d < bestD) { bestD = d; best = f; }
         });
-        const tip = document.getElementById('tankTip');
-        if (best && bestD < 14) {
-            fishTank.picked = best; fishTank.pickTimer = 200;
-            if (tip) { tip.innerHTML = '<b>' + escapeHtml(best.kindName) + '</b> ' + escapeHtml(best.title) + '<span>' + escapeHtml(best.time || '') + '</span>'; tip.classList.add('show'); }
+        const info = document.getElementById('tankInfo');
+        if (best && bestD < 13) {
+            fishTank.picked = best;
+            if (info) info.innerHTML = '<div class="tank-info-head"><span class="tank-info-kind" style="background:' + best.color + '">' + escapeHtml(best.kindName) + '</span><span class="tank-info-time">' + escapeHtml(best.time || '') + '</span></div><div class="tank-info-text">' + escapeHtml(best.title) + '</div>';
         } else {
             fishTank.picked = null;
-            if (tip) tip.classList.remove('show');
+            if (info) info.innerHTML = '<div class="tank-info-empty">点一条鱼，看看它是什么</div>';
         }
     };
 
@@ -1989,12 +2029,16 @@ function startFishTank() {
 
 function tankPx(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x | 0, y | 0, w, h); }
 
-function tankDrawFish(ctx, f, highlight) {
+function tankDrawFish(ctx, f, hl) {
     const d = f.vx > 0 ? 1 : -1;
     ctx.save();
     ctx.translate(f.x | 0, f.y | 0);
     ctx.scale(d, 1);
-    if (highlight) { tankPx(ctx, -6, -4, 13, 8, 'rgba(255,255,255,0.18)'); }
+    if (hl) {
+        ctx.globalAlpha = 0.22;
+        tankPx(ctx, -7, -5, 15, 10, '#FFFFFF');
+        ctx.globalAlpha = 1;
+    }
     tankPx(ctx, -3, -1, 7, 3, f.color);
     tankPx(ctx, -2, -2, 5, 1, f.color);
     tankPx(ctx, -2, 2, 5, 1, f.color);
@@ -2002,58 +2046,123 @@ function tankDrawFish(ctx, f, highlight) {
     tankPx(ctx, -5, -1, 2, 3, f.color);
     tankPx(ctx, -5, 2, 2, 1, f.dark);
     tankPx(ctx, 2, -1, 1, 1, '#FFFFFF');
-    tankPx(ctx, 3, -1, 1, 1, '#20303F');
+    tankPx(ctx, 3, -1, 1, 1, '#1A2A38');
     tankPx(ctx, -1, 2, 2, 1, f.dark);
     ctx.restore();
 }
 
 function tankDrawJelly(ctx, j, t) {
     const x = j.x | 0, y = j.y | 0;
-    const w = Math.sin(t * 0.03 + j.phase) > 0 ? 0 : 1;
-    tankPx(ctx, x - 3, y - 3 + w, 6, 1, 'rgba(234,242,255,0.85)');
-    tankPx(ctx, x - 4, y - 2 + w, 8, 2, 'rgba(234,242,255,0.72)');
-    tankPx(ctx, x - 3, y + w, 6, 1, 'rgba(200,220,255,0.6)');
-    for (let i = 0; i < 3; i++) {
-        const ox = (i - 1) * 2;
-        for (let k = 0; k < 4; k++) {
-            const sway = Math.round(Math.sin(t * 0.05 + i + k * 0.6) * 1);
-            tankPx(ctx, x + ox + sway, y + 1 + w + k, 1, 1, 'rgba(220,232,255,' + (0.5 - k * 0.09) + ')');
+    const pulse = Math.sin(t * 0.028 + j.phase);
+    const sq = pulse > 0.3 ? 1 : 0;
+    const bw = sq ? 9 : 11;
+    const half = bw >> 1;
+    tankPx(ctx, x - half + 2, y - 4 + sq, bw - 4, 1, 'rgba(240,248,255,0.9)');
+    tankPx(ctx, x - half + 1, y - 3 + sq, bw - 2, 1, 'rgba(232,242,255,0.85)');
+    tankPx(ctx, x - half, y - 2 + sq, bw, 2, 'rgba(224,238,255,0.8)');
+    tankPx(ctx, x - half + 1, y + sq, bw - 2, 1, 'rgba(200,222,250,0.65)');
+    tankPx(ctx, x - half + 3, y - 3 + sq, 2, 1, 'rgba(255,255,255,0.95)');
+    for (let i = 0; i < 5; i++) {
+        const ox = (i - 2) * 2;
+        const len = 5 + (i % 2 === 0 ? 2 : 0) + (sq ? 1 : 0);
+        for (let k = 0; k < len; k++) {
+            const sway = Math.round(Math.sin(t * 0.045 + i * 1.1 + k * 0.55) * 1.2);
+            tankPx(ctx, x + ox + sway, y + 1 + sq + k, 1, 1, 'rgba(214,230,252,' + (0.6 - k * 0.075) + ')');
         }
+    }
+}
+
+function tankDrawCoral(ctx, c) {
+    const x = c.x | 0, y = c.y | 0;
+    if (c.kind === 0) {
+        tankPx(ctx, x, y - 3, 2, 3, c.c2);
+        tankPx(ctx, x - 1, y - 7, 2, 4, c.c1);
+        tankPx(ctx, x + 2, y - 6, 2, 3, c.c1);
+        tankPx(ctx, x - 3, y - 5, 2, 2, c.c2);
+        tankPx(ctx, x - 1, y - 10, 1, 3, c.c1);
+        tankPx(ctx, x + 3, y - 9, 1, 3, c.c1);
+        tankPx(ctx, x - 4, y - 7, 1, 2, c.c2);
+    } else if (c.kind === 1) {
+        for (let i = 0; i < 5; i++) {
+            tankPx(ctx, x - 4 + i * 2, y - 2 - (i === 2 ? 7 : i === 1 || i === 3 ? 5 : 3), 1, (i === 2 ? 7 : i === 1 || i === 3 ? 5 : 3), i % 2 ? c.c1 : c.c2);
+        }
+        tankPx(ctx, x - 4, y - 2, 9, 2, c.c2);
+    } else {
+        tankPx(ctx, x - 3, y - 4, 7, 4, c.c1);
+        tankPx(ctx, x - 2, y - 6, 5, 2, c.c1);
+        tankPx(ctx, x - 1, y - 7, 3, 1, c.c2);
+        tankPx(ctx, x - 4, y - 2, 1, 2, c.c2);
+        tankPx(ctx, x + 4, y - 3, 1, 3, c.c2);
     }
 }
 
 function tankLoop() {
     if (!fishTank) return;
-    const { ctx, fishes, weeds, bubbles, jelly, jelly2 } = fishTank;
+    const { ctx, fishes, grass, weeds, corals, rocks, shells, bubbles, jellies, school, FLOOR } = fishTank;
     fishTank.t += 1;
     const t = fishTank.t;
 
+    // 水体
     const grad = ctx.createLinearGradient(0, 0, 0, TANK_H);
-    grad.addColorStop(0, '#123B63');
-    grad.addColorStop(0.55, '#0E2E4F');
+    grad.addColorStop(0, '#1A4A78');
+    grad.addColorStop(0.4, '#123B63');
+    grad.addColorStop(0.75, '#0D2C4C');
     grad.addColorStop(1, '#0A2038');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, TANK_W, TANK_H);
 
-    ctx.globalAlpha = 0.05;
-    for (let i = 0; i < 3; i++) {
-        const bx = 18 + i * 46 + Math.sin(t * 0.006 + i) * 4;
-        ctx.fillStyle = '#CFE8FF';
+    // 光柱
+    ctx.globalAlpha = 0.055;
+    for (let i = 0; i < 4; i++) {
+        const bx = 10 + i * 38 + Math.sin(t * 0.005 + i) * 5;
+        ctx.fillStyle = '#DCEEFF';
         ctx.beginPath();
-        ctx.moveTo(bx, 0); ctx.lineTo(bx + 10, 0); ctx.lineTo(bx + 24, TANK_H - 12); ctx.lineTo(bx + 12, TANK_H - 12);
+        ctx.moveTo(bx, 0); ctx.lineTo(bx + 9, 0); ctx.lineTo(bx + 26, FLOOR); ctx.lineTo(bx + 13, FLOOR);
         ctx.closePath(); ctx.fill();
     }
     ctx.globalAlpha = 1;
 
-    tankPx(ctx, 0, TANK_H - 8, TANK_W, 8, '#1A3A52');
-    tankPx(ctx, 0, TANK_H - 9, TANK_W, 1, '#24506E');
+    // 沙地
+    tankPx(ctx, 0, FLOOR, TANK_W, TANK_H - FLOOR, '#C9B08A');
+    tankPx(ctx, 0, FLOOR, TANK_W, 2, '#DCC59F');
+    for (let i = 0; i < 30; i++) {
+        const sx = (i * 37 + 11) % TANK_W;
+        const sy = FLOOR + 3 + ((i * 13) % (TANK_H - FLOOR - 4));
+        tankPx(ctx, sx, sy, 1, 1, i % 3 === 0 ? '#B89C76' : '#D6BC94');
+    }
 
+    // 石头
+    rocks.forEach(r => {
+        tankPx(ctx, r.x, FLOOR - r.h, r.w, r.h, '#6E7480');
+        tankPx(ctx, r.x + 1, FLOOR - r.h, r.w - 2, 1, '#878E9A');
+        tankPx(ctx, r.x, FLOOR - 1, r.w, 1, '#585E68');
+    });
+
+    // 贝壳
+    shells.forEach(s => {
+        tankPx(ctx, s.x, FLOOR - 1, 3, 1, s.c);
+        tankPx(ctx, s.x + 1, FLOOR - 2, 1, 1, s.c);
+    });
+
+    // 珊瑚
+    corals.forEach(c => tankDrawCoral(ctx, c));
+
+    // 短草
+    grass.forEach(g => {
+        for (let h = 0; h < g.h; h++) {
+            const sway = Math.round(Math.sin(t * 0.03 + g.seed + h * 0.4) * 0.8);
+            tankPx(ctx, g.x + sway, FLOOR - 1 - h, 1, 1, g.c);
+        }
+    });
+
+    // 海藻
     weeds.forEach(w => {
         for (let h = 0; h < w.h; h++) {
-            const sway = Math.round(Math.sin(t * 0.018 + w.seed + h * 0.16) * (h / w.h) * 3);
-            const y = TANK_H - 9 - h;
+            const sway = Math.round(Math.sin(t * 0.016 + w.seed + h * 0.14) * (h / w.h) * 3.5);
+            const y = FLOOR - 1 - h;
             if (w.wide) {
-                tankPx(ctx, w.x + sway - 1, y, 3, 1, h % 5 === 0 ? '#5A6FB8' : '#4A5FA8');
+                tankPx(ctx, w.x + sway - 1, y, 3, 1, h % 6 === 0 ? '#6478C4' : '#5265AE');
+                if (h % 9 === 4) tankPx(ctx, w.x + sway + 2, y, 1, 1, '#7285CE');
             } else {
                 tankPx(ctx, w.x + sway, y, 1, 1, '#2E8B7A');
                 if (h % 4 === 0) tankPx(ctx, w.x + sway + (h % 8 === 0 ? 1 : -1), y, 1, 1, '#3AA089');
@@ -2061,37 +2170,60 @@ function tankLoop() {
         }
     });
 
+    // 气泡
     bubbles.forEach(b => {
         b.y -= b.v;
         b.x += Math.sin(t * 0.04 + b.y * 0.1) * 0.12;
-        if (b.y < -2) { b.y = TANK_H - 10; b.x = 4 + Math.random() * (TANK_W - 8); }
-        tankPx(ctx, b.x, b.y, b.s, b.s, 'rgba(210,235,255,0.42)');
+        if (b.y < -2) { b.y = FLOOR - 2; b.x = 4 + Math.random() * (TANK_W - 8); }
+        tankPx(ctx, b.x, b.y, b.s, b.s, 'rgba(210,235,255,0.4)');
     });
 
-    tankDrawJelly(ctx, jelly, t);
-    tankDrawJelly(ctx, jelly2, t);
-    jelly.y += Math.sin(t * 0.012) * 0.14;
-    jelly2.y += Math.sin(t * 0.012 + 2) * 0.12;
+    // 小鱼群
+    if (!school.active) {
+        school.cd--;
+        if (school.cd <= 0) {
+            school.active = true;
+            school.dir = Math.random() < 0.5 ? 1 : -1;
+            school.x = school.dir > 0 ? -20 : TANK_W + 20;
+            school.y = 26 + Math.random() * (FLOOR - 60);
+        }
+    } else {
+        school.x += school.dir * 0.85;
+        school.y += Math.sin(t * 0.03) * 0.25;
+        school.members.forEach((m, i) => {
+            const mx = school.x + m.ox * school.dir;
+            const my = school.y + m.oy + Math.sin(t * 0.07 + i) * 1.2;
+            ctx.globalAlpha = 0.85;
+            tankPx(ctx, mx, my, 2, 1, m.glow);
+            tankPx(ctx, mx + (school.dir > 0 ? -1 : 2), my, 1, 1, 'rgba(160,220,245,0.55)');
+            ctx.globalAlpha = 1;
+        });
+        if ((school.dir > 0 && school.x > TANK_W + 60) || (school.dir < 0 && school.x < -60)) {
+            school.active = false;
+            school.cd = 320 + Math.random() * 400;
+        }
+    }
 
+    // 主角鱼
     fishes.forEach(f => {
         f.x += f.vx;
-        f.phase += 0.045;
+        f.phase += 0.042;
         f.y += Math.sin(f.phase) * f.amp * 0.4;
         if (f.x < 8) { f.x = 8; f.vx = Math.abs(f.vx); }
         if (f.x > TANK_W - 8) { f.x = TANK_W - 8; f.vx = -Math.abs(f.vx); }
-        if (f.y < 14) f.y = 14;
-        if (f.y > TANK_H - 16) f.y = TANK_H - 16;
+        if (f.y < 16) f.y = 16;
+        if (f.y > FLOOR - 14) f.y = FLOOR - 14;
         tankDrawFish(ctx, f, fishTank.picked === f);
     });
 
-    if (fishTank.pickTimer > 0) {
-        fishTank.pickTimer--;
-        if (fishTank.pickTimer === 0) {
-            fishTank.picked = null;
-            const tip = document.getElementById('tankTip');
-            if (tip) tip.classList.remove('show');
-        }
-    }
+    // 水母（最上层）
+    jellies.forEach(j => {
+        j.y += Math.sin(t * 0.011 + j.phase) * 0.13;
+        j.x += j.drift * Math.sin(t * 0.007 + j.phase);
+        if (j.y < 16) j.y = 16;
+        if (j.y > FLOOR - 40) j.y = FLOOR - 40;
+        tankDrawJelly(ctx, j, t);
+    });
 
     fishTankRAF = requestAnimationFrame(tankLoop);
 }
