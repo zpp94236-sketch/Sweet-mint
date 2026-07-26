@@ -1052,7 +1052,7 @@ body {
 .tank-canvas {
     display: block;
     width: 100%;
-    aspect-ratio: 140 / 160;
+    aspect-ratio: 150 / 170;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
