@@ -984,3 +984,101 @@ body {
 .cal-day.level-3 { background: var(--primary); }
 .cal-day.level-4 { background: var(--primary-dark); }
 .cal-day.level-2 .cal-day-num, .cal-day.level-3 .cal-day-num, .cal-day.level-4 .cal-day-num { color: #fff; }
+
+/* ===== AI助手弹窗：移动端修正 ===== */
+.assistant-modal-content { padding: 18px 20px !important; }
+.assistant-modal-content > .form-group:first-child { margin-top: 6px !important; }
+
+/* range 滑条：自己画轨道，覆盖移动端默认黑轨 */
+.assistant-modal input[type="range"],
+.form-group input[type="range"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: 100%;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--primary-light) !important;
+    outline: none;
+    border: none;
+    accent-color: auto;
+}
+.assistant-modal input[type="range"]::-webkit-slider-runnable-track,
+.form-group input[type="range"]::-webkit-slider-runnable-track {
+    height: 5px;
+    border-radius: 999px;
+    background: var(--primary-light);
+    border: none;
+}
+.assistant-modal input[type="range"]::-webkit-slider-thumb,
+.form-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+    margin-top: -6.5px;
+    cursor: pointer;
+}
+.assistant-modal input[type="range"]::-moz-range-track,
+.form-group input[type="range"]::-moz-range-track {
+    height: 5px; border-radius: 999px;
+    background: var(--primary-light); border: none;
+}
+.assistant-modal input[type="range"]::-moz-range-progress,
+.form-group input[type="range"]::-moz-range-progress {
+    height: 5px; border-radius: 999px; background: var(--primary);
+}
+.assistant-modal input[type="range"]::-moz-range-thumb,
+.form-group input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--primary); border: 2px solid #fff; cursor: pointer;
+}
+[data-theme="dark"] .assistant-modal input[type="range"],
+[data-theme="dark"] .form-group input[type="range"] { background: rgba(255,255,255,0.15) !important; }
+[data-theme="dark"] .assistant-modal input[type="range"]::-webkit-slider-runnable-track,
+[data-theme="dark"] .form-group input[type="range"]::-webkit-slider-runnable-track { background: rgba(255,255,255,0.15); }
+
+/* ===== 客厅 · 像素鱼缸 ===== */
+.tank-wrap {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 6px 22px rgba(10,32,56,0.28), inset 0 0 0 2px rgba(255,255,255,0.5);
+    background: #0A2038;
+    margin-bottom: 12px;
+}
+.tank-canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 140 / 105;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    cursor: pointer;
+}
+.tank-tip {
+    position: absolute;
+    left: 8px; right: 8px; bottom: 8px;
+    padding: 8px 10px;
+    background: rgba(8,24,42,0.82);
+    backdrop-filter: blur(6px);
+    border-radius: 10px;
+    color: #DCE9F7;
+    font-size: 11.5px;
+    line-height: 1.5;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: all .22s ease;
+    pointer-events: none;
+}
+.tank-tip.show { opacity: 1; transform: translateY(0); }
+.tank-tip b { color: #8FD3C4; font-weight: 600; margin-right: 4px; }
+.tank-tip span { display: block; font-size: 10px; opacity: 0.6; margin-top: 2px; }
+
+.tank-legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 8px; }
+.tank-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-light); }
+.tank-legend-item i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.tank-legend-empty { font-size: 11px; color: var(--text-light); }
+.tank-hint { text-align: center; font-size: 10.5px; color: var(--text-light); opacity: 0.75; line-height: 1.6; }

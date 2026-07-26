@@ -1456,6 +1456,7 @@ function renderEcho() {
 function toggleEchoNote(el) { el.classList.toggle('expanded'); }
 
 function renderBedroom() {
+    stopFishTank();
     ensureMemorySystem();
     const view = bedroomStack[bedroomStack.length - 1];
     const titleEl = document.getElementById('bedroomTitle');
@@ -1485,7 +1486,7 @@ function renderBedroom() {
     else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
     else if (view === 'livingHome') { title = '客厅'; html = renderPlaceholderGrid([
         { icon: '🛋️', name: '沙发', desc: '', go: 'sofaHome' },
-        { icon: '🐠', name: '鱼缸', desc: '敬请期待' },
+        { icon: '🐠', name: '鱼缸', desc: '生活轨迹', go: 'fishtankHome' },
         { icon: '🔊', name: '音响', desc: '敬请期待' },
         { icon: '📺', name: '电视', desc: '敬请期待' }
     ]); }
@@ -1493,6 +1494,7 @@ function renderBedroom() {
         { icon: '📱', name: '朋友圈', desc: '敬请期待' },
         { icon: '🔊', name: '回声', desc: '聊天历史', go: 'echoHome' }
     ]); }
+    else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
     else if (view === 'studyHome') { title = '书房'; html = renderPlaceholderGrid([
         { icon: '📖', name: '共读室', desc: '敬请期待' },
@@ -1526,6 +1528,7 @@ function renderBedroom() {
         else { extraBtn.style.display = 'none'; extraBtn.onclick = null; }
     }
     if (view === 'echoHome') { loadEcho(); }
+    if (view === 'fishtankHome') { startFishTank(); }
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -1880,6 +1883,217 @@ async function pullMemoriesFromCloud() {
     saveState();
     alert('已拉取 ' + data.length + ' 条记忆');
     renderBedroom();
+}
+
+// ===== 客厅 · 像素鱼缸 =====
+let fishTankRAF = null;
+let fishTank = null;
+
+const TANK_W = 140, TANK_H = 105;
+const FISH_KINDS = {
+    diary:  { color: '#E8A05C', dark: '#C97F3E', name: '日记' },
+    memory: { color: '#E8B84B', dark: '#C79A2E', name: '记忆' },
+    chat:   { color: '#7FB3D5', dark: '#5E90B3', name: '对话' },
+    note:   { color: '#E8A0BF', dark: '#C77E9C', name: '便签' }
+};
+
+function buildFishData() {
+    const list = [];
+    (state.memorySystem.diaries || []).forEach(d => {
+        list.push({ kind: 'diary', title: '日记 · ' + ((d.userNote || '（空）').replace(/\s+/g, ' ').slice(0, 18)), time: d.date });
+    });
+    (state.memorySystem.memories || []).forEach(m => {
+        list.push({ kind: 'memory', title: (m.summary || m.content || '').replace(/\s+/g, ' ').slice(0, 18), time: (m.createdAt || '').slice(0, 10) });
+    });
+    (state.chats || []).forEach(c => {
+        if (c.messages && c.messages.length) list.push({ kind: 'chat', title: '对话 · ' + (c.title || '新对话').slice(0, 16), time: (c.createdAt || '').slice(0, 10) });
+    });
+    return list.slice(-26);
+}
+
+function renderFishTank() {
+    const data = buildFishData();
+    const counts = {};
+    data.forEach(d => counts[d.kind] = (counts[d.kind] || 0) + 1);
+    const legend = Object.keys(FISH_KINDS).filter(k => counts[k]).map(k =>
+        '<span class="tank-legend-item"><i style="background:' + FISH_KINDS[k].color + '"></i>' + FISH_KINDS[k].name + ' ' + counts[k] + '</span>'
+    ).join('');
+    return '<div class="tank-wrap">' +
+        '<canvas id="fishTankCanvas" class="tank-canvas" width="' + TANK_W + '" height="' + TANK_H + '"></canvas>' +
+        '<div class="tank-tip" id="tankTip"></div>' +
+        '</div>' +
+        '<div class="tank-legend">' + (legend || '<span class="tank-legend-empty">鱼缸还是空的</span>') + '</div>' +
+        '<div class="tank-hint">每一条鱼是一件留下来的事 · 点一下看看它是什么</div>';
+}
+
+function stopFishTank() {
+    if (fishTankRAF) { cancelAnimationFrame(fishTankRAF); fishTankRAF = null; }
+    fishTank = null;
+}
+
+function startFishTank() {
+    const canvas = document.getElementById('fishTankCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const data = buildFishData();
+
+    const fishes = data.map((d, i) => {
+        const k = FISH_KINDS[d.kind] || FISH_KINDS.chat;
+        return {
+            x: 12 + Math.random() * (TANK_W - 24),
+            y: 18 + Math.random() * (TANK_H - 40),
+            vx: (Math.random() < 0.5 ? -1 : 1) * (0.18 + Math.random() * 0.22),
+            phase: Math.random() * Math.PI * 2,
+            amp: 0.25 + Math.random() * 0.35,
+            color: k.color, dark: k.dark,
+            title: d.title, time: d.time, kindName: k.name
+        };
+    });
+
+    const weeds = [];
+    for (let i = 0; i < 6; i++) {
+        weeds.push({ x: 6 + i * 24 + Math.random() * 8, h: 16 + Math.random() * 22, seed: Math.random() * 6, wide: Math.random() < 0.4 });
+    }
+    const bubbles = [];
+    for (let i = 0; i < 9; i++) {
+        bubbles.push({ x: Math.random() * TANK_W, y: Math.random() * TANK_H, v: 0.16 + Math.random() * 0.24, s: Math.random() < 0.35 ? 2 : 1 });
+    }
+    const jelly = { x: TANK_W * 0.24, y: 40, phase: 0, dir: 1 };
+    const jelly2 = { x: TANK_W * 0.78, y: 58, phase: 2, dir: -1 };
+
+    fishTank = { canvas, ctx, fishes, weeds, bubbles, jelly, jelly2, t: 0, picked: null, pickTimer: 0 };
+
+    canvas.onclick = e => {
+        if (!fishTank) return;
+        const r = canvas.getBoundingClientRect();
+        const cx = (e.clientX - r.left) / r.width * TANK_W;
+        const cy = (e.clientY - r.top) / r.height * TANK_H;
+        let best = null, bestD = 999;
+        fishTank.fishes.forEach(f => {
+            const d = Math.hypot(f.x - cx, f.y - cy);
+            if (d < bestD) { bestD = d; best = f; }
+        });
+        const tip = document.getElementById('tankTip');
+        if (best && bestD < 14) {
+            fishTank.picked = best; fishTank.pickTimer = 200;
+            if (tip) { tip.innerHTML = '<b>' + escapeHtml(best.kindName) + '</b> ' + escapeHtml(best.title) + '<span>' + escapeHtml(best.time || '') + '</span>'; tip.classList.add('show'); }
+        } else {
+            fishTank.picked = null;
+            if (tip) tip.classList.remove('show');
+        }
+    };
+
+    tankLoop();
+}
+
+function tankPx(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x | 0, y | 0, w, h); }
+
+function tankDrawFish(ctx, f, highlight) {
+    const d = f.vx > 0 ? 1 : -1;
+    ctx.save();
+    ctx.translate(f.x | 0, f.y | 0);
+    ctx.scale(d, 1);
+    if (highlight) { tankPx(ctx, -6, -4, 13, 8, 'rgba(255,255,255,0.18)'); }
+    tankPx(ctx, -3, -1, 7, 3, f.color);
+    tankPx(ctx, -2, -2, 5, 1, f.color);
+    tankPx(ctx, -2, 2, 5, 1, f.color);
+    tankPx(ctx, -5, -2, 2, 1, f.dark);
+    tankPx(ctx, -5, -1, 2, 3, f.color);
+    tankPx(ctx, -5, 2, 2, 1, f.dark);
+    tankPx(ctx, 2, -1, 1, 1, '#FFFFFF');
+    tankPx(ctx, 3, -1, 1, 1, '#20303F');
+    tankPx(ctx, -1, 2, 2, 1, f.dark);
+    ctx.restore();
+}
+
+function tankDrawJelly(ctx, j, t) {
+    const x = j.x | 0, y = j.y | 0;
+    const w = Math.sin(t * 0.03 + j.phase) > 0 ? 0 : 1;
+    tankPx(ctx, x - 3, y - 3 + w, 6, 1, 'rgba(234,242,255,0.85)');
+    tankPx(ctx, x - 4, y - 2 + w, 8, 2, 'rgba(234,242,255,0.72)');
+    tankPx(ctx, x - 3, y + w, 6, 1, 'rgba(200,220,255,0.6)');
+    for (let i = 0; i < 3; i++) {
+        const ox = (i - 1) * 2;
+        for (let k = 0; k < 4; k++) {
+            const sway = Math.round(Math.sin(t * 0.05 + i + k * 0.6) * 1);
+            tankPx(ctx, x + ox + sway, y + 1 + w + k, 1, 1, 'rgba(220,232,255,' + (0.5 - k * 0.09) + ')');
+        }
+    }
+}
+
+function tankLoop() {
+    if (!fishTank) return;
+    const { ctx, fishes, weeds, bubbles, jelly, jelly2 } = fishTank;
+    fishTank.t += 1;
+    const t = fishTank.t;
+
+    const grad = ctx.createLinearGradient(0, 0, 0, TANK_H);
+    grad.addColorStop(0, '#123B63');
+    grad.addColorStop(0.55, '#0E2E4F');
+    grad.addColorStop(1, '#0A2038');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, TANK_W, TANK_H);
+
+    ctx.globalAlpha = 0.05;
+    for (let i = 0; i < 3; i++) {
+        const bx = 18 + i * 46 + Math.sin(t * 0.006 + i) * 4;
+        ctx.fillStyle = '#CFE8FF';
+        ctx.beginPath();
+        ctx.moveTo(bx, 0); ctx.lineTo(bx + 10, 0); ctx.lineTo(bx + 24, TANK_H - 12); ctx.lineTo(bx + 12, TANK_H - 12);
+        ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    tankPx(ctx, 0, TANK_H - 8, TANK_W, 8, '#1A3A52');
+    tankPx(ctx, 0, TANK_H - 9, TANK_W, 1, '#24506E');
+
+    weeds.forEach(w => {
+        for (let h = 0; h < w.h; h++) {
+            const sway = Math.round(Math.sin(t * 0.018 + w.seed + h * 0.16) * (h / w.h) * 3);
+            const y = TANK_H - 9 - h;
+            if (w.wide) {
+                tankPx(ctx, w.x + sway - 1, y, 3, 1, h % 5 === 0 ? '#5A6FB8' : '#4A5FA8');
+            } else {
+                tankPx(ctx, w.x + sway, y, 1, 1, '#2E8B7A');
+                if (h % 4 === 0) tankPx(ctx, w.x + sway + (h % 8 === 0 ? 1 : -1), y, 1, 1, '#3AA089');
+            }
+        }
+    });
+
+    bubbles.forEach(b => {
+        b.y -= b.v;
+        b.x += Math.sin(t * 0.04 + b.y * 0.1) * 0.12;
+        if (b.y < -2) { b.y = TANK_H - 10; b.x = 4 + Math.random() * (TANK_W - 8); }
+        tankPx(ctx, b.x, b.y, b.s, b.s, 'rgba(210,235,255,0.42)');
+    });
+
+    tankDrawJelly(ctx, jelly, t);
+    tankDrawJelly(ctx, jelly2, t);
+    jelly.y += Math.sin(t * 0.012) * 0.14;
+    jelly2.y += Math.sin(t * 0.012 + 2) * 0.12;
+
+    fishes.forEach(f => {
+        f.x += f.vx;
+        f.phase += 0.045;
+        f.y += Math.sin(f.phase) * f.amp * 0.4;
+        if (f.x < 8) { f.x = 8; f.vx = Math.abs(f.vx); }
+        if (f.x > TANK_W - 8) { f.x = TANK_W - 8; f.vx = -Math.abs(f.vx); }
+        if (f.y < 14) f.y = 14;
+        if (f.y > TANK_H - 16) f.y = TANK_H - 16;
+        tankDrawFish(ctx, f, fishTank.picked === f);
+    });
+
+    if (fishTank.pickTimer > 0) {
+        fishTank.pickTimer--;
+        if (fishTank.pickTimer === 0) {
+            fishTank.picked = null;
+            const tip = document.getElementById('tankTip');
+            if (tip) tip.classList.remove('show');
+        }
+    }
+
+    fishTankRAF = requestAnimationFrame(tankLoop);
 }
 
 document.addEventListener('DOMContentLoaded', init);
