@@ -1102,3 +1102,8 @@ body {
     margin: 0 !important;
 }
 .assistant-modal { overflow: hidden !important; }
+
+/* ===== 鱼缸信息面板补充 ===== */
+.tank-info-detail { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 12px; line-height: 1.7; color: var(--text-light); max-height: 160px; overflow-y: auto; white-space: normal; }
+.tank-tipbar { text-align: center; font-size: 11.5px; color: var(--text-light); margin-bottom: 10px; }
+.tank-bg-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }

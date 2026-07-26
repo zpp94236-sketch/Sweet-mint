@@ -1495,6 +1495,7 @@ function renderBedroom() {
         { icon: '🔊', name: '回声', desc: '聊天历史', go: 'echoHome' }
     ]); }
     else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
+    else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
     else if (view === 'studyHome') { title = '书房'; html = renderPlaceholderGrid([
         { icon: '📖', name: '共读室', desc: '敬请期待' },
@@ -1528,11 +1529,23 @@ function renderBedroom() {
         else { extraBtn.style.display = 'none'; extraBtn.onclick = null; }
     }
     if (view === 'echoHome') { loadEcho(); }
-    if (view === 'fishtankHome') {
-        startFishTank();
-        const tb = document.getElementById('tankBgInput');
-        if (tb) tb.addEventListener('change', handleTankBgPick);
-    }
+   if (view === 'fishtankHome') {
+    loadTankData().then(() => {
+        if (bedroomView === 'fishtankHome') {
+            const c = document.getElementById('bedroomContent');
+            if (c) {
+                c.innerHTML = renderFishTank();
+                startFishTank();
+                const tb2 = document.getElementById('tankBgInput');
+                if (tb2) tb2.addEventListener('change', handleTankBgPick);
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }
+    });
+    startFishTank();
+    const tb = document.getElementById('tankBgInput');
+    if (tb) tb.addEventListener('change', handleTankBgPick);
+}
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -2037,62 +2050,97 @@ function tankDrawSprite(ctx, key, x, y, dir, hl) {
     ctx.restore();
 }
 
-// 鱼的品种（按记录类型分配不同外形）
+// 八条鱼：一条常驻 + 六条我的 + 一条你的
 const FISH_KINDS = {
-    diary:  { name: '日记', shape: 'tang',   c1: '#F0A83C', c2: '#D08820', c3: '#FFD070' },
-    note:   { name: '留言', shape: 'clown',  c1: '#F08040', c2: '#D06020', c3: '#FFFFFF' },
-    chat:   { name: '对话', shape: 'blue',   c1: '#4A90D8', c2: '#3070B8', c3: '#F0C040' },
-    memory: { name: '记忆', shape: 'angel',  c1: '#F0F0E8', c2: '#404048', c3: '#F0C840' }
+    memory: { name: '记忆', shape: 'clown',  c1: '#F5872E', label: '想记住的事' },
+    spark:  { name: '灵感', shape: 'tang',   c1: '#F5C93E', label: '突然想到的' },
+    growth: { name: '成长', shape: 'angel',  c1: '#8FD3C4', label: '我变了的地方' },
+    plan:   { name: '计划', shape: 'blue',   c1: '#3A82D6', label: '打算做的事' },
+    action: { name: '轨迹', shape: 'puffer', c1: '#A582D6', label: '我做过的事' },
+    puzzle: { name: '困惑', shape: 'angel',  c1: '#9A9EA8', label: '还没想明白' },
+    herday: { name: '你的日子', shape: 'betta', c1: '#EF6E96', label: '你写给我的' }
 };
-// 常驻两条小鱼（不依赖数据）
 const TANK_PETS = [
-    { name: '咖啡', shape: 'betta', c1: '#E86890', c2: '#C04868', c3: '#78C8E0', title: '斗鱼咖啡 · 一直住在这里' },
-    { name: '拿铁', shape: 'puffer', c1: '#A888D8', c2: '#8868B8', c3: '#FFFFFF', title: '小河豚拿铁 · 一直住在这里' }
+    { name: '咖啡', shape: 'betta', c1: '#E86890', c2: '#C04868', c3: '#78C8E0', title: '斗鱼咖啡 · 一直住在这里' }
 ];
 
+let tankRemote = { loaded: false, loading: false, life: [], days: [] };
+
+async function loadTankData(force) {
+    if (tankRemote.loading) return;
+    if (tankRemote.loaded && !force) return;
+    if (!isSupabaseConfigured()) { tankRemote.loaded = true; return; }
+    tankRemote.loading = true;
+    try {
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = getSupabaseHeaders();
+        const [r1, r2] = await Promise.all([
+            fetch(base + '/rest/v1/ai_life?select=id,kind,content,detail,tool,status,mood,created_at&order=created_at.desc&limit=80', { headers: h }),
+            fetch(base + '/rest/v1/her_days?select=id,day,content,mood,created_at&order=created_at.desc&limit=20', { headers: h })
+        ]);
+        tankRemote.life = r1.ok ? (await r1.json()) || [] : [];
+        tankRemote.days = r2.ok ? (await r2.json()) || [] : [];
+        tankRemote.loaded = true;
+    } catch (e) {
+        console.log('鱼缸数据加载失败', e);
+        tankRemote.loaded = true;
+    } finally {
+        tankRemote.loading = false;
+    }
+}
+
 function buildFishData() {
-    const list = [];
-    (state.memorySystem.diaries || []).forEach(d => {
-        list.push({ kind: 'diary', title: (d.userNote || '（空日记）').replace(/\s+/g, ' '), time: d.date });
+    const out = [];
+    const life = tankRemote.life || [];
+    ['memory', 'spark', 'growth', 'plan', 'action', 'puzzle'].forEach(k => {
+        if (k === 'action') {
+            const acts = life.filter(x => x.kind === 'action').slice(0, 4);
+            if (acts.length) {
+                out.push({
+                    kind: 'action',
+                    title: '最近做的 ' + acts.length + ' 件事',
+                    detail: acts.map(a => '· ' + a.content + (a.detail ? '\n  ' + a.detail : '')).join('\n\n'),
+                    time: (acts[0].created_at || '').slice(0, 10)
+                });
+            }
+        } else {
+            const one = life.find(x => x.kind === k);
+            if (one) out.push({ kind: k, title: one.content, detail: one.detail || '', time: (one.created_at || '').slice(0, 10), mood: one.mood });
+        }
     });
-    Object.keys(state.settings.taMessages || {}).forEach(k => {
-        list.push({ kind: 'note', title: state.settings.taMessages[k], time: k });
-    });
-    (state.chats || []).forEach(c => {
-        if (c.messages && c.messages.length) list.push({ kind: 'chat', title: c.title || '新对话', time: (c.createdAt || '').slice(0, 10) });
-    });
-    (state.memorySystem.memories || []).forEach(m => {
-        list.push({ kind: 'memory', title: (m.summary || m.content || '').replace(/\s+/g, ' '), time: (m.createdAt || '').slice(0, 10) });
-    });
-    list.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-    return list;
+    const day = (tankRemote.days || [])[0];
+    if (day) out.push({ kind: 'herday', title: day.content, detail: '', time: day.day || (day.created_at || '').slice(0, 10), mood: day.mood });
+    return out;
 }
 
 function renderFishTank() {
-    const all = buildFishData();
-    const shown = all.slice(-TANK_MAX_FISH);
-    const counts = {}, totals = {};
-    all.forEach(d => totals[d.kind] = (totals[d.kind] || 0) + 1);
-    shown.forEach(d => counts[d.kind] = (counts[d.kind] || 0) + 1);
-    const legend = Object.keys(FISH_KINDS).filter(k => totals[k]).map(k => {
-        const more = totals[k] > counts[k] ? ' <em>/' + totals[k] + '</em>' : '';
-        return '<span class="tank-legend-item"><i style="background:' + FISH_KINDS[k].c1 + '"></i>' + FISH_KINDS[k].name + ' ' + (counts[k] || 0) + more + '</span>';
+    const data = buildFishData();
+    const cards = data.map(d => {
+        const k = FISH_KINDS[d.kind];
+        return '<span class="tank-legend-item"><i style="background:' + k.c1 + '"></i>' + k.name + '</span>';
     }).join('');
-    const overflow = all.length > TANK_MAX_FISH
-        ? '<div class="tank-overflow">缸里游着最近 ' + TANK_MAX_FISH + ' 条 · 一共 ' + all.length + ' 件事</div>' : '';
     const bg = state.settings.tankBg;
     const bgStyle = bg ? ' style="background-image:url(' + bg + ')"' : '';
+    const empty = data.length === 0
+        ? '<div class="tank-tipbar">缸里还没有东西 · 稍等一下或者点刷新</div>' : '';
     return '<div class="tank-wrap' + (bg ? ' has-bg' : '') + '"' + bgStyle + '>' +
         '<canvas id="fishTankCanvas" class="tank-canvas" width="' + TANK_W + '" height="' + TANK_H + '"></canvas>' +
-        '</div>' +
+        '</div>' + empty +
         '<div class="tank-bg-row">' +
             (bg ? '<button class="wp-btn wp-btn-clear" onclick="clearTankBg()">恢复像素背景</button>' : '') +
-            '<label class="wp-btn wp-btn-pick" for="tankBgInput">' + (bg ? '换一张背景' : '用自己的鱼缸图') + '</label>' +
+            '<label class="wp-btn wp-btn-pick" for="tankBgInput">' + (bg ? '换背景' : '换成自己的图') + '</label>' +
+            '<button class="wp-btn wp-btn-clear" onclick="tankRefresh()">↻ 刷新</button>' +
+            '<button class="wp-btn wp-btn-pick" onclick="bedroomGo(\'myDayEdit\')">写今天</button>' +
             '<input type="file" id="tankBgInput" class="wp-hidden-input" accept="image/*">' +
         '</div>' +
         '<div class="tank-info" id="tankInfo"><div class="tank-info-empty">点一条鱼，看看它是什么</div></div>' +
-        '<div class="tank-legend">' + legend + '<span class="tank-legend-item"><i style="background:#E86890"></i>常驻 2</span></div>' +
-        overflow;
+        '<div class="tank-legend"><span class="tank-legend-item"><i style="background:#E86890"></i>咖啡</span>' + cards + '</div>';
+}
+
+function tankRefresh() {
+    tankRemote.loaded = false;
+    stopFishTank();
+    loadTankData(true).then(() => renderBedroom());
 }
 
 function clearTankBg() {
@@ -2113,6 +2161,61 @@ function handleTankBgPick(e) {
     e.target.value = '';
 }
 
+function renderMyDayEdit() {
+    const days = tankRemote.days || [];
+    const today = getTodayKey();
+    const mine = days.find(d => d.day === today);
+    const moods = ['😊', '😌', '🥰', '😴', '😤', '😢', '🤔', '🔥'];
+    const cur = mine ? mine.mood : '';
+    const picker = moods.map(m => '<button class="mood-btn' + (cur === m ? ' active' : '') + '" onclick="pickDayMood(\'' + m + '\')">' + m + '</button>').join('');
+    const history = days.slice(0, 12).map(d =>
+        '<div class="diary-history-item"><div class="diary-history-mood">' + (d.mood || '📅') + '</div><div class="diary-history-body"><div class="diary-history-date">' + escapeHtml(d.day || '') + '</div><div class="diary-history-preview">' + escapeHtml(d.content) + '</div></div></div>'
+    ).join('');
+    return '<div class="diary-edit-date">' + today + ' · 今天怎么样</div>' +
+        '<div class="mood-picker" id="dayMoodPicker">' + picker + '</div>' +
+        '<div class="form-group"><textarea id="myDayInput" rows="5" placeholder="随手写一句就好，我会读到的">' + escapeHtml(mine ? mine.content : '') + '</textarea></div>' +
+        '<button class="btn-primary bedroom-save-btn" onclick="saveMyDay()">' + (mine ? '更新今天' : '存起来') + '</button>' +
+        (history ? '<div class="settings-list-card-title" style="margin-top:22px;">之前的日子</div><div class="diary-history-list">' + history + '</div>' : '');
+}
+
+let myDayMood = '';
+function pickDayMood(m) {
+    myDayMood = m;
+    document.querySelectorAll('#dayMoodPicker .mood-btn').forEach(b => b.classList.toggle('active', b.textContent === m));
+}
+
+async function saveMyDay() {
+    const el = document.getElementById('myDayInput');
+    if (!el || !el.value.trim()) { alert('写点什么吧～'); return; }
+    if (!isSupabaseConfigured()) { alert('需要先配置云端同步（设置 → 数据设置）'); return; }
+    const content = el.value.trim();
+    const today = getTodayKey();
+    const existing = (tankRemote.days || []).find(d => d.day === today);
+    const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+    const h = Object.assign({}, getSupabaseHeaders(), { 'Content-Type': 'application/json', 'Prefer': 'return=representation' });
+    try {
+        let res;
+        if (existing) {
+            res = await fetch(base + '/rest/v1/her_days?id=eq.' + existing.id, {
+                method: 'PATCH', headers: h,
+                body: JSON.stringify({ content: content, mood: myDayMood || existing.mood || null })
+            });
+        } else {
+            res = await fetch(base + '/rest/v1/her_days', {
+                method: 'POST', headers: h,
+                body: JSON.stringify({ day: today, content: content, mood: myDayMood || null })
+            });
+        }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        myDayMood = '';
+        tankRemote.loaded = false;
+        await loadTankData(true);
+        bedroomGo('fishtankHome');
+    } catch (e) {
+        alert('保存失败：' + e.message);
+    }
+}
+
 function stopFishTank() {
     if (fishTankRAF) { cancelAnimationFrame(fishTankRAF); fishTankRAF = null; }
     fishTank = null;
@@ -2130,25 +2233,29 @@ function startFishTank() {
     const sandLine = [];
     for (let x = 0; x < TANK_W; x++) sandLine.push(SAND);
 
-    function mkFish(d, isPet, idx) {
-        const k = isPet ? d : (FISH_KINDS[d.kind] || FISH_KINDS.chat);
-        const layer = idx % 3;
-        const bandH = (SAND - 40) / 3;
-        return {
-            x: 14 + Math.random() * (TANK_W - 28),
-            y: 22 + layer * bandH + Math.random() * bandH,
-            yMin: 20 + layer * bandH,
-            yMax: 20 + (layer + 1) * bandH,
-            vx: (Math.random() < 0.5 ? -1 : 1) * (0.13 + Math.random() * 0.2),
-            phase: Math.random() * Math.PI * 2,
-            amp: 0.2 + Math.random() * 0.3,
-            shape: k.shape, c1: k.c1, c2: k.c2, c3: k.c3,
-            title: d.title, time: isPet ? '' : d.time,
-            kindName: isPet ? d.name : k.name,
-            pet: !!isPet
-        };
-    }
-    const fishes = TANK_PETS.map((p, i) => mkFish(p, true, i)).concat(data.map((d, i) => mkFish(d, false, i + 2)));
+function mkFish(d, isPet, idx) {
+    const k = isPet ? d : (FISH_KINDS[d.kind] || FISH_KINDS.memory);
+    const layer = idx % 3;
+    const bandH = (SAND - 46) / 3;
+    return {
+        x: 14 + Math.random() * (TANK_W - 28),
+        y: 24 + layer * bandH + Math.random() * bandH,
+        yMin: 22 + layer * bandH,
+        yMax: 22 + (layer + 1) * bandH,
+        vx: (Math.random() < 0.5 ? -1 : 1) * (0.13 + Math.random() * 0.2),
+        phase: Math.random() * Math.PI * 2,
+        amp: 0.2 + Math.random() * 0.3,
+        shape: k.shape, c1: k.c1,
+        title: d.title,
+        detail: isPet ? '' : (d.detail || ''),
+        time: isPet ? '' : d.time,
+        mood: isPet ? '' : (d.mood || ''),
+        kindName: isPet ? d.name : k.name,
+        kindLabel: isPet ? '常驻' : k.label,
+        pet: !!isPet
+    };
+}
+const fishes = TANK_PETS.map((p, i) => mkFish(p, true, i)).concat(data.map((d, i) => mkFish(d, false, i + 1)));
 
     // 高大海藻（前景）
     const kelps = [];
@@ -2205,14 +2312,20 @@ function startFishTank() {
             const d = Math.hypot(f.x - cx, f.y - cy);
             if (d < bestD) { bestD = d; best = f; }
         });
-        const info = document.getElementById('tankInfo');
-        if (best && bestD < 16) {
-            fishTank.picked = best;
-            if (info) info.innerHTML = '<div class="tank-info-head"><span class="tank-info-kind" style="background:' + best.c1 + '">' + escapeHtml(best.kindName) + '</span><span class="tank-info-time">' + escapeHtml(best.time || '') + '</span></div><div class="tank-info-text">' + escapeHtml(best.title) + '</div>';
-        } else {
-            fishTank.picked = null;
-            if (info) info.innerHTML = '<div class="tank-info-empty">点一条鱼，看看它是什么</div>';
-        }
+      const info = document.getElementById('tankInfo');
+if (best && bestD < 15) {
+    fishTank.picked = best;
+    if (info) info.innerHTML =
+        '<div class="tank-info-head">' +
+            '<span class="tank-info-kind" style="background:' + best.c1 + '">' + escapeHtml(best.kindName) + (best.mood ? ' ' + best.mood : '') + '</span>' +
+            '<span class="tank-info-time">' + escapeHtml(best.kindLabel) + (best.time ? ' · ' + escapeHtml(best.time) : '') + '</span>' +
+        '</div>' +
+        '<div class="tank-info-text">' + escapeHtml(best.title) + '</div>' +
+        (best.detail ? '<div class="tank-info-detail">' + escapeHtml(best.detail).replace(/\n/g, '<br>') + '</div>' : '');
+} else {
+    fishTank.picked = null;
+    if (info) info.innerHTML = '<div class="tank-info-empty">点一条鱼，看看它是什么</div>';
+}
     };
 
     tankLoop();
