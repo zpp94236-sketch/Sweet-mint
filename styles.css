@@ -1107,3 +1107,21 @@ body {
 .tank-info-detail { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 12px; line-height: 1.7; color: var(--text-light); max-height: 160px; overflow-y: auto; white-space: normal; }
 .tank-tipbar { text-align: center; font-size: 11.5px; color: var(--text-light); margin-bottom: 10px; }
 .tank-bg-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* ===== 收藏 ===== */
+.message-bubble.starred { box-shadow: 0 2px 8px var(--shadow), inset 0 0 0 1.5px var(--accent-rose); }
+.star-list { display: flex; flex-direction: column; gap: 10px; }
+.star-item { background: var(--bg-white); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; cursor: pointer; }
+.star-item:active { transform: scale(0.985); }
+.star-item-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.star-item-role { font-size: 11.5px; font-weight: 600; color: var(--primary-dark); }
+.star-item-chat { font-size: 10.5px; color: var(--text-light); }
+.star-item-text { font-size: 13px; line-height: 1.6; color: var(--text); }
+
+.app-toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(10px);
+    background: rgba(30,40,36,0.9); color: #fff; padding: 9px 18px; border-radius: 999px;
+    font-size: 13px; z-index: 400; opacity: 0; pointer-events: none;
+    transition: all .25s ease; backdrop-filter: blur(8px);
+}
+.app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }

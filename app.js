@@ -257,17 +257,17 @@ function renderSingleMessage(msg, idx) {
     const userAvatarHtml = state.settings.userAvatar ? '<img src="' + state.settings.userAvatar + '">' : '🌙';
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     if (isUser) {
-        return '<div class="message user"><div class="message-avatar">' + userAvatarHtml + '</div><div class="message-content-wrap"><div class="message-bubble">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div></div></div>';
+        return '<div class="message user"><div class="message-avatar">' + userAvatarHtml + '</div><div class="message-content-wrap"><div class="message-bubble' + (msg.starred ? ' starred' : '') + '">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div></div></div>';
     }
     let tokenHtml = '';
     if (msg.usage && state.settings.showTokenUsage !== false) {
         const parts = [];
-        if (msg.usage.prompt_tokens != null) parts.push('输入 ' + msg.usage.prompt_tokens);
-        if (msg.usage.completion_tokens != null) parts.push('输出 ' + msg.usage.completion_tokens);
+        if (msg.usage.prompt_tokens != null) parts.push('↑' + msg.usage.prompt_tokens);
+        if (msg.usage.completion_tokens != null) parts.push('↓' + msg.usage.completion_tokens);
         if (msg.duration) parts.push(msg.duration + 's');
         if (parts.length) tokenHtml = '<div class="message-tokens">' + parts.join(' · ') + '</div>';
     }
-    return '<div class="message assistant"><div class="message-avatar">' + aiAvatarHtml + '</div><div class="message-content-wrap">' + thinkingHtml + '<div class="message-bubble">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div>' + tokenHtml + '</div></div>';
+    return '<div class="message assistant"><div class="message-avatar">' + aiAvatarHtml + '</div><div class="message-content-wrap">' + thinkingHtml + '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div>' + tokenHtml + '</div></div>';
 }
 
 function formatHM(iso) { if (!iso) return ''; const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
@@ -276,17 +276,74 @@ function formatDivider(iso) {
     if (!iso) return '';
     const d = new Date(iso), now = new Date();
     const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-    const sameDay = d.toDateString() === now.toDateString();
-    if (sameDay) return hm;
+    if (d.toDateString() === now.toDateString()) return '今天 ' + hm;
     const y = new Date(now); y.setDate(y.getDate() - 1);
     if (d.toDateString() === y.toDateString()) return '昨天 ' + hm;
     if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
     return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
 }
 
-function getUserActions(idx) { return '<div class="message-actions"><button class="msg-action-btn" onclick="copyMessage(' + idx + ')" title="复制"><i data-lucide="copy"></i></button><button class="msg-action-btn" onclick="regenerateMessage(' + idx + ')" title="重新生成"><i data-lucide="refresh-cw"></i></button><div class="msg-more-menu"><button class="msg-action-btn" onclick="toggleMoreMenu(this)" title="更多"><i data-lucide="more-horizontal"></i></button><div class="msg-more-dropdown"><button class="msg-dropdown-item" onclick="editMessage(' + idx + ')"><i data-lucide="pencil"></i>编辑</button><button class="msg-dropdown-item" onclick="branchChat(' + idx + ')"><i data-lucide="git-branch"></i>分支</button><button class="msg-dropdown-item danger" onclick="deleteMessage(' + idx + ')"><i data-lucide="trash-2"></i>删除</button></div></div></div>'; }
+function getUserActions(idx) { return '<div class="message-actions"><button class="msg-action-btn" onclick="copyMessage(' + idx + ')" title="复制"><i data-lucide="copy"></i></button><button class="msg-action-btn" onclick="regenerateMessage(' + idx + ')" title="重新生成"><i data-lucide="refresh-cw"></i></button><div class="msg-more-menu"><button class="msg-action-btn" onclick="toggleMoreMenu(this)" title="更多"><i data-lucide="more-horizontal"></i></button><div class="msg-more-dropdown"><button class="msg-dropdown-item" onclick="toggleStar(' + idx + ')"><i data-lucide="star"></i>收藏</button><button class="msg-dropdown-item" onclick="editMessage(' + idx + ')"><i data-lucide="pencil"></i>编辑</button><button class="msg-dropdown-item" onclick="branchChat(' + idx + ')"><i data-lucide="git-branch"></i>分支</button><button class="msg-dropdown-item danger" onclick="deleteMessage(' + idx + ')"><i data-lucide="trash-2"></i>删除</button></div></div></div>'; }
 
-function getAiActions(idx) { return '<div class="message-actions"><button class="msg-action-btn" onclick="copyMessage(' + idx + ')" title="复制"><i data-lucide="copy"></i></button><button class="msg-action-btn" onclick="regenerateMessage(' + idx + ')" title="重新生成"><i data-lucide="refresh-cw"></i></button><button class="msg-action-btn" onclick="speakMessage(' + idx + ')" title="语音"><i data-lucide="volume-2"></i></button><button class="msg-action-btn" onclick="translateMessage(' + idx + ')" title="翻译"><i data-lucide="languages"></i></button><div class="msg-more-menu"><button class="msg-action-btn" onclick="toggleMoreMenu(this)" title="更多"><i data-lucide="more-horizontal"></i></button><div class="msg-more-dropdown"><button class="msg-dropdown-item" onclick="editMessage(' + idx + ')"><i data-lucide="pencil"></i>编辑</button><button class="msg-dropdown-item" onclick="branchChat(' + idx + ')"><i data-lucide="git-branch"></i>分支</button><button class="msg-dropdown-item danger" onclick="deleteMessage(' + idx + ')"><i data-lucide="trash-2"></i>删除</button></div></div></div>'; }
+function toggleStar(idx) {
+    const chat = getCurrentChat(); if (!chat || !chat.messages[idx]) return;
+    const msg = chat.messages[idx];
+    msg.starred = !msg.starred;
+    saveState();
+    renderMessages();
+    showToast(msg.starred ? '已收藏' : '已取消收藏');
+}
+
+function openStarredList() {
+    const items = [];
+    (state.chats || []).forEach(c => {
+        (c.messages || []).forEach((m, i) => {
+            if (m.starred) items.push({ chatId: c.id, chatTitle: c.title || '新对话', idx: i, msg: m });
+        });
+    });
+    if (!items.length) { alert('还没有收藏任何消息～'); return; }
+    const html = items.reverse().map(it =>
+        '<div class="star-item" onclick="jumpToStarred(\'' + it.chatId + '\',' + it.idx + ')">' +
+            '<div class="star-item-head"><span class="star-item-role">' + (it.msg.role === 'user' ? (state.settings.userName || '我') : (state.settings.aiName || '晏晏')) + '</span><span class="star-item-chat">' + escapeHtml(it.chatTitle) + '</span></div>' +
+            '<div class="star-item-text">' + escapeHtml((it.msg.content || '').replace(/\s+/g, ' ').slice(0, 80)) + '</div>' +
+        '</div>'
+    ).join('');
+    const ov = document.getElementById('bedroomOverlay');
+    const t = document.getElementById('bedroomTitle');
+    const c = document.getElementById('bedroomContent');
+    if (!ov || !c) return;
+    if (t) t.textContent = '收藏';
+    c.innerHTML = '<div class="star-list">' + html + '</div>';
+    ov.classList.add('active');
+    bedroomView = 'starred';
+}
+
+function jumpToStarred(chatId, idx) {
+    const ov = document.getElementById('bedroomOverlay');
+    if (ov) ov.classList.remove('active');
+    if (state.currentChatId !== chatId) { switchChat(chatId); }
+    showPage('chat');
+    setTimeout(() => {
+        const nodes = document.querySelectorAll('#messages .message');
+        if (nodes[idx]) nodes[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+}
+
+function showToast(text) {
+    let el = document.getElementById('appToast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'appToast';
+        el.className = 'app-toast';
+        document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+function getAiActions(idx) { return '<div class="message-actions"><button class="msg-action-btn" onclick="copyMessage(' + idx + ')" title="复制"><i data-lucide="copy"></i></button><button class="msg-action-btn" onclick="regenerateMessage(' + idx + ')" title="重新生成"><i data-lucide="refresh-cw"></i></button><button class="msg-action-btn" onclick="speakMessage(' + idx + ')" title="语音"><i data-lucide="volume-2"></i></button><button class="msg-action-btn" onclick="translateMessage(' + idx + ')" title="翻译"><i data-lucide="languages"></i></button><div class="msg-more-menu"><button class="msg-action-btn" onclick="toggleMoreMenu(this)" title="更多"><i data-lucide="more-horizontal"></i></button><div class="msg-more-dropdown"><button class="msg-dropdown-item" onclick="toggleStar(' + idx + ')"><i data-lucide="star"></i>收藏</button><button class="msg-dropdown-item" onclick="editMessage(' + idx + ')"><i data-lucide="pencil"></i>编辑</button><button class="msg-dropdown-item" onclick="branchChat(' + idx + ')"><i data-lucide="git-branch"></i>分支</button><button class="msg-dropdown-item danger" onclick="deleteMessage(' + idx + ')"><i data-lucide="trash-2"></i>删除</button></div></div></div>'; }
 
 function updateHeader() {
     const chat = getCurrentChat();
@@ -1310,7 +1367,7 @@ function setupEventListeners() {
     on('mcpSheetBack', 'click', () => { showToolSheetView('grid'); });
     on('searchSheetBack', 'click', () => { showToolSheetView('grid'); });
     on('bsFile', 'click', () => { closeBottomSheet(); document.getElementById('fileInputHidden').click(); });
-    on('bsStar', 'click', () => { closeBottomSheet(); setTimeout(() => alert('收藏功能开发中～'), 320); });
+    on('bsStar', 'click', () => { closeBottomSheet(); setTimeout(openStarredList, 320); });
     on('compressRow', 'click', (e) => { e.stopPropagation(); closeInputPopups(); compressHistory(); });
     on('plusUploadFile', 'click', () => { document.getElementById('fileInputHidden').click(); });
     on('plusUploadCamera', 'click', () => { document.getElementById('cameraInputHidden').click(); });
