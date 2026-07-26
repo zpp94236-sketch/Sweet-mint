@@ -2241,43 +2241,51 @@ function tankLoop() {
         }
         ctx.globalAlpha = 1;
 
+        // 沙地（只露窄边）
         for (let x = 0; x < TANK_W; x++) {
             const y = sandLine[x];
-            tankPx(ctx, x, y + 8, 1, TANK_H - y - 8, '#D8BC8A');
-            tankPx(ctx, x, y + 8, 1, 1, '#E8CFA0');
+            tankPx(ctx, x, y + 14, 1, TANK_H - y - 14, '#D8B486');
+            tankPx(ctx, x, y + 14, 1, 1, '#E8C79C');
         }
+        // 苔草：多层圆丘
+        const MOSS_TOP = ['#A8DE58', '#94D148', '#8FCE4A'];
+        const MOSS_MID = ['#6FB832', '#5FA82A', '#68AF32'];
+        const MOSS_LOW = ['#3E7A1C', '#356E18', '#2E6014'];
         for (let x = 0; x < TANK_W; x++) {
-            const base = sandLine[x] + 8;
-            const noise = Math.sin(x * 0.7) * 1.2 + Math.sin(x * 0.23) * 2;
-            const h = 7 + Math.round(noise);
+            const base = sandLine[x] + 15;
+            const b1 = Math.sin(x * 0.42) * 2.2;
+            const b2 = Math.sin(x * 0.17 + 1.3) * 2.8;
+            const b3 = Math.sin(x * 0.85 + 2.1) * 1.1;
+            const h = Math.max(5, Math.round(11 + b1 + b2 + b3));
             for (let k = 0; k < h; k++) {
                 const y = base - k;
-                const shade = (x + k) % 5;
+                const n = (x * 3 + k * 7) % 3;
                 let c;
-                if (k > h - 3) c = shade < 2 ? '#8FCE4A' : '#7ABF38';
-                else if (k > h - 6) c = shade < 3 ? '#68AF32' : '#589E28';
-                else c = shade < 2 ? '#4A8E22' : '#3E7A1C';
+                const ratio = k / h;
+                if (ratio > 0.72) c = MOSS_TOP[n];
+                else if (ratio > 0.34) c = MOSS_MID[n];
+                else c = MOSS_LOW[n];
                 tankPx(ctx, x, y, 1, 1, c);
             }
-            if ((x * 7) % 11 === 0) {
-                const tip = base - h - 1 - Math.round(Math.sin(t * 0.02 + x) * 0.6);
-                tankPx(ctx, x, tip, 1, 1, '#9FDE5A');
-            }
+            // 顶部绒毛亮点
+            if ((x * 5) % 7 === 0) tankPx(ctx, x, base - h, 1, 1, '#BCE870');
+            if ((x * 11) % 13 === 0) tankPx(ctx, x, base - h + 1, 1, 1, '#C8F080');
         }
         rocks.forEach(r => {
-            const y = sandLine[Math.min(r.x, TANK_W - 1)] + 5;
-            tankPx(ctx, r.x + 1, y - r.h, r.w - 2, 1, '#8E9086');
-            tankPx(ctx, r.x, y - r.h + 1, r.w, r.h - 1, '#787A70');
-            tankPx(ctx, r.x + 1, y - 1, r.w - 2, 1, '#5E6058');
+            const y = sandLine[Math.min(r.x, TANK_W - 1)] + 8;
+            tankPx(ctx, r.x + 2, y - r.h - 1, r.w - 4, 1, '#9A9C92');
+            tankPx(ctx, r.x + 1, y - r.h, r.w - 2, 1, '#8A8C82');
+            tankPx(ctx, r.x, y - r.h + 1, r.w, r.h, '#767870');
+            tankPx(ctx, r.x + 1, y, r.w - 2, 1, '#5A5C54');
         });
         stars.forEach(s => {
-            const y = sandLine[Math.min(s.x, TANK_W - 1)] + 13;
+            const y = sandLine[Math.min(s.x, TANK_W - 1)] + 17;
             tankPx(ctx, s.x, y, 1, 3, s.c);
             tankPx(ctx, s.x - 2, y + 1, 5, 1, s.c);
             tankPx(ctx, s.x - 1, y + 2, 1, 2, s.c);
             tankPx(ctx, s.x + 1, y + 2, 1, 2, s.c);
         });
-        corals.forEach(c => tankDrawCoral(ctx, c, sandLine[Math.min(c.x, TANK_W - 1)] + 6));
+        corals.forEach(c => tankDrawCoral(ctx, c, sandLine[Math.min(c.x, TANK_W - 1)] + 4));
         kelps.forEach(k => tankDrawKelp(ctx, k, t, sandLine[Math.min(k.x, TANK_W - 1)] + 6));
     }
 
