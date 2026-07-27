@@ -229,6 +229,7 @@ function renderMessages() {
     container.innerHTML = html;
     scrollToBottom();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+        bindBubbleLongPress();
     if (state.settings.renderMath && typeof renderMathInElement !== 'undefined') {
         try { renderMathInElement(container, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}], throwOnError: false }); } catch(e) {}
     }
@@ -253,22 +254,27 @@ function renderSingleMessage(msg, idx) {
         }
     }
     const rendered = isUser ? escapeHtml(mainContent).replace(/\n/g, '<br>') : renderMarkdown(mainContent);
-    const actions = isUser ? getUserActions(idx) : getAiActions(idx);
     const userAvatarHtml = state.settings.userAvatar ? '<img src="' + state.settings.userAvatar + '">' : '🌙';
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
-    if (isUser) {
-        return '<div class="message user"><div class="message-avatar">' + userAvatarHtml + '</div><div class="message-content-wrap"><div class="message-bubble' + (msg.starred ? ' starred' : '') + '">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div></div></div>';
-    }
-    let tokenHtml = '';
-    if (msg.usage && state.settings.showTokenUsage !== false) {
-        const parts = [];
-        if (msg.usage.prompt_tokens != null) parts.push('↑' + msg.usage.prompt_tokens);
-        if (msg.usage.completion_tokens != null) parts.push('↓' + msg.usage.completion_tokens);
-        if (msg.duration) parts.push(msg.duration + 's');
-        if (parts.length) tokenHtml = '<div class="message-tokens">' + parts.join(' · ') + '</div>';
-    }
-    return '<div class="message assistant"><div class="message-avatar">' + aiAvatarHtml + '</div><div class="message-content-wrap">' + thinkingHtml + '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '">' + rendered + '</div><div class="message-footer"><span class="message-time">' + time + '</span>' + actions + '</div>' + tokenHtml + '</div></div>';
+    const nameText = isUser ? (state.settings.userName || '我') : (state.settings.aiName || '晏晏');
+    const avatarHtml = isUser ? userAvatarHtml : aiAvatarHtml;
+
+    return '<div class="message ' + (isUser ? 'user' : 'assistant') + '">' +
+        '<div class="msg-name-row"><span class="msg-name">' + escapeHtml(nameText) + '</span></div>' +
+        '<div class="msg-body">' +
+            '<div class="message-avatar">' + avatarHtml + '</div>' +
+            '<div class="message-content-wrap">' +
+                thinkingHtml +
+                '<div class="msg-bubble-holder">' +
+                    '<div class="msg-action-bar" id="actionBar' + idx + '">' + getActionBar(idx, isUser) + '</div>' +
+                    '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '" data-idx="' + idx + '">' + rendered + '</div>' +
+                '</div>' +
+                '<div class="message-footer"><span class="message-time">' + time + '</span></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
 }
+
 
 function formatHM(iso) { if (!iso) return ''; const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
@@ -283,7 +289,21 @@ function formatDivider(iso) {
     return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
 }
 
-function getUserActions(idx) { return '<div class="message-actions"><button class="msg-action-btn" onclick="copyMessage(' + idx + ')" title="复制"><i data-lucide="copy"></i></button><button class="msg-action-btn" onclick="regenerateMessage(' + idx + ')" title="重新生成"><i data-lucide="refresh-cw"></i></button><div class="msg-more-menu"><button class="msg-action-btn" onclick="toggleMoreMenu(this)" title="更多"><i data-lucide="more-horizontal"></i></button><div class="msg-more-dropdown"><button class="msg-dropdown-item" onclick="toggleStar(' + idx + ')"><i data-lucide="star"></i>收藏</button><button class="msg-dropdown-item" onclick="editMessage(' + idx + ')"><i data-lucide="pencil"></i>编辑</button><button class="msg-dropdown-item" onclick="branchChat(' + idx + ')"><i data-lucide="git-branch"></i>分支</button><button class="msg-dropdown-item danger" onclick="deleteMessage(' + idx + ')"><i data-lucide="trash-2"></i>删除</button></div></div></div>'; }
+function getActionBar(idx, isUser) {
+    const btns = [
+        { icon: 'copy', fn: 'copyMessage(' + idx + ')' },
+        { icon: 'refresh-cw', fn: 'regenerateMessage(' + idx + ')' },
+        { icon: 'languages', fn: 'translateMessage(' + idx + ')' },
+        { icon: 'star', fn: 'toggleStar(' + idx + ')' },
+        { icon: 'pencil', fn: 'editMessage(' + idx + ')' },
+        { icon: 'trash-2', fn: 'deleteMessage(' + idx + ')' }
+    ];
+    return btns.map(b => '<button class="action-bar-btn' + (b.icon === 'trash-2' ? ' danger' : '') + '" onclick="hideAllActionBars();' + b.fn + '"><i data-lucide="' + b.icon + '"></i></button>').join('');
+}
+
+function hideAllActionBars() {
+    document.querySelectorAll('.msg-action-bar.show').forEach(el => el.classList.remove('show'));
+}
 
 function toggleStar(idx) {
     const chat = getCurrentChat(); if (!chat || !chat.messages[idx]) return;
@@ -343,7 +363,25 @@ function showToast(text) {
     el._timer = setTimeout(() => el.classList.remove('show'), 1800);
 }
 
-function getAiActions(idx) { return '<div class="message-actions"><button class="msg-action-btn" onclick="copyMessage(' + idx + ')" title="复制"><i data-lucide="copy"></i></button><button class="msg-action-btn" onclick="regenerateMessage(' + idx + ')" title="重新生成"><i data-lucide="refresh-cw"></i></button><button class="msg-action-btn" onclick="speakMessage(' + idx + ')" title="语音"><i data-lucide="volume-2"></i></button><button class="msg-action-btn" onclick="translateMessage(' + idx + ')" title="翻译"><i data-lucide="languages"></i></button><div class="msg-more-menu"><button class="msg-action-btn" onclick="toggleMoreMenu(this)" title="更多"><i data-lucide="more-horizontal"></i></button><div class="msg-more-dropdown"><button class="msg-dropdown-item" onclick="toggleStar(' + idx + ')"><i data-lucide="star"></i>收藏</button><button class="msg-dropdown-item" onclick="editMessage(' + idx + ')"><i data-lucide="pencil"></i>编辑</button><button class="msg-dropdown-item" onclick="branchChat(' + idx + ')"><i data-lucide="git-branch"></i>分支</button><button class="msg-dropdown-item danger" onclick="deleteMessage(' + idx + ')"><i data-lucide="trash-2"></i>删除</button></div></div></div>'; }
+function bindBubbleLongPress() {
+    document.querySelectorAll('#messages .message-bubble').forEach(bubble => {
+        let timer = null;
+        let moved = false;
+        const idx = bubble.dataset.idx;
+        const show = () => {
+            hideAllActionBars();
+            const bar = document.getElementById('actionBar' + idx);
+            if (bar) {
+                bar.classList.add('show');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        };
+        bubble.addEventListener('touchstart', () => { moved = false; timer = setTimeout(show, 450); }, { passive: true });
+        bubble.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); }, { passive: true });
+        bubble.addEventListener('touchend', () => { clearTimeout(timer); });
+        bubble.addEventListener('contextmenu', e => { e.preventDefault(); show(); });
+    });
+}
 
 function updateHeader() {
     const chat = getCurrentChat();
@@ -1416,12 +1454,13 @@ function setupEventListeners() {
     const tw = document.getElementById('toggleWebSearch'); if(tw){ tw.checked = !!state.settings.webSearch; tw.addEventListener('change', () => { state.settings.webSearch = tw.checked; saveState(); }); }
     const tm = document.getElementById('toggleMcp'); if(tm){ tm.checked = !!state.settings.mcp; tm.addEventListener('change', () => { state.settings.mcp = tm.checked; saveState(); }); }
     const uai = document.getElementById('userAvatarInput'); if(uai) uai.addEventListener('change', e => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{ state.settings.userAvatar=ev.target.result; saveState(); applyUserAvatar(); renderMessages(); }; r.readAsDataURL(f); });
-    document.addEventListener('click', (e) => {
-    const ia = document.querySelector('.input-area');
-    const bs = document.getElementById('bottomSheet');
-    if (bs && bs.contains(e.target)) return;
-    if (ia && !ia.contains(e.target)) closeInputPopups();
-});
+        document.addEventListener('click', (e) => {
+        if (!e.target.closest('.msg-bubble-holder')) hideAllActionBars();
+        const ia = document.querySelector('.input-area');
+        const bs = document.getElementById('bottomSheet');
+        if (bs && bs.contains(e.target)) return;
+        if (ia && !ia.contains(e.target)) closeInputPopups();
+    });
     on('editTitleCancel', 'click', closeEditTitle);
     on('editTitleSave', 'click', saveEditTitle);
     on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) closeEditTitle(); });
