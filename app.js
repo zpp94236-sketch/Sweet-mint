@@ -425,10 +425,7 @@ async function sendMessage() {
         const response = await fetch(provider.apiBase + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey }, body: JSON.stringify({ model: state.settings.model, messages, temperature: state.settings.temperature, max_tokens: state.settings.maxTokens || undefined, stream: true, stream_options: { include_usage: true } }) });
         if (!response.ok) throw new Error('API 错误: ' + response.status + ' ' + response.statusText);
         const reader = response.body.getReader(); const decoder = new TextDecoder(); let assistantContent = ''; let usage = null; let buffer = '';
-        loadingDiv.remove();
-        const assistantDiv = document.createElement('div'); assistantDiv.className = 'message assistant';
-                assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"></div></div>';
-        messagesContainer.appendChild(assistantDiv); const bubble = assistantDiv.querySelector('.message-bubble');
+            let assistantDiv = null, bubble = null;
         while (true) {
             const { done, value } = await reader.read(); if (done) break;
             buffer += decoder.decode(value, { stream: true });
@@ -439,7 +436,19 @@ async function sendMessage() {
                     try { const parsed = JSON.parse(data);
                         if (parsed.usage) usage = parsed.usage;
                         const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content;
-                        if (delta) { assistantContent += delta; bubble.innerHTML = renderMarkdown(assistantContent); scrollToBottom(); }
+                                                if (delta) {
+                            if (!bubble) {
+                                loadingDiv.remove();
+                                assistantDiv = document.createElement('div');
+                                assistantDiv.className = 'message assistant';
+                                assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"></div></div>';
+                                messagesContainer.appendChild(assistantDiv);
+                                bubble = assistantDiv.querySelector('.message-bubble');
+                            }
+                            assistantContent += delta;
+                            bubble.innerHTML = renderMarkdown(assistantContent);
+                            scrollToBottom();
+                        }
                     } catch(e){}
                 }
             }
