@@ -1979,7 +1979,15 @@ async function pullMemoriesFromCloud() {
 let fishTankRAF = null;
 let fishTank = null;
 
-const TANK_W = 160, TANK_H = 200;
+let TANK_W = 160, TANK_H = 280;
+function calcTankSize() {
+    const pad = 20;
+    const w = window.innerWidth - pad;
+    const h = window.innerHeight - pad - 20;
+    const scale = Math.max(2, Math.floor(Math.min(w / 160, h / 280)));
+    TANK_W = Math.floor(w / scale);
+    TANK_H = Math.floor(h / scale);
+}
 const TANK_MAX_FISH = 20;
 
 // ===== 鱼的像素矩阵 =====
@@ -2187,27 +2195,39 @@ function buildFishData() {
 }
 
 function renderFishTank() {
-    const data = buildFishData();
-    const cards = data.map(d => {
-        const k = FISH_KINDS[d.kind];
-        return '<span class="tank-legend-item"><i style="background:' + k.c1 + '"></i>' + k.name + '</span>';
-    }).join('');
+    calcTankSize();
     const bg = state.settings.tankBg;
     const bgStyle = bg ? ' style="background-image:url(' + bg + ')"' : '';
-    const empty = data.length === 0
-        ? '<div class="tank-tipbar">缸里还没有东西 · 稍等一下或者点刷新</div>' : '';
-    return '<div class="tank-wrap' + (bg ? ' has-bg' : '') + '"' + bgStyle + '>' +
-        '<canvas id="fishTankCanvas" class="tank-canvas" width="' + TANK_W + '" height="' + TANK_H + '"></canvas>' +
-        '</div>' + empty +
-        '<div class="tank-bg-row">' +
-            (bg ? '<button class="wp-btn wp-btn-clear" onclick="clearTankBg()">恢复像素背景</button>' : '') +
-            '<label class="wp-btn wp-btn-pick" for="tankBgInput">' + (bg ? '换背景' : '换成自己的图') + '</label>' +
-            '<button class="wp-btn wp-btn-clear" onclick="tankRefresh()">↻ 刷新</button>' +
-            '<button class="wp-btn wp-btn-pick" onclick="bedroomGo(\'myDayEdit\')">写今天</button>' +
+    return '<div class="tank-fullscreen" id="tankFullscreen">' +
+        '<div class="tank-frame' + (bg ? ' has-bg' : '') + '"' + bgStyle + '>' +
+            '<canvas id="fishTankCanvas" width="' + TANK_W + '" height="' + TANK_H + '"></canvas>' +
+            '<button class="tank-float-btn tank-float-back" onclick="bedroomBack()"><i data-lucide="chevron-left"></i></button>' +
+            '<button class="tank-float-btn tank-float-menu" onclick="toggleTankMenu(event)"><i data-lucide="more-vertical"></i></button>' +
+            '<div class="tank-menu" id="tankMenu">' +
+                '<button class="tank-menu-item" onclick="bedroomGo(\'myDayEdit\')"><i data-lucide="pencil"></i>写今天</button>' +
+                '<button class="tank-menu-item" onclick="tankRefresh()"><i data-lucide="refresh-cw"></i>刷新</button>' +
+                '<label class="tank-menu-item" for="tankBgInput"><i data-lucide="image"></i>' + (bg ? '换背景' : '自定义背景') + '</label>' +
+                (bg ? '<button class="tank-menu-item" onclick="clearTankBg()"><i data-lucide="rotate-ccw"></i>恢复像素</button>' : '') +
+            '</div>' +
+            '<div class="tank-sheet" id="tankSheet"></div>' +
             '<input type="file" id="tankBgInput" class="wp-hidden-input" accept="image/*">' +
         '</div>' +
-        '<div class="tank-info" id="tankInfo"><div class="tank-info-empty">点一条鱼，看看它是什么</div></div>' +
-        '<div class="tank-legend"><span class="tank-legend-item"><i style="background:#E86890"></i>咖啡</span>' + cards + '</div>';
+    '</div>';
+}
+
+function toggleTankMenu(e) {
+    if (e) e.stopPropagation();
+    const m = document.getElementById('tankMenu');
+    if (m) m.classList.toggle('active');
+}
+function closeTankMenu() {
+    const m = document.getElementById('tankMenu');
+    if (m) m.classList.remove('active');
+}
+function closeTankSheet() {
+    const s = document.getElementById('tankSheet');
+    if (s) s.classList.remove('active');
+    if (fishTank) fishTank.picked = null;
 }
 
 function tankRefresh() {
@@ -2300,7 +2320,7 @@ function startFishTank() {
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     const data = buildFishData().slice(-TANK_MAX_FISH);
-    const SAND = TANK_H - 22;
+    const SAND = TANK_H - 40;
 
     // 沙地起伏轮廓
     const sandLine = [];
@@ -2376,30 +2396,36 @@ const fishes = TANK_PETS.map((p, i) => mkFish(p, true, i)).concat(data.map((d, i
     fishTank = { canvas, ctx, fishes, kelps, corals, rocks, stars, bubbles, jellies, school, sandLine, SAND, t: 0, picked: null };
 
     canvas.onclick = e => {
-        if (!fishTank) return;
-        const r = canvas.getBoundingClientRect();
-        const cx = (e.clientX - r.left) / r.width * TANK_W;
-        const cy = (e.clientY - r.top) / r.height * TANK_H;
-        let best = null, bestD = 999;
-        fishTank.fishes.forEach(f => {
-            const d = Math.hypot(f.x - cx, f.y - cy);
-            if (d < bestD) { bestD = d; best = f; }
-        });
-      const info = document.getElementById('tankInfo');
-if (best && bestD < 15) {
-    fishTank.picked = best;
-    if (info) info.innerHTML =
-        '<div class="tank-info-head">' +
-            '<span class="tank-info-kind" style="background:' + best.c1 + '">' + escapeHtml(best.kindName) + (best.mood ? ' ' + best.mood : '') + '</span>' +
-            '<span class="tank-info-time">' + escapeHtml(best.kindLabel) + (best.time ? ' · ' + escapeHtml(best.time) : '') + '</span>' +
-        '</div>' +
-        '<div class="tank-info-text">' + escapeHtml(best.title) + '</div>' +
-        (best.detail ? '<div class="tank-info-detail">' + escapeHtml(best.detail).replace(/\n/g, '<br>') + '</div>' : '');
-} else {
-    fishTank.picked = null;
-    if (info) info.innerHTML = '<div class="tank-info-empty">点一条鱼，看看它是什么</div>';
-}
-    };
+    if (!fishTank) return;
+    closeTankMenu();
+    const r = canvas.getBoundingClientRect();
+    const cx = (e.clientX - r.left) / r.width * TANK_W;
+    const cy = (e.clientY - r.top) / r.height * TANK_H;
+    let best = null, bestD = 999;
+    fishTank.fishes.forEach(f => {
+        const d = Math.hypot(f.x - cx, f.y - cy);
+        if (d < bestD) { bestD = d; best = f; }
+    });
+    const sheet = document.getElementById('tankSheet');
+    if (best && bestD < 15) {
+        fishTank.picked = best;
+        if (sheet) {
+            sheet.innerHTML =
+                '<div class="tank-sheet-head">' +
+                    '<span class="tank-sheet-kind" style="background:' + best.c1 + '">' + escapeHtml(best.kindName) + (best.mood ? ' ' + best.mood : '') + '</span>' +
+                    '<span class="tank-sheet-meta">' + escapeHtml(best.kindLabel) + (best.time ? ' · ' + escapeHtml(best.time) : '') + '</span>' +
+                    '<button class="tank-sheet-close" onclick="closeTankSheet()"><i data-lucide="x"></i></button>' +
+                '</div>' +
+                '<div class="tank-sheet-text">' + escapeHtml(best.title) + '</div>' +
+                (best.detail ? '<div class="tank-sheet-detail">' + escapeHtml(best.detail).replace(/\n/g, '<br>') + '</div>' : '');
+            sheet.classList.add('active');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    } else {
+        fishTank.picked = null;
+        if (sheet) sheet.classList.remove('active');
+    }
+};
 
     tankLoop();
 }

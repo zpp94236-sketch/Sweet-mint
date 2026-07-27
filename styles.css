@@ -1125,3 +1125,169 @@ body {
     transition: all .25s ease; backdrop-filter: blur(8px);
 }
 .app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ===== 鱼缸全屏模式 ===== */
+.tank-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 210;
+    background: #071726;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+/* 玻璃缸壁：双层像素边框 */
+.tank-frame {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow:
+        0 0 0 2px #4A9BC8,
+        0 0 0 4px #071726,
+        0 0 0 5px #2E6E96,
+        0 0 24px rgba(74,155,200,0.25);
+}
+.tank-frame canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    cursor: pointer;
+}
+.tank-frame.has-bg {
+    background-size: cover;
+    background-position: center;
+}
+
+/* 悬浮按钮 */
+.tank-float-btn {
+    position: absolute;
+    top: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(10,30,48,0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(220,240,255,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.2s ease;
+}
+.tank-float-btn:active { background: rgba(10,30,48,0.75); }
+.tank-float-btn svg { width: 19px !important; height: 19px !important; }
+.tank-float-back { left: 12px; }
+.tank-float-menu { right: 12px; }
+
+/* 右上角菜单 */
+.tank-menu {
+    position: absolute;
+    top: 56px;
+    right: 12px;
+    background: rgba(10,30,48,0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 12px;
+    padding: 6px;
+    z-index: 6;
+    display: none;
+    min-width: 130px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.tank-menu.active { display: block; animation: fadeIn 0.18s ease; }
+.tank-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    border: none;
+    background: none;
+    color: rgba(225,242,255,0.92);
+    font-size: 13px;
+    text-align: left;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+}
+.tank-menu-item:active { background: rgba(255,255,255,0.12); }
+.tank-menu-item svg { width: 15px !important; height: 15px !important; opacity: 0.8; }
+
+/* 底部信息卡片 */
+.tank-sheet {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    background: rgba(8,26,42,0.82);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid rgba(140,200,235,0.22);
+    border-radius: 16px;
+    padding: 14px 16px;
+    z-index: 5;
+    transform: translateY(calc(100% + 20px));
+    opacity: 0;
+    transition: transform 0.28s cubic-bezier(0.32,0.72,0,1), opacity 0.22s ease;
+    pointer-events: none;
+}
+.tank-sheet.active {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+.tank-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.tank-sheet-kind {
+    font-size: 11px;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+.tank-sheet-meta {
+    font-size: 11px;
+    color: rgba(190,220,240,0.65);
+}
+.tank-sheet-close {
+    background: none;
+    border: none;
+    color: rgba(190,220,240,0.6);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+}
+.tank-sheet-close svg { width: 16px !important; height: 16px !important; }
+.tank-sheet-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: rgba(235,247,255,0.94);
+    word-break: break-word;
+}
+.tank-sheet-detail {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(140,200,235,0.2);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: rgba(200,228,245,0.78);
+    max-height: 28vh;
+    overflow-y: auto;
+}
