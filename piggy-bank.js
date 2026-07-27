@@ -151,7 +151,8 @@ function renderPiggyHome() {
             const amt = parseFloat(r.amount) || 0;
             const sign = r.type === 'income' ? '+' : '-';
             const amtClass = r.type === 'income' ? 'piggy-amount-income' : 'piggy-amount-expense';
-            const timeStr = (r.created_at || '').slice(0, 10);
+            const d = new Date(r.created_at);
+const timeStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
             const note = r.note || tagInfo.label;
             html += '<div class="piggy-record">' +
                 '<div class="piggy-record-left">' +
@@ -180,7 +181,6 @@ function renderPiggyAdd() {
     let tagsHtml = '';
     Object.keys(PIGGY_TAGS).forEach(k => {
         const t = PIGGY_TAGS[k];
-        if (k === 'daily') return;
         tagsHtml += '<button class="piggy-tag-btn" data-tag="' + k + '" data-type="' + t.type + '" onclick="pickPiggyTag(&quot;' + k + '&quot;)">' + t.emoji + ' ' + t.label + '</button>';
     });
 
