@@ -1542,11 +1542,6 @@ function renderBedroom() {
     }
     else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
     else if (view === 'piggyHome') { title = '小金库'; html = renderPiggyHome(); }
-    if (view === 'piggyAdd') {
-    setTimeout(() => pickPiggyType('expense'), 0);
-    pickedPiggyTag = '';
-    pickPiggyType('expense');
-}
     else if (view === 'piggyAdd') { title = '添加记录'; html = renderPiggyAdd(); }
     else if (view === 'livingHome') { title = '客厅'; html = renderPlaceholderGrid([
         { icon: '🛋️', name: '沙发', desc: '', go: 'sofaHome' },
@@ -1600,6 +1595,11 @@ if (view === 'piggyHome') {
             c.innerHTML = renderPiggyHome();
         }
     });
+}
+    if (view === 'piggyAdd') {
+    setTimeout(() => pickPiggyType('expense'), 0);
+    pickedPiggyTag = '';
+    pickPiggyType('expense');
 }
    if (view === 'fishtankHome') {
     loadTankData().then(() => {
