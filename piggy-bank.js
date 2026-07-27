@@ -139,7 +139,7 @@ function renderPiggyHome() {
         '</div>';
 
     // 添加记录按钮
-    html += '<button class="btn-primary diary-write-btn" onclick="bedroomGo(\'piggyAdd\',{})">➕ 添加记录</button>';
+    html += '<button class="btn-primary diary-write-btn" onclick="bedroomGo(&quot;piggyAdd&quot;,{})">➕ 添加记录</button>';
 
     // 流水列表
     if (piggyRecords.length === 0) {
@@ -180,15 +180,18 @@ function renderPiggyAdd() {
     let tagsHtml = '';
     Object.keys(PIGGY_TAGS).forEach(k => {
         const t = PIGGY_TAGS[k];
-        if (k === 'daily') return; // 每日零花不手动添加
-        tagsHtml += '<button class="piggy-tag-btn" data-tag="' + k + '" data-type="' + t.type + '" onclick="pickPiggyTag(\'" + k + "\')">' + t.emoji + ' ' + t.label + '</button>';
+        if (k === 'daily') return;
+        tagsHtml += '<button class="piggy-tag-btn" data-tag="' + k + '" data-type="' + t.type + '" onclick="pickPiggyTag(&quot;' + k + '&quot;)">' + t.emoji + ' ' + t.label + '</button>';
+    });
+
+    let typesHtml = '';
+    typeOptions.forEach(o => {
+        typesHtml += '<button class="segmented-btn' + (o.v === 'expense' ? ' active' : '') + '" data-ptype="' + o.v + '" onclick="pickPiggyType(&quot;' + o.v + '&quot;)">' + o.label + '</button>';
     });
 
     return '<div class="form-group">' +
         '<label>类型</label>' +
-        '<div class="segmented-control" id="piggyTypePicker">' +
-        typeOptions.map(o => '<button class="segmented-btn' + (o.v === 'expense' ? ' active' : '') + '" data-ptype="' + o.v + '" onclick="pickPiggyType(\'" + o.v + "\')">' + o.label + '</button>').join('') +
-        '</div></div>' +
+        '<div class="segmented-control" id="piggyTypePicker">' + typesHtml + '</div></div>' +
         '<div class="form-group"><label>标签</label><div class="piggy-tag-grid" id="piggyTagGrid">' + tagsHtml + '</div></div>' +
         '<div class="form-group"><label>金额</label><input type="number" id="piggyAmountInput" placeholder="0.00" step="0.01" min="0.01"></div>' +
         '<div class="form-group"><label>备注（可选）</label><input type="text" id="piggyNoteInput" placeholder="记点什么..."></div>' +
