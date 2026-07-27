@@ -916,31 +916,6 @@ body {
 }
 .input-area { background: transparent !important; }
 
-/* ===== 消息布局修正 ===== */
-.message { max-width: 88%; gap: 8px; }
-.message-content-wrap { min-width: 0; flex: 1; }
-.message.user .message-content-wrap { align-items: flex-end; display: flex; flex-direction: column; }
-.message-bubble { max-width: 100%; }
-
-.message-footer { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
-.message.user .message-footer { flex-direction: row-reverse; }
-.message-footer .message-time {
-    font-size: 10px; color: var(--text-light); opacity: 0.85; flex-shrink: 0;
-    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
-}
-.message-footer .message-actions { margin-top: 0; }
-
-.message-tokens {
-    margin-top: 2px; font-size: 10px; color: var(--text-light); padding-left: 2px; opacity: 0.9;
-    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
-}
-.message.user .message-tokens { text-align: right; }
-[data-theme="dark"] .message-footer .message-time,
-[data-theme="dark"] .message-tokens { text-shadow: 0 0 4px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.6); }
-
-.msg-action-btn { color: var(--text-light); opacity: 0.75; }
-.msg-action-btn:hover { opacity: 1; }
-
 /* 列表边距 */
 .message-bubble ul, .message-bubble ol { margin: 6px 0; padding-left: 20px; }
 .message-bubble li { margin-bottom: 3px; line-height: 1.6; }
@@ -1291,87 +1266,6 @@ body {
     max-height: 28vh;
     overflow-y: auto;
 }
-
-/* ===== 消息布局重构 v2 ===== */
-.message { flex-direction: column; gap: 3px; max-width: 88%; }
-.message.user { align-self: flex-end; }
-.message.assistant { align-self: flex-start; }
-
-.msg-name-row { display: flex; padding: 0 2px; }
-.message.user .msg-name-row { justify-content: flex-end; }
-.msg-name {
-    font-size: 11px; color: var(--text-light); opacity: 0.85;
-    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
-}
-
-.msg-body { display: flex; gap: 8px; align-items: flex-start; }
-.message.user .msg-body { flex-direction: row-reverse; }
-
-.msg-bubble-holder { position: relative; max-width: 100%; width: auto; align-self: inherit; }
-.message { display: flex; flex-direction: column; gap: 4px; max-width: 88%; width: 100%; }
-
-/* 长按浮出的操作条 */
-.msg-action-bar {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 0;
-    display: none;
-    align-items: center;
-    gap: 2px;
-    padding: 5px 7px;
-    background: rgba(38,48,44,0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 999px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.22);
-    z-index: 40;
-    white-space: nowrap;
-}
-.message.user .msg-action-bar { left: auto; right: 0; }
-.msg-action-bar.show { display: flex; animation: fadeIn 0.18s ease; }
-.action-bar-btn {
-    background: none; border: none; padding: 6px;
-    border-radius: 50%; cursor: pointer;
-    color: rgba(238,246,242,0.9);
-    display: flex; align-items: center; justify-content: center;
-}
-.action-bar-btn:active { background: rgba(255,255,255,0.16); }
-.action-bar-btn svg { width: 16px !important; height: 16px !important; }
-.action-bar-btn.danger { color: #F0938A; }
-
-/* 时间戳灰底胶囊 */
-.message-footer { display: flex; margin-top: 2px; padding: 0 2px; }
-.message.user .message-footer { justify-content: flex-end; }
-.message-footer .message-time {
-    font-size: 10px;
-    color: var(--text-light);
-    background: rgba(0,0,0,0.055);
-    padding: 1px 7px;
-    border-radius: 999px;
-    text-shadow: none;
-    opacity: 1;
-}
-[data-theme="dark"] .message-footer .message-time { background: rgba(255,255,255,0.09); }
-[data-theme="dark"] .msg-name { text-shadow: 0 0 4px rgba(0,0,0,0.85); }
-
-/* 时间分隔线也做成胶囊 */
-.time-divider {
-    align-self: center;
-    font-size: 11px;
-    color: var(--text-light);
-    background: rgba(0,0,0,0.055);
-    padding: 3px 10px;
-    border-radius: 999px;
-    margin: 6px 0;
-    text-shadow: none;
-    opacity: 1;
-    letter-spacing: 0;
-}
-[data-theme="dark"] .time-divider { background: rgba(255,255,255,0.09); }
-
-/* 字间距收紧 */
-.message-bubble { letter-spacing: -0.2px; line-height: 1.58; }
-.message-bubble p { margin-bottom: 6px; }
 
 /* ===== 消息布局 v2 ===== */
 .message { display: flex; flex-direction: column; gap: 4px; max-width: 88%; }
