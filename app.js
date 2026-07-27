@@ -2073,6 +2073,18 @@ function calcTankSize() {
     TANK_W = Math.floor(w / scale);
     TANK_H = Math.floor(h / scale);
 }
+
+// 珊瑚素材
+const CORAL_SRC = ['assets/coral_1.png', 'assets/coral_2.png', 'assets/coral_3.png', 'assets/coral_4.png'];
+const coralImgs = [];
+let coralLoaded = 0;
+CORAL_SRC.forEach((src, i) => {
+    const img = new Image();
+    img.onload = () => { coralLoaded++; };
+    img.src = src;
+    coralImgs[i] = img;
+});
+
 const TANK_MAX_FISH = 20;
 
 // ===== 鱼的像素矩阵 =====
@@ -2449,14 +2461,17 @@ const fishes = TANK_PETS.map((p, i) => mkFish(p, true, i)).concat(data.map((d, i
     ];
     kelpDefs.forEach(k => kelps.push({ ...k, seed: Math.random() * 6 }));
 
-    // 珊瑚（贴地，高一些）
-    const corals = [
-        { x: 34, h: 26, c1: '#E068B8', c2: '#B84090', c3: '#F890D0', kind: 'branch' },
-        { x: 60, h: 11, c1: '#F0A050', c2: '#C87828', c3: '#FFC880', kind: 'brain' },
-        { x: 92, h: 22, c1: '#F09040', c2: '#C86820', c3: '#FFB870', kind: 'tube' },
-        { x: 118, h: 24, c1: '#B878E0', c2: '#9050B8', c3: '#D8A0F8', kind: 'branch' },
-        { x: 138, h: 10, c1: '#8FBF4A', c2: '#6B9B28', c3: '#B0DF6A', kind: 'brain' }
-    ];
+    // 珊瑚（用像素素材）
+const corals = [];
+const coralCount = Math.max(4, Math.floor(TANK_W / 42));
+for (let i = 0; i < coralCount; i++) {
+    corals.push({
+        img: Math.floor(Math.random() * 4),
+        x: Math.round((i + 0.5) * (TANK_W / coralCount) + (Math.random() * 14 - 7)),
+        scale: 0.85 + Math.random() * 0.55,
+        flip: Math.random() < 0.5
+    });
+}
     const rocks = [{ x: 24, w: 12, h: 5 }, { x: 100, w: 9, h: 4 }, { x: 66, w: 7, h: 3 }];
     const stars = [{ x: 40, c: '#B888D8' }, { x: 112, c: '#E8A0B8' }];
     const bubbleCols = [{ x: 32, t: 0 }, { x: 130, t: 60 }, { x: 78, t: 130 }, { x: 11, t: 40 }];
@@ -2623,7 +2638,7 @@ function tankLoop() {
     fishTank.t += 1;
     const t = fishTank.t;
     const hasBg = !!state.settings.tankBg;
-
+        ctx.imageSmoothingEnabled = false;
     if (hasBg) {
         ctx.clearRect(0, 0, TANK_W, TANK_H);
     } else {
@@ -2687,7 +2702,23 @@ function tankLoop() {
             tankPx(ctx, s.x - 1, y + 2, 1, 2, s.c);
             tankPx(ctx, s.x + 1, y + 2, 1, 2, s.c);
         });
-        corals.forEach(c => tankDrawCoral(ctx, c, SAND + 12));
+        corals.forEach(c => {
+    const img = coralImgs[c.img];
+    if (!img || !img.complete) return;
+    const w = Math.round(20 * c.scale);
+    const h = Math.round(24 * c.scale);
+    const px = Math.round(c.x - w / 2);
+    const py = Math.round(SAND - h + 3);
+    ctx.save();
+    if (c.flip) {
+        ctx.translate(px + w, py);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, w, h);
+    } else {
+        ctx.drawImage(img, px, py, w, h);
+    }
+    ctx.restore();
+});
         kelps.forEach(k => tankDrawKelp(ctx, k, t, SAND + 16));
     }
 
