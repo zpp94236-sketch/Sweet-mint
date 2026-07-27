@@ -1416,7 +1416,12 @@ function setupEventListeners() {
     const tw = document.getElementById('toggleWebSearch'); if(tw){ tw.checked = !!state.settings.webSearch; tw.addEventListener('change', () => { state.settings.webSearch = tw.checked; saveState(); }); }
     const tm = document.getElementById('toggleMcp'); if(tm){ tm.checked = !!state.settings.mcp; tm.addEventListener('change', () => { state.settings.mcp = tm.checked; saveState(); }); }
     const uai = document.getElementById('userAvatarInput'); if(uai) uai.addEventListener('change', e => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{ state.settings.userAvatar=ev.target.result; saveState(); applyUserAvatar(); renderMessages(); }; r.readAsDataURL(f); });
-    document.addEventListener('click', (e) => { const ia = document.querySelector('.input-area'); if (ia && !ia.contains(e.target)) closeInputPopups(); });
+    document.addEventListener('click', (e) => {
+    const ia = document.querySelector('.input-area');
+    const bs = document.getElementById('bottomSheet');
+    if (bs && bs.contains(e.target)) return;
+    if (ia && !ia.contains(e.target)) closeInputPopups();
+});
     on('editTitleCancel', 'click', closeEditTitle);
     on('editTitleSave', 'click', saveEditTitle);
     on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) closeEditTitle(); });
