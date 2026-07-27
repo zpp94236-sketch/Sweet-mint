@@ -1013,12 +1013,48 @@ function showToolSheetView(view) {
     const grid = document.getElementById('bottomSheetGrid');
     const mcp = document.getElementById('bottomSheetMcp');
     const search = document.getElementById('bottomSheetSearch');
+    const model = document.getElementById('bottomSheetModel');
     if (grid) grid.style.display = (view === 'grid') ? 'grid' : 'none';
     if (mcp) mcp.classList.toggle('active', view === 'mcp');
     if (search) search.classList.toggle('active', view === 'search');
+    if (model) model.classList.toggle('active', view === 'model');
     if (view === 'mcp') renderMcpSheetInto();
     if (view === 'search') renderSearchSheetInto();
+    if (view === 'model') renderModelSheetInto();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderModelSheetInto() {
+    const el = document.getElementById('modelSheetList');
+    if (!el) return;
+    const models = state.settings.cachedModels || [];
+    const current = state.settings.model || '';
+    let html = '<input type="text" class="model-search-input" id="sheetModelSearch" placeholder="🔍 搜索模型..." style="display:block;margin-bottom:10px;">';
+    if (!models.length) {
+        html += '<div class="bedroom-empty">还没有模型列表<br>请先在设置里获取</div>';
+    } else {
+        html += '<div class="model-list" id="sheetModelList" style="display:block;max-height:55vh;border:none;">' +
+            models.map(m => '<div class="model-list-item' + (m === current ? ' active' : '') + '" data-model="' + escapeHtml(m) + '">' + escapeHtml(m) + '</div>').join('') +
+            '</div>';
+    }
+    el.innerHTML = html;
+    // 绑定搜索
+    const si = document.getElementById('sheetModelSearch');
+    if (si) si.oninput = function() {
+        const f = this.value.toLowerCase();
+        document.querySelectorAll('#sheetModelList .model-list-item').forEach(item => {
+            item.style.display = item.textContent.toLowerCase().includes(f) ? '' : 'none';
+        });
+    };
+    // 绑定选择
+    el.querySelectorAll('.model-list-item').forEach(item => {
+        item.addEventListener('click', () => {
+            state.settings.model = item.dataset.model;
+            saveState();
+            updateHeader();
+            closeBottomSheet();
+        });
+    });
 }
 
 function renderMcpSheet() {
@@ -1038,16 +1074,13 @@ function renderMcpSheet() {
     html += '<button class="btn-secondary mcp-add-btn" onclick="addMcpServer()"><i data-lucide="plus"></i> 添加 MCP 服务器</button>';
     return html;
 }
+
 function renderMcpSheetInto() {
     const el = document.getElementById('mcpSheetList');
     if (!el) return;
-    el.innerHTML = renderMcpSheet();
-    el.querySelectorAll('.mcp-toggle').forEach(t => t.addEventListener('change', () => {
-        const s = (state.settings.mcpServers || []).find(x => x.id === t.dataset.id);
-        if (s) { s.enabled = t.checked; saveState(); }
-    }));
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    el.innerHTML = '<div class="bedroom-empty" style="padding:40px 10px;">🛠️ MCP 工具正在开发中<br><span style="font-size:11px;opacity:0.7;">敬请期待</span></div>';
 }
+
 function addMcpServer() {
     const name = prompt('服务器名称（如 supabase）：');
     if (!name) return;
@@ -1067,14 +1100,13 @@ function renderSearchSheet() {
         '<button class="search-provider-btn' + (provider === 'bing' ? ' active' : '') + '" onclick="pickSearchProvider(\'bing\')"><i data-lucide="search"></i><span>Bing</span><small>搜索</small></button>' +
         '</div>';
 }
+
 function renderSearchSheetInto() {
     const el = document.getElementById('searchSheetList');
     if (!el) return;
-    el.innerHTML = renderSearchSheet();
-    const t = document.getElementById('sheetWebSearchToggle');
-    if (t) t.addEventListener('change', () => { state.settings.webSearch = t.checked; saveState(); renderSearchSheetInto(); });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    el.innerHTML = '<div class="bedroom-empty" style="padding:40px 10px;">🔍 联网搜索正在开发中<br><span style="font-size:11px;opacity:0.7;">敬请期待</span></div>';
 }
+
 function pickSearchProvider(p) { state.settings.searchProvider = p; saveState(); renderSearchSheetInto(); }
 
 async function compressHistory() {
@@ -1360,12 +1392,13 @@ function setupEventListeners() {
     on('bottomSheetBackdrop', 'click', closeBottomSheet);
     on('bsImage', 'click', () => { closeBottomSheet(); document.getElementById('imageInputHidden').click(); });
     on('bsCamera', 'click', () => { closeBottomSheet(); document.getElementById('cameraInputHidden').click(); });
-    on('bsModel', 'click', () => { closeBottomSheet(); setTimeout(openSettingsPanel, 320); });
+    on('bsModel', 'click', () => { showToolSheetView('model'); });
     on('bsCompress', 'click', () => { closeBottomSheet(); setTimeout(compressHistory, 320); });
     on('bsSearch', 'click', () => { showToolSheetView('search'); });
     on('bsMcp', 'click', () => { showToolSheetView('mcp'); });
     on('mcpSheetBack', 'click', () => { showToolSheetView('grid'); });
     on('searchSheetBack', 'click', () => { showToolSheetView('grid'); });
+    on('modelSheetBack', 'click', () => { showToolSheetView('grid'); });
     on('bsFile', 'click', () => { closeBottomSheet(); document.getElementById('fileInputHidden').click(); });
     on('bsStar', 'click', () => { closeBottomSheet(); setTimeout(openStarredList, 320); });
     on('compressRow', 'click', (e) => { e.stopPropagation(); closeInputPopups(); compressHistory(); });
