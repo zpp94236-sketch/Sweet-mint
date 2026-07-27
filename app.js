@@ -1543,7 +1543,7 @@ function renderBedroom() {
     else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
     else if (view === 'piggyHome') { title = '小金库'; html = renderPiggyHome(); }
     if (view === 'piggyAdd') {
-    pickedPiggyType = 'expense';
+    setTimeout(() => pickPiggyType('expense'), 0);
     pickedPiggyTag = '';
     pickPiggyType('expense');
 }
