@@ -1,0 +1,120 @@
+/* ===== 小金库样式 ===== */
+
+.piggy-balance-card {
+    background: var(--primary-lighter);
+    border: 1px solid var(--primary-light);
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 14px;
+    text-align: center;
+}
+.piggy-balance-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 8px;
+}
+.piggy-balance-amount {
+    font-size: 36px;
+    font-weight: 300;
+    color: var(--primary-dark);
+    letter-spacing: -1px;
+}
+
+.piggy-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+}
+.piggy-record {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--bg-white);
+    border-radius: 14px;
+    box-shadow: 0 1px 4px var(--shadow);
+}
+.piggy-record-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+.piggy-record-emoji {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.piggy-record-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.piggy-record-note {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.piggy-record-time {
+    font-size: 11px;
+    color: var(--text-light);
+}
+.piggy-record-amount {
+    font-size: 15px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+.piggy-amount-income {
+    color: var(--primary-dark);
+}
+.piggy-amount-expense {
+    color: #C75F58;
+}
+
+/* 添加记录表单 */
+.piggy-tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.piggy-tag-btn {
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-white);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text);
+}
+.piggy-tag-btn:hover {
+    border-color: var(--primary);
+    background: var(--primary-lighter);
+}
+.piggy-tag-btn.active {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+[data-theme="dark"] .piggy-balance-card {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.1);
+}
+[data-theme="dark"] .piggy-record {
+    background: rgba(255,255,255,0.06);
+}
+[data-theme="dark"] .piggy-tag-btn {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+}
+[data-theme="dark"] .piggy-tag-btn.active {
+    background: rgba(255,255,255,0.14);
+}

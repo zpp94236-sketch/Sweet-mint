@@ -1541,6 +1541,8 @@ function renderBedroom() {
         title = bedroomParams.id ? '编辑记忆' : '添加记忆'; html = renderMemoryEdit();
     }
     else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
+    else if (view === 'piggyHome') { title = '小金库'; html = renderPiggyHome(); }
+    else if (view === 'piggyAdd') { title = '添加记录'; html = renderPiggyAdd(); }
     else if (view === 'livingHome') { title = '客厅'; html = renderPlaceholderGrid([
         { icon: '🛋️', name: '沙发', desc: '', go: 'sofaHome' },
         { icon: '🐠', name: '鱼缸', desc: '生活轨迹', go: 'fishtankHome' },
@@ -1586,6 +1588,14 @@ function renderBedroom() {
         else { extraBtn.style.display = 'none'; extraBtn.onclick = null; }
     }
     if (view === 'echoHome') { loadEcho(); }
+if (view === 'piggyHome') {
+    piggyAutoDaily().then(() => {
+        const c = document.getElementById('bedroomContent');
+        if (c && bedroomStack[bedroomStack.length - 1] === 'piggyHome') {
+            c.innerHTML = renderPiggyHome();
+        }
+    });
+}
    if (view === 'fishtankHome') {
     loadTankData().then(() => {
         if (bedroomView === 'fishtankHome') {
@@ -1619,6 +1629,7 @@ function renderBedroomGrid() {
         { icon: '📔', name: '拾光', desc: dc + ' 篇日记', go: 'diaryList' },
         { icon: '🟠', name: '琥珀', desc: mc + ' 条记忆', go: 'memoryHome' },
         { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true }
+         { icon: '💰', name: '小金库', desc: piggyBalance().toFixed(0) + ' 元', go: 'piggyHome' }
     ];
     return '<div class="room-grid bedroom-grid">' + items.map(it =>
         it.placeholder
