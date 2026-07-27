@@ -413,7 +413,7 @@ async function sendMessage() {
     const messagesContainer = document.getElementById('messages');
     const loadingDiv = document.createElement('div'); loadingDiv.className = 'message assistant'; loadingDiv.id = 'loading-message';
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
-    loadingDiv.innerHTML = '<div class="message-avatar">' + aiAvatarHtml + '</div><div class="message-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
+    loadingDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>';
     messagesContainer.appendChild(loadingDiv); scrollToBottom();
     const messages = [];
     if (state.settings.systemPrompt) messages.push({ role: 'system', content: state.settings.systemPrompt });
@@ -427,7 +427,7 @@ async function sendMessage() {
         const reader = response.body.getReader(); const decoder = new TextDecoder(); let assistantContent = ''; let usage = null; let buffer = '';
         loadingDiv.remove();
         const assistantDiv = document.createElement('div'); assistantDiv.className = 'message assistant';
-        assistantDiv.innerHTML = '<div class="message-avatar">' + aiAvatarHtml + '</div><div class="message-content-wrap"><div class="message-bubble"></div></div>';
+                assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"></div></div>';
         messagesContainer.appendChild(assistantDiv); const bubble = assistantDiv.querySelector('.message-bubble');
         while (true) {
             const { done, value } = await reader.read(); if (done) break;
@@ -452,7 +452,7 @@ async function sendMessage() {
         // 同步到 Supabase
         syncMessageToSupabase(chat.messages[chat.messages.length - 2], chat.id); // 用户消息
         syncMessageToSupabase(assistantMsg, chat.id); // AI消息
-    } catch (error) { loadingDiv.remove(); const errorDiv = document.createElement('div'); errorDiv.className = 'message assistant'; errorDiv.innerHTML = '<div class="message-avatar">⚠️</div><div class="message-bubble" style="color:#e74c3c;">发送失败: ' + escapeHtml(error.message) + '</div>'; messagesContainer.appendChild(errorDiv); scrollToBottom(); }
+    } catch (error) { loadingDiv.remove(); const errorDiv = document.createElement('div'); errorDiv.className = 'message assistant'; errorDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">⚠️</div></div><div class="msg-bubble-holder"><div class="message-bubble" style="color:#e74c3c;">发送失败: ' + escapeHtml(error.message) + '</div></div>'; messagesContainer.appendChild(errorDiv); scrollToBottom(); }
     finally { state.isStreaming = false; }
 }
 
