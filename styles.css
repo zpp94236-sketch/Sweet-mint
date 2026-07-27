@@ -1347,3 +1347,14 @@ body {
 [data-theme="dark"] .msg-name,
 [data-theme="dark"] .message-footer .message-time { text-shadow: 0 0 4px rgba(0,0,0,0.85); }
 [data-theme="dark"] .time-divider { background: rgba(255,255,255,0.09); }
+
+/* ===== 覆盖旧的 message 横排规则 ===== */
+.message,
+.message.user,
+.message.assistant {
+    flex-direction: column !important;
+}
+.message.user { align-items: flex-end !important; }
+.message.assistant { align-items: flex-start !important; }
+.msg-name-row { flex-direction: row !important; }
+.message.user .msg-name-row { flex-direction: row-reverse !important; }
