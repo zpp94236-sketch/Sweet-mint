@@ -1308,6 +1308,7 @@ body {
 .message.user .msg-body { flex-direction: row-reverse; }
 
 .msg-bubble-holder { position: relative; max-width: 100%; width: auto; align-self: inherit; }
+.message { display: flex; flex-direction: column; gap: 4px; max-width: 88%; width: 100%; }
 
 /* 长按浮出的操作条 */
 .msg-action-bar {
