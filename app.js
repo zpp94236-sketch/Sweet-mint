@@ -260,20 +260,19 @@ function renderSingleMessage(msg, idx) {
     const avatarHtml = isUser ? userAvatarHtml : aiAvatarHtml;
 
     return '<div class="message ' + (isUser ? 'user' : 'assistant') + '">' +
-        '<div class="msg-name-row"><span class="msg-name">' + escapeHtml(nameText) + '</span></div>' +
-        '<div class="msg-body">' +
+        '<div class="msg-name-row">' +
             '<div class="message-avatar">' + avatarHtml + '</div>' +
-            '<div class="message-content-wrap">' +
-                thinkingHtml +
-                '<div class="msg-bubble-holder">' +
-                    '<div class="msg-action-bar" id="actionBar' + idx + '">' + getActionBar(idx, isUser) + '</div>' +
-                    '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '" data-idx="' + idx + '">' + rendered + '</div>' +
-                '</div>' +
-                '<div class="message-footer"><span class="message-time">' + time + '</span></div>' +
-            '</div>' +
+            '<span class="msg-name">' + escapeHtml(nameText) + '</span>' +
         '</div>' +
+        thinkingHtml +
+        '<div class="msg-bubble-holder">' +
+            '<div class="msg-action-bar" id="actionBar' + idx + '">' + getActionBar(idx) + '</div>' +
+            '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '" data-idx="' + idx + '">' + rendered + '</div>' +
+        '</div>' +
+        '<div class="message-footer"><span class="message-time">' + time + '</span></div>' +
     '</div>';
 }
+
 
 
 function formatHM(iso) { if (!iso) return ''; const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
@@ -289,7 +288,7 @@ function formatDivider(iso) {
     return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
 }
 
-function getActionBar(idx, isUser) {
+function getActionBar(idx) {
     const btns = [
         { icon: 'copy', fn: 'copyMessage(' + idx + ')' },
         { icon: 'refresh-cw', fn: 'regenerateMessage(' + idx + ')' },
@@ -300,6 +299,7 @@ function getActionBar(idx, isUser) {
     ];
     return btns.map(b => '<button class="action-bar-btn' + (b.icon === 'trash-2' ? ' danger' : '') + '" onclick="hideAllActionBars();' + b.fn + '"><i data-lucide="' + b.icon + '"></i></button>').join('');
 }
+
 
 function hideAllActionBars() {
     document.querySelectorAll('.msg-action-bar.show').forEach(el => el.classList.remove('show'));
@@ -366,7 +366,6 @@ function showToast(text) {
 function bindBubbleLongPress() {
     document.querySelectorAll('#messages .message-bubble').forEach(bubble => {
         let timer = null;
-        let moved = false;
         const idx = bubble.dataset.idx;
         const show = () => {
             hideAllActionBars();
@@ -376,8 +375,8 @@ function bindBubbleLongPress() {
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         };
-        bubble.addEventListener('touchstart', () => { moved = false; timer = setTimeout(show, 450); }, { passive: true });
-        bubble.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); }, { passive: true });
+        bubble.addEventListener('touchstart', () => { timer = setTimeout(show, 450); }, { passive: true });
+        bubble.addEventListener('touchmove', () => { clearTimeout(timer); }, { passive: true });
         bubble.addEventListener('touchend', () => { clearTimeout(timer); });
         bubble.addEventListener('contextmenu', e => { e.preventDefault(); show(); });
     });

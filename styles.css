@@ -1371,3 +1371,84 @@ body {
 /* 字间距收紧 */
 .message-bubble { letter-spacing: -0.2px; line-height: 1.58; }
 .message-bubble p { margin-bottom: 6px; }
+
+/* ===== 消息布局 v2 ===== */
+.message { display: flex; flex-direction: column; gap: 4px; max-width: 88%; }
+.message.user { align-self: flex-end; align-items: flex-end; }
+.message.assistant { align-self: flex-start; align-items: flex-start; }
+
+/* 头像 + 名字同一行 */
+.msg-name-row { display: flex; align-items: center; gap: 7px; padding: 0 2px; }
+.message.user .msg-name-row { flex-direction: row-reverse; }
+.msg-name {
+    font-size: 12px;
+    color: var(--text-light);
+    opacity: 0.9;
+    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
+}
+.message-avatar { width: 34px; height: 34px; flex-shrink: 0; }
+
+/* 气泡容器 */
+.msg-bubble-holder { position: relative; max-width: 100%; }
+.message-bubble { letter-spacing: -0.2px; line-height: 1.58; max-width: 100%; }
+.message-bubble p { margin-bottom: 6px; }
+.message-bubble p:last-child { margin-bottom: 0; }
+
+/* 长按浮出的操作条 */
+.msg-action-bar {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    display: none;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 7px;
+    background: rgba(38,48,44,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 999px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+    z-index: 40;
+    white-space: nowrap;
+}
+.message.user .msg-action-bar { left: auto; right: 0; }
+.msg-action-bar.show { display: flex; animation: fadeIn 0.18s ease; }
+.action-bar-btn {
+    background: none; border: none; padding: 6px;
+    border-radius: 50%; cursor: pointer;
+    color: rgba(238,246,242,0.9);
+    display: flex; align-items: center; justify-content: center;
+}
+.action-bar-btn:active { background: rgba(255,255,255,0.16); }
+.action-bar-btn svg { width: 16px !important; height: 16px !important; }
+.action-bar-btn.danger { color: #F0938A; }
+
+/* 时间戳：无背景，跟随左右 */
+.message-footer { display: flex; width: 100%; margin-top: 2px; padding: 0 4px; }
+.message.user .message-footer { justify-content: flex-end; }
+.message-footer .message-time {
+    font-size: 10.5px;
+    color: var(--text-light);
+    background: none;
+    padding: 0;
+    opacity: 0.8;
+    text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
+}
+
+/* 时间分隔线：灰底胶囊 */
+.time-divider {
+    align-self: center;
+    font-size: 11px;
+    color: var(--text-light);
+    background: rgba(0,0,0,0.055);
+    padding: 3px 11px;
+    border-radius: 999px;
+    margin: 8px 0 2px;
+    text-shadow: none;
+    opacity: 1;
+    letter-spacing: 0;
+}
+
+[data-theme="dark"] .msg-name,
+[data-theme="dark"] .message-footer .message-time { text-shadow: 0 0 4px rgba(0,0,0,0.85); }
+[data-theme="dark"] .time-divider { background: rgba(255,255,255,0.09); }
