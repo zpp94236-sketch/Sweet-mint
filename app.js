@@ -2704,7 +2704,7 @@ function tankLoop() {
         });
         corals.forEach(c => {
     const img = coralImgs[c.img];
-    if (!img || !img.complete) return;
+    if (!img || !img.complete || img.naturalWidth === 0) return;
     const w = Math.round(20 * c.scale);
     const h = Math.round(24 * c.scale);
     const px = Math.round(c.x - w / 2);
