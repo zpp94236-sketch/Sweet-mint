@@ -1628,8 +1628,8 @@ function renderBedroomGrid() {
     const items = [
         { icon: '📔', name: '拾光', desc: dc + ' 篇日记', go: 'diaryList' },
         { icon: '🟠', name: '琥珀', desc: mc + ' 条记忆', go: 'memoryHome' },
-        { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true }
-         { icon: '💰', name: '小金库', desc: piggyBalance().toFixed(0) + ' 元', go: 'piggyHome' }
+        { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true },
+        { icon: '💰', name: '小金库', desc: piggyBalance().toFixed(0) + ' 元', go: 'piggyHome' }
     ];
     return '<div class="room-grid bedroom-grid">' + items.map(it =>
         it.placeholder
