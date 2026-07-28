@@ -411,58 +411,161 @@ async function sendMessage() {
     input.value = ''; autoResize(input); updateSendButton(); renderMessages();
     if (chat.messages.filter(m => m.role === 'user').length === 1) { chat.title = content.slice(0, 20) + (content.length > 20 ? '...' : ''); renderChatList(); updateHeader(); }
     const messagesContainer = document.getElementById('messages');
-    const loadingDiv = document.createElement('div'); loadingDiv.className = 'message assistant'; loadingDiv.id = 'loading-message';
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
-    loadingDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>';
-    messagesContainer.appendChild(loadingDiv); scrollToBottom();
+
     const messages = [];
     if (state.settings.systemPrompt) messages.push({ role: 'system', content: state.settings.systemPrompt });
     const ctxCount = state.settings.contextCount >= 50 ? chat.messages.length : state.settings.contextCount;
     messages.push(...chat.messages.slice(-ctxCount).map(m => ({ role: m.role, content: m.content })));
+
     state.isStreaming = true;
     const startTime = Date.now();
+    const maxToolRounds = 5;
+
     try {
-        const response = await fetch(provider.apiBase + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey }, body: JSON.stringify({ model: state.settings.model, messages, temperature: state.settings.temperature, max_tokens: state.settings.maxTokens || undefined, stream: true, stream_options: { include_usage: true } }) });
-        if (!response.ok) throw new Error('API 错误: ' + response.status + ' ' + response.statusText);
-        const reader = response.body.getReader(); const decoder = new TextDecoder(); let assistantContent = ''; let usage = null; let buffer = '';
-            let assistantDiv = null, bubble = null;
-        while (true) {
-            const { done, value } = await reader.read(); if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n'); buffer = lines.pop();
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6).trim(); if (data === '[DONE]') continue;
-                    try { const parsed = JSON.parse(data);
+        let currentMessages = [...messages];
+        let finalContent = '';
+        let assistantDiv = null, bubble = null, toolContainer = null;
+
+        for (let round = 0; round < maxToolRounds; round++) {
+            const parser = new ToolCallParser();
+            let assistantContent = '';
+            let finishReason = '';
+
+            // 构建请求体
+            const body = { model: state.settings.model, messages: currentMessages, temperature: state.settings.temperature, stream: true, stream_options: { include_usage: true } };
+            if (state.settings.maxTokens) body.max_tokens = state.settings.maxTokens;
+            // 加入工具 schema
+            const toolSchemas = ToolSystem.getSchemas();
+            if (toolSchemas) body.tools = toolSchemas;
+
+            const response = await fetch(provider.apiBase + '/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey },
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) throw new Error('API 错误: ' + response.status + ' ' + response.statusText);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let usage = null;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n'); buffer = lines.pop();
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const data = line.slice(6).trim();
+                    if (data === '[DONE]') continue;
+                    try {
+                        const parsed = JSON.parse(data);
                         if (parsed.usage) usage = parsed.usage;
-                        const delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content;
-                                                if (delta) {
+                        const choice = parsed.choices && parsed.choices[0];
+                        if (!choice) continue;
+                        if (choice.finish_reason) finishReason = choice.finish_reason;
+                        const delta = choice.delta || {};
+
+                        // 处理工具调用分片
+                        parser.processDelta(delta);
+
+                        // 处理文本内容
+                        if (delta.content) {
                             if (!bubble) {
-                                loadingDiv.remove();
+                                // 移除 loading
+                                const loadEl = document.getElementById('loading-message');
+                                if (loadEl) loadEl.remove();
                                 assistantDiv = document.createElement('div');
                                 assistantDiv.className = 'message assistant';
                                 assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"></div></div>';
                                 messagesContainer.appendChild(assistantDiv);
                                 bubble = assistantDiv.querySelector('.message-bubble');
+                                toolContainer = assistantDiv.querySelector('.msg-bubble-holder');
                             }
-                            assistantContent += delta;
+                            assistantContent += delta.content;
                             bubble.innerHTML = renderMarkdown(assistantContent);
                             scrollToBottom();
                         }
-                    } catch(e){}
+                    } catch (e) { /* skip */ }
                 }
             }
+
+            // 流结束，检查是否有 tool_calls
+            const toolCalls = parser.finalize();
+
+            if (toolCalls && toolCalls.length > 0) {
+                // 有工具调用！
+                // 确保有容器显示工具UI
+                if (!toolContainer) {
+                    const loadEl = document.getElementById('loading-message');
+                    if (loadEl) loadEl.remove();
+                    assistantDiv = document.createElement('div');
+                    assistantDiv.className = 'message assistant';
+                    assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"></div>';
+                    messagesContainer.appendChild(assistantDiv);
+                    toolContainer = assistantDiv.querySelector('.msg-bubble-holder');
+                }
+
+                // 把 assistant 的 tool_calls 加入消息历史
+                currentMessages.push({ role: 'assistant', content: assistantContent || null, tool_calls: toolCalls });
+
+                // 执行每个工具
+                for (const tc of toolCalls) {
+                    const toolName = tc.function.name;
+                    const toolArgs = tc.function.arguments;
+
+                    // UI: 显示正在调用
+                    const toolEl = document.createElement('div');
+                    toolEl.className = 'tool-call-block';
+                    toolEl.innerHTML = '<div class="tool-call-header"><span class="tool-call-icon">⚙️</span><span class="tool-call-name">正在调用 ' + ToolSystem.displayName(toolName) + '...</span><span class="tool-call-spinner"></span></div>';
+                    toolContainer.insertBefore(toolEl, bubble || null);
+                    scrollToBottom();
+
+                    // 执行
+                    const result = await ToolSystem.execute(toolName, toolArgs);
+
+                    // UI: 显示完成
+                    const isErr = !!result.error;
+                    toolEl.innerHTML = '<div class="tool-call-header tool-call-done"><span class="tool-call-icon">' + (isErr ? '❌' : '✅') + '</span><span class="tool-call-name">' + ToolSystem.displayName(toolName) + '</span><span class="tool-call-toggle">▶</span></div><div class="tool-call-detail" style="display:none"><pre>' + escapeHtml(JSON.stringify(result, null, 2)) + '</pre></div>';
+                    toolEl.querySelector('.tool-call-header').addEventListener('click', function () {
+                        const detail = this.nextElementSibling;
+                        const toggle = this.querySelector('.tool-call-toggle');
+                        if (detail.style.display === 'none') { detail.style.display = 'block'; toggle.textContent = '▼'; }
+                        else { detail.style.display = 'none'; toggle.textContent = '▶'; }
+                    });
+
+                    // 塞回消息历史
+                    currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+                }
+
+                // 继续下一轮（让AI根据工具结果回复）
+                continue;
+            }
+
+            // 没有 tool_calls，正常结束
+            finalContent = assistantContent;
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+            const assistantMsg = { role: 'assistant', content: finalContent, timestamp: new Date().toISOString(), usage: usage, duration: duration };
+            chat.messages.push(assistantMsg);
+            saveState();
+            renderMessages();
+            syncMessageToSupabase(chat.messages[chat.messages.length - 2], chat.id);
+            syncMessageToSupabase(assistantMsg, chat.id);
+            break;
         }
-        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        const assistantMsg = { role: 'assistant', content: assistantContent, timestamp: new Date().toISOString(), usage: usage, duration: duration };
-        chat.messages.push(assistantMsg);
-        saveState();
-        renderMessages();
-        // 同步到 Supabase
-        syncMessageToSupabase(chat.messages[chat.messages.length - 2], chat.id); // 用户消息
-        syncMessageToSupabase(assistantMsg, chat.id); // AI消息
-    } catch (error) { loadingDiv.remove(); const errorDiv = document.createElement('div'); errorDiv.className = 'message assistant'; errorDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">⚠️</div></div><div class="msg-bubble-holder"><div class="message-bubble" style="color:#e74c3c;">发送失败: ' + escapeHtml(error.message) + '</div></div>'; messagesContainer.appendChild(errorDiv); scrollToBottom(); }
-    finally { state.isStreaming = false; }
+    } catch (error) {
+        const loadEl = document.getElementById('loading-message');
+        if (loadEl) loadEl.remove();
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'message assistant';
+        errorDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">⚠️</div></div><div class="msg-bubble-holder"><div class="message-bubble" style="color:#e74c3c;">发送失败: ' + escapeHtml(error.message) + '</div></div>';
+        messagesContainer.appendChild(errorDiv);
+        scrollToBottom();
+    } finally {
+        state.isStreaming = false;
+    }
 }
 
 // ===== Settings Panel =====
