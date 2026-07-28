@@ -288,6 +288,7 @@ function renderSingleMessage(msg, idx) {
         '</div>' +
         '<div class="message-footer"><span class="message-time">' + time + '</span></div>' +
     '</div>';
+}
 
 
 
