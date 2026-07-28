@@ -491,15 +491,23 @@ async function sendMessage() {
                         // 处理文本内容
                         if (delta.content) {
                             if (!bubble) {
-                                // 移除 loading
+                                // 移除 loading / typing
                                 const loadEl = document.getElementById('loading-message');
                                 if (loadEl) loadEl.remove();
-                                assistantDiv = document.createElement('div');
-                                assistantDiv.className = 'message assistant';
-                                assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"></div></div>';
-                                messagesContainer.appendChild(assistantDiv);
-                                bubble = assistantDiv.querySelector('.message-bubble');
-                                toolContainer = assistantDiv.querySelector('.msg-bubble-holder');
+                                const typingEl = document.getElementById('tool-typing');
+                                if (typingEl) typingEl.remove();
+
+                                if (!assistantDiv) {
+                                    assistantDiv = document.createElement('div');
+                                    assistantDiv.className = 'message assistant';
+                                    assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"></div>';
+                                    messagesContainer.appendChild(assistantDiv);
+                                    toolContainer = assistantDiv.querySelector('.msg-bubble-holder');
+                                }
+                                // 在容器里新建一个气泡
+                                bubble = document.createElement('div');
+                                bubble.className = 'message-bubble';
+                                toolContainer.appendChild(bubble);
                             }
                             assistantContent += delta.content;
                             bubble.innerHTML = renderMarkdown(assistantContent);
@@ -566,6 +574,23 @@ async function sendMessage() {
                      // 记录工具调用（保存到消息里）
                     toolCallLog.push({ name: toolName, result: result });
                 }
+                // 重置 bubble，让下一轮文字创建新气泡
+                bubble = null;
+
+                // 显示加载动画（等待AI回复）
+                if (!assistantDiv) {
+                    assistantDiv = document.createElement('div');
+                    assistantDiv.className = 'message assistant';
+                    assistantDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"></div>';
+                    messagesContainer.appendChild(assistantDiv);
+                    toolContainer = assistantDiv.querySelector('.msg-bubble-holder');
+                }
+                const typingBubble = document.createElement('div');
+                typingBubble.className = 'message-bubble';
+                typingBubble.id = 'tool-typing';
+                typingBubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+                toolContainer.appendChild(typingBubble);
+                scrollToBottom();
 
                 // 继续下一轮（让AI根据工具结果回复）
                 continue;
