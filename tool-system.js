@@ -107,22 +107,11 @@ ToolSystem.register({
     if (!key) throw new Error('未配置和风天气API Key');
     const host = cfg.host ? cfg.host.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'devapi.qweather.com';
 
-    let locationId = city;
-    let cityName = city;
+   // 直接用设置里的location，不走代理
+const location = cfg.location || city;
 
-    // 如果不是纯数字ID，先查城市
-    if (!/^\d+$/.test(city)) {
-      const geoRes = await fetch('/api/geo?location=' + encodeURIComponent(city) + '&key=' + key);
-      const geoData = await geoRes.json();
-      if (geoData.code !== '200' || !geoData.location || !geoData.location.length) {
-        throw new Error('找不到城市: ' + city);
-      }
-      locationId = geoData.location[0].id;
-      cityName = geoData.location[0].name;
-    }
-
-    // 查天气（走代理）
-    const wRes = await fetch('/api/weather?location=' + locationId + '&key=' + key + '&host=' + host);
+// 直接请求和风API
+const wRes = await fetch('https://' + host + '/v7/weather/now?location=' + encodeURIComponent(location) + '&key=' + key);
     const wData = await wRes.json();
     if (wData.code !== '200') throw new Error('天气查询失败: code=' + (wData.code || 'unknown'));
     const w = wData.now;
