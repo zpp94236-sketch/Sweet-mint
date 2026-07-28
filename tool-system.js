@@ -107,9 +107,7 @@ ToolSystem.register({
     if (!key) throw new Error('未配置和风天气API Key');
     const host = cfg.host ? cfg.host.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'devapi.qweather.com';
 
-   // 直接用设置里的location，不走代理
-const location = cfg.location || city;
-
+   
 // 直接用设置里的location，不走代理
 const location = cfg.location || city;
 
