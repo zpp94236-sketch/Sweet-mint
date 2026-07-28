@@ -531,6 +531,12 @@ async function sendMessage() {
                 const ld = document.getElementById('loading-message');
                 if (ld) ld.remove();
 
+                // 如果有空气泡，删掉
+                if (bubble && !bubble.textContent.trim()) {
+                    bubble.remove();
+                    bubble = null;
+                }
+
                 // 确保有容器
                 if (!assistantDiv) {
                     assistantDiv = document.createElement('div');
