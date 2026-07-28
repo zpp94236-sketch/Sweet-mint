@@ -230,14 +230,18 @@ async function renderDiaryDetailPage(id) {
 
     let commentsHtml = '';
     comments.forEach(c => {
-        commentsHtml += '<div class="diary-comment">' +
-            '<div class="diary-comment-header">' +
-                '<span class="diary-comment-name">' + escapeHtml(diaryUserName(c.user_id)) + '</span>' +
-                '<span class="diary-comment-time">' + formatDiaryTime(c.created_at) + '</span>' +
-            '</div>' +
-            '<div class="diary-comment-content">' + escapeHtml(c.content) + '</div>' +
-        '</div>';
-    });
+    commentsHtml += '<div class="diary-comment">' +
+        '<div class="diary-comment-header">' +
+            '<span class="diary-comment-name">' + escapeHtml(diaryUserName(c.user_id)) + '</span>' +
+            '<span class="diary-comment-time">' + formatDiaryTime(c.created_at) + '</span>' +
+        '</div>' +
+        '<div class="diary-comment-content">' + escapeHtml(c.content) + '</div>' +
+        '<div class="diary-comment-footer">' +
+            '<button class="diary-comment-reply-btn" onclick="diaryReplyComment(\'' + id + '\',\'' + escapeHtml(diaryUserName(c.user_id)) + '\')">回复</button>' +
+            '<button class="diary-comment-delete-btn" onclick="diaryDeleteComment(\'' + c.id + '\',\'' + id + '\')">删除</button>' +
+        '</div>' +
+    '</div>';
+});
 
     return '<div class="diary-detail">' +
         '<div class="diary-detail-card">' +
@@ -295,9 +299,11 @@ async function diarySendComment(diaryId) {
     if (!input || !input.value.trim()) return;
     await postDiaryComment(diaryId, input.value);
     input.value = '';
-    // 重新渲染
-    const content = document.getElementById('bedroomContent');
-    if (content) content.innerHTML = await renderDiaryDetailPage(diaryId);
+    // 等一小会确保数据库写入完成，再重新渲染
+    setTimeout(async () => {
+        const content = document.getElementById('bedroomContent');
+        if (content) content.innerHTML = await renderDiaryDetailPage(diaryId);
+    }, 300);
 }
 
 // --- 编辑页 ---
@@ -388,4 +394,22 @@ async function diarySaveFromEdit(id) {
         bedroomParams = {};
         renderBedroom();
     }
+}
+function diaryReplyComment(diaryId, replyTo) {
+    const area = document.getElementById('diaryCommentArea');
+    if (area) area.style.display = 'flex';
+    const input = document.getElementById('diaryCommentInput');
+    if (input) {
+        input.value = '回复 ' + replyTo + '：';
+        input.focus();
+    }
+}
+
+async function diaryDeleteComment(commentId, diaryId) {
+    if (!confirm('删除这条评论？')) return;
+    await deleteDiaryComment(commentId);
+    setTimeout(async () => {
+        const content = document.getElementById('bedroomContent');
+        if (content) content.innerHTML = await renderDiaryDetailPage(diaryId);
+    }, 300);
 }
