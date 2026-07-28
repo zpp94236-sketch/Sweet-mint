@@ -116,7 +116,7 @@ const wRes = await fetch('https://' + host + '/v7/weather/now?location=' + encod
     if (wData.code !== '200') throw new Error('天气查询失败: code=' + (wData.code || 'unknown'));
     const w = wData.now;
     return {
-      city: cityName,
+      city: location
       weather: w.text,
       temp: w.temp + '°C',
       feelsLike: w.feelsLike + '°C',
