@@ -448,7 +448,7 @@ async function sendMessage() {
 
     const messagesContainer = document.getElementById('messages');
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
-}
+
     // 显示加载动画
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message assistant';
@@ -658,7 +658,7 @@ currentAbortController = new AbortController();
     currentAbortController = null;
     updateSendButton();
 }
-
+}
 
 // ===== Settings Panel =====
 let settingsView = 'main'; let editingProviderId = null;
