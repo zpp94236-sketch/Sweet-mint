@@ -92,7 +92,7 @@ ToolSystem.register({
   }
 });
 
-// 2️⃣ 天气查询（和风天气）
+// 2️⃣ 天气查询（和风天气，走Vercel代理）
 ToolSystem.register({
   name: 'get_weather',
   description: '查询指定城市的当前天气，返回温度、体感温度、湿度、风向等',
@@ -107,21 +107,33 @@ ToolSystem.register({
     if (!key) throw new Error('未配置和风天气API Key');
     const host = cfg.host ? cfg.host.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'devapi.qweather.com';
 
-    // 先尝试用城市名查ID
     let locationId = city;
+    let cityName = city;
+
+    // 如果不是纯数字ID，先查城市
     if (!/^\d+$/.test(city)) {
-      const geoRes = await fetch('https://geoapi.qweather.com/v2/city/lookup?location=' + encodeURIComponent(city) + '&key=' + key);
+      const geoRes = await fetch('/api/geo?location=' + encodeURIComponent(city) + '&key=' + key + '&host=' + host);
       const geoData = await geoRes.json();
-      if (geoData.code !== '200' || !geoData.location || !geoData.location.length) throw new Error('找不到城市: ' + city);
+      if (geoData.code !== '200' || !geoData.location || !geoData.location.length) {
+        throw new Error('找不到城市: ' + city);
+      }
       locationId = geoData.location[0].id;
-      city = geoData.location[0].name;
+      cityName = geoData.location[0].name;
     }
 
-    const wRes = await fetch('https://' + host + '/v7/weather/now?location=' + locationId + '&key=' + key);
+    // 查天气（走代理）
+    const wRes = await fetch('/api/weather?location=' + locationId + '&key=' + key + '&host=' + host);
     const wData = await wRes.json();
-    if (wData.code !== '200') throw new Error('天气查询失败');
+    if (wData.code !== '200') throw new Error('天气查询失败: code=' + (wData.code || 'unknown'));
     const w = wData.now;
-    return { city, weather: w.text, temp: w.temp + '°C', feelsLike: w.feelsLike + '°C', humidity: w.humidity + '%', wind: w.windDir + ' ' + w.windScale + '级' };
+    return {
+      city: cityName,
+      weather: w.text,
+      temp: w.temp + '°C',
+      feelsLike: w.feelsLike + '°C',
+      humidity: w.humidity + '%',
+      wind: w.windDir + ' ' + w.windScale + '级'
+    };
   }
 });
 
