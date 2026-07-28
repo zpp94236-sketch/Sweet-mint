@@ -467,15 +467,15 @@ updateSendButton();
 currentAbortController = new AbortController();
     const startTime = Date.now();
     const maxToolRounds = 5;
-
+        let assistantDiv = null;
+        let bubble = null;
+        let toolContainer = null;
     try {
         let currentMessages = [...apiMessages];
         let finalContent = '';
         let toolCallLog = [];
         let preToolContent = '';
-        let assistantDiv = null;
-        let bubble = null;
-        let toolContainer = null;
+        
 
         for (let round = 0; round < maxToolRounds; round++) {
             const parser = new ToolCallParser();
