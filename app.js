@@ -1818,13 +1818,9 @@ function renderBedroom() {
     if (!content) return;
     let title = '卧室', html = '', showAdd = null;
     if (view === 'home') { title = '卧室'; html = renderBedroomHeatmap() + renderBedroomGrid(); }
-    else if (view === 'diaryList') { title = '日记本'; html = renderDiaryList(); }
-    else if (view === 'diaryEdit') {
-        const d = state.memorySystem.diaries.find(x => x.date === (bedroomParams.date || todayDateKey()));
-        selectedMood = (d && d.mood) || 'sun';
-        title = '写日记'; html = renderDiaryEdit();
-    }
-    else if (view === 'diaryDetail') { title = '日记详情'; html = renderDiaryDetail(); }
+    else if (view === 'diaryList') { title = '拾光'; html = '<div class="diary-empty">加载中...</div>'; }
+    else if (view === 'diaryDetail') { title = '日记'; html = '<div class="diary-empty">加载中...</div>'; }
+    else if (view === 'diaryEdit') { title = '写日记'; html = renderDiaryEditPage(bedroomParams.id || diaryCurrentId); }
     else if (view === 'memoryHome') { title = '琥珀'; html = renderMemoryHome(); showAdd = () => bedroomGo('memoryEdit', { category: 'core' }); }
     else if (view === 'memoryList') {
         const names = { core: '核心记忆', palace: '记忆宫殿', longterm: '长期记忆', shortterm: '短期记忆' };
@@ -1914,7 +1910,26 @@ if (view === 'piggyHome') {
     const tb = document.getElementById('tankBgInput');
     if (tb) tb.addEventListener('change', handleTankBgPick);
 }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    // 日记页异步加载
+if (view === 'diaryList') {
+    loadDiaryEntries().then(() => {
+        if (bedroomStack[bedroomStack.length - 1] === 'diaryList') {
+            content.innerHTML = renderDiaryHomePage();
+            content.querySelectorAll('.diary-card[data-id]').forEach(card => {
+                card.addEventListener('click', () => {
+                    diaryCurrentId = card.dataset.id;
+                    bedroomGo('diaryDetail', { id: card.dataset.id });
+                });
+            });
+        }
+    });
+}
+if (view === 'diaryDetail') {
+    renderDiaryDetailPage(bedroomParams.id || diaryCurrentId).then(h => {
+        content.innerHTML = h;
+    });
+}
+if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function renderPlaceholderGrid(items) {
