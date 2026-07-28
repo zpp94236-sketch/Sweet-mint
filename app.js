@@ -258,28 +258,36 @@ function renderSingleMessage(msg, idx) {
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     const nameText = isUser ? (state.settings.userName || '我') : (state.settings.aiName || '晏晏');
     const avatarHtml = isUser ? userAvatarHtml : aiAvatarHtml;
-    // 工具调用卡片
+        // 工具调用卡片
     let toolCallsHtml = '';
     if (!isUser && msg.toolCalls && msg.toolCalls.length) {
-        toolCallsHtml = msg.toolCalls.map((tc, ti) => {
+        toolCallsHtml = msg.toolCalls.map(tc => {
             const isErr = !!tc.result.error;
             const dispName = (typeof ToolSystem !== 'undefined') ? ToolSystem.displayName(tc.name) : tc.name;
             return '<div class="tool-call-block"><div class="tool-call-header tool-call-done" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.tool-call-toggle\').textContent=this.nextElementSibling.style.display===\'none\'?\'▶\':\'▼\'"><span class="tool-call-icon">' + (isErr ? '❌' : '✅') + '</span><span class="tool-call-name">' + dispName + '</span><span class="tool-call-toggle">▶</span></div><div class="tool-call-detail" style="display:none"><pre>' + escapeHtml(JSON.stringify(tc.result, null, 2)) + '</pre></div></div>';
         }).join('');
     }
+
+    // 第一轮文字（工具调用前AI说的话）
+    let preToolBubble = '';
+    if (!isUser && msg.preToolContent) {
+        preToolBubble = '<div class="message-bubble" style="margin-bottom:6px;">' + renderMarkdown(msg.preToolContent) + '</div>';
+    }
+
     return '<div class="message ' + (isUser ? 'user' : 'assistant') + '">' +
         '<div class="msg-name-row">' +
             '<div class="message-avatar">' + avatarHtml + '</div>' +
             '<span class="msg-name">' + escapeHtml(nameText) + '</span>' +
         '</div>' +
-        thinkingHtml +toolCallsHtml +
+        thinkingHtml +
         '<div class="msg-bubble-holder">' +
             '<div class="msg-action-bar" id="actionBar' + idx + '">' + getActionBar(idx) + '</div>' +
+            preToolBubble +
+            toolCallsHtml +
             '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '" data-idx="' + idx + '">' + rendered + '</div>' +
         '</div>' +
         '<div class="message-footer"><span class="message-time">' + time + '</span></div>' +
     '</div>';
-}
 
 
 
@@ -443,6 +451,7 @@ async function sendMessage() {
         let currentMessages = [...apiMessages];
         let finalContent = '';
         let toolCallLog = [];
+        let preToolContent = '';
         let assistantDiv = null;
         let bubble = null;
         let toolContainer = null;
@@ -530,13 +539,14 @@ async function sendMessage() {
                     toolContainer = assistantDiv.querySelector('.msg-bubble-holder');
                 }
 
+                // 保存第一轮文字
+                if (assistantContent) preToolContent = assistantContent;
                 // 加入消息历史
                 currentMessages.push({
                     role: 'assistant',
                     content: assistantContent || null,
                     tool_calls: toolCalls.map(tc => ({ id: tc.id, type: 'function', function: { name: tc.function.name, arguments: JSON.stringify(tc.function.arguments) } }))
                 });
-
                 // 执行每个工具
                 for (const tc of toolCalls) {
                     const toolName = tc.function.name;
@@ -584,7 +594,7 @@ async function sendMessage() {
             // 没有 tool_calls，正常结束
             finalContent = assistantContent;
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-            const assistantMsg = { role: 'assistant', content: finalContent, timestamp: new Date().toISOString(), usage: usage, duration: duration, toolCalls: toolCallLog.length ? toolCallLog : null };
+            const assistantMsg = { role: 'assistant', content: finalContent, timestamp: new Date().toISOString(), usage: usage, duration: duration, toolCalls: toolCallLog.length ? toolCallLog : null, preToolContent: preToolContent || null };
             chat.messages.push(assistantMsg);
             saveState();
             renderMessages();
