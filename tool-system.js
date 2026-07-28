@@ -110,19 +110,22 @@ ToolSystem.register({
    // 直接用设置里的location，不走代理
 const location = cfg.location || city;
 
+// 直接用设置里的location，不走代理
+const location = cfg.location || city;
+
 // 直接请求和风API
 const wRes = await fetch('https://' + host + '/v7/weather/now?location=' + encodeURIComponent(location) + '&key=' + key);
-    const wData = await wRes.json();
-    if (wData.code !== '200') throw new Error('天气查询失败: code=' + (wData.code || 'unknown'));
-    const w = wData.now;
-    return {
-      city: location
-      weather: w.text,
-      temp: w.temp + '°C',
-      feelsLike: w.feelsLike + '°C',
-      humidity: w.humidity + '%',
-      wind: w.windDir + ' ' + w.windScale + '级'
-    };
+const wData = await wRes.json();
+if (wData.code !== '200') throw new Error('天气查询失败: code=' + (wData.code || 'unknown'));
+const w = wData.now;
+return {
+  city: location,
+  weather: w.text,
+  temp: w.temp + '°C',
+  feelsLike: w.feelsLike + '°C',
+  humidity: w.humidity + '%',
+  wind: w.windDir + ' ' + w.windScale + '级'
+};
   }
 });
 
