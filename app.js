@@ -418,7 +418,6 @@ async function sendMessage() {
     chat.messages.push({ role: 'user', content, timestamp: new Date().toISOString() });
     input.value = ''; autoResize(input); updateSendButton(); renderMessages();
     if (chat.messages.filter(m => m.role === 'user').length === 1) { chat.title = content.slice(0, 20) + (content.length > 20 ? '...' : ''); renderChatList(); updateHeader(); }
-    const messagesContainer = document.getElementById('messages');
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
 
     const messages = [];
@@ -432,14 +431,6 @@ async function sendMessage() {
 
     // 显示加载动画
     const messagesContainer = document.getElementById('messages');
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'message assistant';
-    loadingDiv.id = 'loading-message';
-    loadingDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>';
-    messagesContainer.appendChild(loadingDiv);
-    scrollToBottom();
-
-    // 显示加载动画
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message assistant';
     loadingDiv.id = 'loading-message';
