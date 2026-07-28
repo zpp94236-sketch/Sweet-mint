@@ -258,13 +258,21 @@ function renderSingleMessage(msg, idx) {
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     const nameText = isUser ? (state.settings.userName || '我') : (state.settings.aiName || '晏晏');
     const avatarHtml = isUser ? userAvatarHtml : aiAvatarHtml;
-
+    // 工具调用卡片
+    let toolCallsHtml = '';
+    if (!isUser && msg.toolCalls && msg.toolCalls.length) {
+        toolCallsHtml = msg.toolCalls.map((tc, ti) => {
+            const isErr = !!tc.result.error;
+            const dispName = (typeof ToolSystem !== 'undefined') ? ToolSystem.displayName(tc.name) : tc.name;
+            return '<div class="tool-call-block"><div class="tool-call-header tool-call-done" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.tool-call-toggle\').textContent=this.nextElementSibling.style.display===\'none\'?\'▶\':\'▼\'"><span class="tool-call-icon">' + (isErr ? '❌' : '✅') + '</span><span class="tool-call-name">' + dispName + '</span><span class="tool-call-toggle">▶</span></div><div class="tool-call-detail" style="display:none"><pre>' + escapeHtml(JSON.stringify(tc.result, null, 2)) + '</pre></div></div>';
+        }).join('');
+    }
     return '<div class="message ' + (isUser ? 'user' : 'assistant') + '">' +
         '<div class="msg-name-row">' +
             '<div class="message-avatar">' + avatarHtml + '</div>' +
             '<span class="msg-name">' + escapeHtml(nameText) + '</span>' +
         '</div>' +
-        thinkingHtml +
+        thinkingHtml +toolCallsHtml +
         '<div class="msg-bubble-holder">' +
             '<div class="msg-action-bar" id="actionBar' + idx + '">' + getActionBar(idx) + '</div>' +
             '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '" data-idx="' + idx + '">' + rendered + '</div>' +
@@ -422,10 +430,28 @@ async function sendMessage() {
     const startTime = Date.now();
     const maxToolRounds = 5;
 
+    // 显示加载动画
+    const messagesContainer = document.getElementById('messages');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message assistant';
+    loadingDiv.id = 'loading-message';
+    loadingDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>';
+    messagesContainer.appendChild(loadingDiv);
+    scrollToBottom();
+
+    // 显示加载动画
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message assistant';
+    loadingDiv.id = 'loading-message';
+    loadingDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">' + aiAvatarHtml + '</div><span class="msg-name">' + escapeHtml(state.settings.aiName || '晏晏') + '</span></div><div class="msg-bubble-holder"><div class="message-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>';
+    messagesContainer.appendChild(loadingDiv);
+    scrollToBottom();
+
     try {
         let currentMessages = [...messages];
         let finalContent = '';
         let assistantDiv = null, bubble = null, toolContainer = null;
+        let toolCallLog = [];
 
         for (let round = 0; round < maxToolRounds; round++) {
             const parser = new ToolCallParser();
@@ -546,6 +572,8 @@ async function sendMessage() {
 
                     // 塞回消息历史
                     currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+                     // 记录工具调用（保存到消息里）
+                    toolCallLog.push({ name: toolName, result: result });
                 }
 
                 // 继续下一轮（让AI根据工具结果回复）
@@ -555,7 +583,7 @@ async function sendMessage() {
             // 没有 tool_calls，正常结束
             finalContent = assistantContent;
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-            const assistantMsg = { role: 'assistant', content: finalContent, timestamp: new Date().toISOString(), usage: usage, duration: duration };
+            const assistantMsg = { role: 'assistant', content: finalContent, timestamp: new Date().toISOString(), usage: usage, duration: duration, toolCalls: toolCallLog || null };
             chat.messages.push(assistantMsg);
             saveState();
             renderMessages();
