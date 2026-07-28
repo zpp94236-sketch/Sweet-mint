@@ -509,7 +509,15 @@ async function sendMessage() {
                 }
 
                 // 把 assistant 的 tool_calls 加入消息历史
-                currentMessages.push({ role: 'assistant', content: assistantContent || null, tool_calls: toolCalls });
+                currentMessages.push({
+  role: 'assistant',
+  content: assistantContent || null,
+  tool_calls: toolCalls.map(tc => ({
+    id: tc.id,
+    type: 'function',
+    function: { name: tc.function.name, arguments: JSON.stringify(tc.function.arguments) }
+  }))
+});
 
                 // 执行每个工具
                 for (const tc of toolCalls) {
