@@ -112,7 +112,7 @@ ToolSystem.register({
 
     // 如果不是纯数字ID，先查城市
     if (!/^\d+$/.test(city)) {
-      const geoRes = await fetch('/api/geo?location=' + encodeURIComponent(city) + '&key=' + key + '&host=' + host);
+      const geoRes = await fetch('/api/geo?location=' + encodeURIComponent(city) + '&key=' + key);
       const geoData = await geoRes.json();
       if (geoData.code !== '200' || !geoData.location || !geoData.location.length) {
         throw new Error('找不到城市: ' + city);

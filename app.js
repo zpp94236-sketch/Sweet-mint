@@ -1,4 +1,5 @@
 // ===== Global State =====
+let currentAbortController = null;
 let state = {
     chats: [],
     currentChatId: null,
@@ -416,21 +417,38 @@ function updateModelDisplays() {
 }
 
 function scrollToBottom() { const c = document.getElementById('messages'); if (c) c.scrollTop = c.scrollHeight; }
+function handleSendClick() {
+    const chat = getCurrentChat();
+    if (chat && chat.isStreaming) {
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
+        chat.isStreaming = false;
+        const loadEl = document.getElementById('loading-message');
+        if (loadEl) loadEl.remove();
+        const typingEl = document.getElementById('tool-typing');
+        if (typingEl) typingEl.remove();
+        updateSendButton();
+    } else {
+        sendMessage();
+    }
+}
 
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const content = input.value.trim();
-    if (!content || state.isStreaming) return;
+    const chat = getCurrentChat();
+    if (!content || (chat && chat.isStreaming)) return; 
     const provider = getActiveProvider();
     if (!provider || !provider.apiBase || !provider.apiKey || !state.settings.model) { alert('请先在设置中配置供应商和模型'); return; }
-    const chat = getCurrentChat();
     chat.messages.push({ role: 'user', content, timestamp: new Date().toISOString() });
     input.value = ''; autoResize(input); updateSendButton(); renderMessages();
     if (chat.messages.filter(m => m.role === 'user').length === 1) { chat.title = content.slice(0, 20) + (content.length > 20 ? '...' : ''); renderChatList(); updateHeader(); }
 
     const messagesContainer = document.getElementById('messages');
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
-
+}
     // 显示加载动画
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'message assistant';
@@ -444,7 +462,9 @@ async function sendMessage() {
     const ctxCount = state.settings.contextCount >= 50 ? chat.messages.length : state.settings.contextCount;
     apiMessages.push(...chat.messages.slice(-ctxCount).map(m => ({ role: m.role, content: m.content })));
 
-    state.isStreaming = true;
+    chat.isStreaming = true;
+updateSendButton();
+currentAbortController = new AbortController();
     const startTime = Date.now();
     const maxToolRounds = 5;
 
@@ -467,10 +487,12 @@ async function sendMessage() {
             if (toolSchemas) body.tools = toolSchemas;
 
             const response = await fetch(provider.apiBase + '/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey },
-                body: JSON.stringify(body)
-            });
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey },
+    body: JSON.stringify(body),
+    signal: currentAbortController ? currentAbortController.signal : undefined
+});
+
             if (!response.ok) throw new Error('API 错误: ' + response.status + ' ' + response.statusText);
 
             const reader = response.body.getReader();
@@ -610,6 +632,16 @@ async function sendMessage() {
             break;
         }
     } catch (error) {
+    // 如果是用户主动取消，不显示错误
+    if (error.name === 'AbortError') {
+        // 保留已输出的内容
+        const chat = getCurrentChat();
+        if (chat && bubble && bubble.textContent.trim()) {
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+            chat.messages.push({ role: 'assistant', content: bubble.textContent, timestamp: new Date().toISOString(), duration: duration, interrupted: true });
+            saveState();
+        }
+    } else {
         const ld = document.getElementById('loading-message');
         if (ld) ld.remove();
         const tt = document.getElementById('tool-typing');
@@ -619,10 +651,14 @@ async function sendMessage() {
         errorDiv.innerHTML = '<div class="msg-name-row"><div class="message-avatar">⚠️</div></div><div class="msg-bubble-holder"><div class="message-bubble" style="color:#e74c3c;">发送失败: ' + escapeHtml(error.message) + '</div></div>';
         messagesContainer.appendChild(errorDiv);
         scrollToBottom();
-    } finally {
-        state.isStreaming = false;
     }
+} finally {
+    const chat = getCurrentChat();
+    if (chat) chat.isStreaming = false;
+    currentAbortController = null;
+    updateSendButton();
 }
+
 
 // ===== Settings Panel =====
 let settingsView = 'main'; let editingProviderId = null;
@@ -1578,7 +1614,7 @@ function setupEventListeners() {
         input.addEventListener('input', () => { autoResize(input); updateSendButton(); });
         input.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} });
     }
-    on('sendBtn', 'click', sendMessage);
+    on('sendBtn', 'click', handleSendClick);
     on('expandInput', 'click', openFullscreenInput);
     on('closeFullscreen', 'click', closeFullscreenInput);
     on('fullscreenSend', 'click', sendFromFullscreen);
@@ -1668,7 +1704,23 @@ function closeFullscreenInput() { const i=document.getElementById('messageInput'
 function sendFromFullscreen() { document.getElementById('messageInput').value=document.getElementById('fullscreenTextarea').value; document.getElementById('fullscreenInput').classList.remove('active'); sendMessage(); }
 
 function autoResize(ta) { if(!ta)return; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; }
-function updateSendButton() { const b=document.getElementById('sendBtn'); const i=document.getElementById('messageInput'); if(b&&i) b.disabled=!i.value.trim(); }
+function updateSendButton() {
+    const input = document.getElementById('messageInput');
+    const btn = document.getElementById('sendBtn');
+    if (!btn) return;
+    const chat = getCurrentChat();
+    const isStreaming = chat && chat.isStreaming;
+
+    if (isStreaming) {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>';
+        btn.classList.add('cancel-mode');
+        btn.disabled = false;
+    } else {
+        btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+        btn.classList.remove('cancel-mode');
+        btn.disabled = !input.value.trim();
+    }
+}
 function escapeHtml(text) { const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
 function renderMarkdown(text) { if(typeof marked!=='undefined'){marked.setOptions({highlight:function(code,lang){if(typeof hljs!=='undefined'&&lang&&hljs.getLanguage(lang))return hljs.highlight(code,{language:lang}).value;return code;},breaks:true});return marked.parse(text);}return escapeHtml(text).replace(/\n/g,'<br>'); }
 function formatTime(iso) { const d=new Date(iso); const now=new Date(); const diff=now-d; if(diff<86400000&&d.getDate()===now.getDate()) return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}); if(diff<172800000) return '昨天'; return d.toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'}); }

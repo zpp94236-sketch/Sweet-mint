@@ -1358,3 +1358,8 @@ body {
 .message.assistant { align-items: flex-start !important; }
 .msg-name-row { flex-direction: row !important; }
 .message.user .msg-name-row { flex-direction: row-reverse !important; }
+
+.send-btn.cancel-mode {
+    background: var(--primary) !important;
+    opacity: 0.85;
+}
