@@ -237,23 +237,6 @@
         if (m) m.remove();
     }
 
-    // ---------- 顶栏 token 副标题 ----------
-    function formatTokens(n) {
-        if (!n) return '0';
-        if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-        return String(n);
-    }
-
-    function updateHeaderSubtitle() {
-        const el = document.getElementById('headerSubtitle');
-        if (!el || typeof state === 'undefined') return;
-        const chat = state.chats.find(function (c) { return c.id === state.currentChatId; });
-        let total = 0;
-        ((chat && chat.messages) || []).forEach(function (m) {
-            if (m && m.usage) total += (m.usage.prompt_tokens || 0) + (m.usage.completion_tokens || 0);
-        });
-        el.textContent = '≈ ' + formatTokens(total) + ' tokens';
-    }
 
 
     // ---------- 设置页：个人信息模块 ----------
@@ -372,17 +355,6 @@
         });
 
         // 用新的渲染器接管对话列表（所有现有调用点都会走这里）
-        const origUpdateHeader = window.updateHeader;
-        window.updateHeader = function () {
-            if (typeof origUpdateHeader === 'function') origUpdateHeader();
-            updateHeaderSubtitle();
-        };
-        const origRenderMessages = window.renderMessages;
-        window.renderMessages = function () {
-            if (typeof origRenderMessages === 'function') origRenderMessages();
-            updateHeaderSubtitle();
-        };
-        updateHeaderSubtitle();
         window.renderChatList = renderChatList;
         renderChatList();
         syncRoomTab();
