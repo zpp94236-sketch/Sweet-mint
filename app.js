@@ -126,9 +126,16 @@ function init() {
     applyFontSize();
     applyFontFamily();
     applyCustomColors();
-    applyCustomImages();
     applyWallpaper();
     applyHomeBg();
+    applyCustomImages();
+    applyGeneralBg();
+    applyChatFont();
+    applyFontScales();
+    applyOpacityVars();
+    applyCodeWrap();
+    applyInputBlur();
+    applyCustomFontFace();
     applyGlassMode();
     if (window.matchMedia) { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state.settings.theme === 'system') applyTheme(); }); }
     applyUserAvatar();
@@ -662,10 +669,10 @@ currentAbortController = new AbortController();
 }
 
 // ===== Settings Panel =====
-let settingsView = 'main'; let editingProviderId = null; let settingsPrevView = 'main';
+let settingsView = 'main'; let editingProviderId = null; let settingsStack = ['main'];
 
-function openSettingsPanel() { settingsView = 'main'; settingsPrevView = 'main'; editingProviderId = null; renderSettingsView(); document.getElementById('settingsOverlay').classList.add('active'); }
-function closeSettingsPanel() { document.getElementById('settingsOverlay').classList.remove('active'); }
+function openSettingsPanel() { settingsView = 'main'; settingsStack = ['main']; editingProviderId = null; renderSettingsView(); document.getElementById('settingsOverlay').classList.add('active'); }
+function closeSettingsPanel() { document.getElementById('settingsOverlay').classList.remove('active'); closeProfileSheet(); }
 
 function renderSettingsView() {
     const content = document.getElementById('settingsContent'); const footer = document.getElementById('settingsFooter');
@@ -673,41 +680,41 @@ function renderSettingsView() {
     if (settingsView === 'main') {
         title.textContent = '设置'; backBtn.style.display = 'none';
         content.innerHTML = renderMainSettings();
-        footer.innerHTML = '';
+        footer.innerHTML = ''; footer.style.display = 'none';
         content.classList.remove('settings-slide-in');
-        bindMainSettingsEvents();
     }
     else if (settingsView === 'provider-detail') {
         const p = state.providers.find(x => x.id === editingProviderId);
         title.textContent = p ? '编辑供应商' : '添加供应商'; backBtn.style.display = 'flex';
         content.innerHTML = renderProviderDetail(p);
-        footer.innerHTML = '<button class="btn-primary" onclick="saveProviderDetail()">保存供应商</button>';
-        content.classList.remove('settings-slide-in'); void content.offsetWidth; content.classList.add('settings-slide-in');
+        footer.innerHTML = '<button class="btn-primary" onclick="saveProviderDetail()">保存供应商</button>'; footer.style.display = '';
+        settingsSlideIn(content);
+    }
+    else if (settingsView === 'cloud-sync') {
+        ensureMemorySystem(); title.textContent = '云端同步'; backBtn.style.display = 'flex';
+        content.innerHTML = renderCloudSync();
+        footer.innerHTML = ''; footer.style.display = 'none';
+        settingsSlideIn(content);
     }
     else {
-        const pages = {
-            'appearance': ['外观', renderAppearancePage],
-            'message-display': ['消息显示', renderMessageDisplayPage],
-            'plugins': ['插件管理', renderPluginsPage],
-            'assistant': ['助手', renderAssistantDetail],
-            'providers': ['供应商', renderProvidersPage],
-            'models': ['模型选择', renderModelsPage],
-            'cloud-sync': ['云端同步', renderCloudSync],
-            'profile': ['个人信息', renderProfileDetail]
-        };
-        const page = pages[settingsView];
-        if (page) {
-            title.textContent = page[0]; backBtn.style.display = 'flex';
-            content.innerHTML = page[1]();
-            footer.innerHTML = '';
-            content.classList.remove('settings-slide-in'); void content.offsetWidth; content.classList.add('settings-slide-in');
-            bindMainSettingsEvents();
+        const def = SETTINGS_PAGES[settingsView];
+        if (def) {
+            title.textContent = def[0]; backBtn.style.display = 'flex';
+            content.innerHTML = def[2]();
+            footer.innerHTML = ''; footer.style.display = 'none';
+            settingsSlideIn(content);
         }
     }
+    bindSettingsContentEvents();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function settingsGo(v) { settingsPrevView = settingsView; settingsView = v; renderSettingsView(); }
+function settingsSlideIn(el) {
+    el.classList.remove('settings-slide-in'); void el.offsetWidth; el.classList.add('settings-slide-in');
+}
+
+function settingsGo(v) { settingsStack.push(v); settingsView = v; renderSettingsView(); }
+function settingsBack() { if (settingsStack.length > 1) settingsStack.pop(); settingsView = settingsStack[settingsStack.length - 1] || 'main'; renderSettingsView(); }
 
 const PLUGIN_DEFS = [
     { id: 'webSearchPlugin', name: '联网搜索', desc: '让助手可以搜索实时信息' },
@@ -718,28 +725,44 @@ const PLUGIN_DEFS = [
 function renderMainSettings() {
     const theme = state.settings.theme || 'system';
     const themeLabels = { system: '跟随系统', light: '浅色', dark: '深色' };
-    const themeOpts = [['system','跟随系统'],['light','浅色'],['dark','深色']].map(([v,l]) => '<option value="' + v + '"' + (theme === v ? ' selected' : '') + '>' + l + '</option>').join('');
-    return settingsGroup('通用设置', [
-        settingsEntry('sun', '颜色模式', themeLabels[theme] || '跟随系统', '<select class="settings-inline-select" id="themeModeSelect">' + themeOpts + '</select>'),
-        settingsEntry('palette', '外观', '主题色、壁纸、字体', settingsChevron(), "settingsGo('appearance')"),
-        settingsEntry('layout', '消息显示', '气泡、token、思维链', settingsChevron(), "settingsGo('message-display')"),
-        settingsEntry('puzzle', '插件管理', '联网搜索、语音、表情', settingsChevron(), "settingsGo('plugins')"),
-        settingsEntry('bot', '助手', '设置AI助手人设', settingsChevron(), "settingsGo('assistant')")
-    ]) + settingsGroup('模型与服务', [
-        settingsEntry('cloud', '供应商', '配置AI供应商', settingsChevron(), "settingsGo('providers')"),
-        settingsEntry('cpu', '模型选择', '选择默认模型', settingsChevron(), "settingsGo('models')"),
-        settingsEntry('globe', '搜索服务', '敬请期待', settingsChevron(), 'settingsComingSoon()'),
-        settingsEntry('blocks', 'MCP配置', '敬请期待', settingsChevron(), 'settingsComingSoon()')
-    ]) + settingsGroup('数据', [
-        settingsEntry('download', '数据导出', '导出全部聊天与设置', settingsChevron(), 'exportData()'),
-        settingsEntry('upload', '数据导入', '从备份文件恢复', settingsChevron(), "document.getElementById('importFileInput').click()"),
-        settingsEntry('cloud', '云端同步', 'Supabase配置', settingsChevron(), "settingsGo('cloud-sync')"),
-        settingsEntry('user', '个人信息', '用户名、头像', settingsChevron(), "settingsGo('profile')")
-    ]) + '<input type="file" id="importFileInput" accept=".json" hidden>';
+    const themeOpts = [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']].map(([v, l]) => '<option value="' + v + '"' + (theme === v ? ' selected' : '') + '>' + l + '</option>').join('');
+    return renderProfileCard() +
+        settingsGroup('通用设置', [
+            settingsEntry('sun', '颜色模式', themeLabels[theme] || '跟随系统', '<select class="settings-inline-select" id="themeModeSelect">' + themeOpts + '</select>'),
+            settingsEntry('layout', '显示设置', '外观、字体、透明度', settingsChevron(), "settingsGo('displaySettings')"),
+            settingsEntry('bot', '助手设置', 'AI人设与参数', settingsChevron(), "settingsGo('assistantSettings')")
+        ]) +
+        settingsGroup('模型与服务', [
+            settingsEntry('cpu', '聊天模型', '供应商与模型配置', settingsChevron(), "settingsGo('chatModel')"),
+            settingsEntry('layers', '功能模型', '对话、总结、识别', settingsChevron(), "settingsGo('functionModel')"),
+            settingsEntry('mic', '语音服务', '敬请期待', settingsChevron(), 'settingsComingSoon()'),
+            settingsEntry('globe', '搜索服务', '敬请期待', settingsChevron(), 'settingsComingSoon()'),
+            settingsEntry('blocks', 'MCP服务', '和风天气、Supabase', settingsChevron(), "settingsGo('mcpService')"),
+            settingsEntry('wrench', '系统工具', '敬请期待', settingsChevron(), 'settingsComingSoon()')
+        ]) +
+        settingsGroup('上下文总结', [
+            settingsEntry('file-text', '上下文总结', '上下文设置与自动总结', settingsChevron(), "settingsGo('contextSummary')")
+        ]) +
+        settingsGroup('数据设置', [
+            settingsEntry('bar-chart', 'token使用统计', '对话用量与token统计', settingsChevron(), 'openStats()'),
+            settingsEntry('database', '数据备份与恢复', '导出、导入、云端同步', settingsChevron(), "settingsGo('dataBackup')")
+        ]);
+}
+
+function renderProfileCard() {
+    const name = state.settings.userName || '郑郑';
+    const avatar = state.settings.userAvatar || '';
+    return '<div class="settings-profile-card">' +
+        '<div class="settings-profile-avatar-wrap">' +
+            '<div class="settings-profile-avatar" id="settingsProfileAvatar">' + (avatar ? '<img src="' + avatar + '">' : '<i data-lucide="moon"></i>') + '</div>' +
+            '<button class="settings-profile-edit" id="settingsProfileEditBtn" title="编辑个人资料" onclick="openProfileSheet()"><i data-lucide="pencil"></i></button>' +
+        '</div>' +
+        '<div class="settings-profile-name" id="settingsProfileName">' + escapeHtml(name) + '</div>' +
+    '</div>';
 }
 
 function settingsGroup(title, rows) {
-    return '<div class="settings-group-title">' + title + '</div><div class="settings-list-card">' + rows.join('') + '</div>';
+    return (title ? '<div class="settings-group-title">' + title + '</div>' : '') + '<div class="settings-list-card">' + rows.join('') + '</div>';
 }
 function settingsChevron() { return '<i data-lucide="chevron-right" class="settings-entry-chevron"></i>'; }
 function settingsEntry(icon, title, sub, right, onclick) {
@@ -750,162 +773,21 @@ function settingsEntry(icon, title, sub, right, onclick) {
 }
 function settingsComingSoon() { showToast('敬请期待'); }
 
-// ===== 设置详情页 =====
-function renderThemeSwatches() {
-    const cur = state.settings.themeSeed || '#7BAF9E';
-    return THEME_PRESETS.map(p => {
-        const t = deriveTheme(p.seed);
-        const active = cur.toLowerCase() === p.seed.toLowerCase();
-        return '<div class="theme-swatch' + (active ? ' active' : '') + '" onclick="setThemeSeed(\'' + p.seed + '\')">' +
-            '<div class="theme-swatch-ring" style="background:' + t.primaryLight + '">' +
-                '<div class="theme-swatch-dot" style="background:' + t.primaryDark + '">' + (active ? '✓' : '') + '</div>' +
-            '</div>' +
-            '<span class="theme-swatch-name" style="color:' + t.primaryDark + '">' + p.name + '</span>' +
-        '</div>';
-    }).join('');
+function renderSettingsPlaceholder(icon, title) {
+    return '<div class="settings-detail-empty">' +
+        '<div class="settings-detail-empty-icon"><i data-lucide="' + icon + '"></i></div>' +
+        '<div class="settings-detail-empty-title">' + title + '</div>' +
+        '<div class="settings-detail-empty-sub">此页面的详细设置将在下一步完善</div>' +
+    '</div>';
 }
 
-function renderAppearancePage() {
-    const fontOpts = [['default','默认'],['rounded','圆体'],['handwriting','手写体'],['mono','等宽']].map(([v,l]) => '<option value="' + v + '"' + (state.settings.fontFamily === v ? ' selected' : '') + '>' + l + '</option>').join('');
-    return '<div class="settings-detail-section-title">主题色</div>' +
-        '<div class="settings-list-card"><div class="theme-swatch-grid">' + renderThemeSwatches() + '</div></div>' +
-        '<div class="settings-detail-section-title">图片与壁纸</div>' +
-        '<div class="settings-list-card">' +
-            wallpaperRow('wallpaper', '聊天壁纸', state.settings.wallpaper) +
-            wallpaperRow('homeWallpaper', '小家背景', state.settings.homeWallpaper) +
-            wallpaperRow('sidebarImage', '侧边栏插图', state.settings.sidebarImage) +
-            wallpaperRow('inputImage', '输入框插图', state.settings.inputImage) +
-        '</div>' +
-        '<div class="settings-detail-section-title">文字与字体</div>' +
-        '<div class="settings-list-card">' +
-            '<div class="settings-row"><span class="settings-row-label">自定义字体</span><select id="fontFamilySelect" class="settings-select">' + fontOpts + '</select></div>' +
-            '<div class="settings-row"><span class="settings-row-label">字体大小：<span id="fontSizeDisplay">' + getFontSizeLabel(state.settings.fontSize) + '</span></span></div>' +
-            '<div class="settings-row" style="border-bottom:none;"><input type="range" id="fontSize" min="12" max="20" value="' + (state.settings.fontSize || 15) + '" style="width:100%;"></div>' +
-        '</div>' +
-        '<div class="settings-detail-section-title">天气配置</div>' +
-        '<div class="settings-list-card">' +
-            '<div class="settings-row"><span class="settings-row-label">和风天气 Key</span><input type="password" id="weatherKeyInput" class="settings-input-inline" placeholder="留空=不启用" value="' + escapeHtml((state.settings.weather && state.settings.weather.key) || '') + '"></div>' +
-            '<div class="settings-row"><span class="settings-row-label">城市 / LocationID</span><input type="text" id="weatherLocInput" class="settings-input-inline" placeholder="如 101180901" value="' + escapeHtml((state.settings.weather && state.settings.weather.location) || '') + '"></div>' +
-            '<div class="settings-row" style="border-bottom:none;"><span class="settings-row-label">API Host</span><input type="text" id="weatherHostInput" class="settings-input-inline" placeholder="devapi.qweather.com" value="' + escapeHtml((state.settings.weather && state.settings.weather.host) || '') + '"></div>' +
-        '</div>';
-}
-
-function renderMessageDisplayPage() {
-    return '<div class="settings-detail-section-title">消息显示</div>' +
-        '<div class="settings-list-card">' +
-            toggleRow('glassMode', '玻璃拟态（气泡/输入栏/顶栏半透明）', !!state.settings.glassMode) +
-            toggleRow('showTokenUsage', '显示token用量和上下文消息统计', state.settings.showTokenUsage !== false) +
-            toggleRow('showThinking', '显示思考内容（默认展开并显示）', state.settings.showThinking !== false) +
-            toggleRow('autoCollapseThinking', '自动折叠思考（思考完成后自动折叠）', !!state.settings.autoCollapseThinking) +
-            toggleRow('renderMath', '渲染数学表达式或公式', !!state.settings.renderMath) +
-        '</div>';
-}
-
-function renderPluginsPage() {
-    const rows = PLUGIN_DEFS.map(p => {
-        const on = state.settings.plugins && state.settings.plugins[p.id] !== false;
-        return '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">' + p.name + '</div><div class="settings-entry-sub">' + p.desc + '</div></div><label class="switch"><input type="checkbox" class="plugin-toggle" data-plugin="' + p.id + '"' + (on ? ' checked' : '') + '><span class="switch-slider"></span></label></div>';
-    }).join('');
-    return '<div class="settings-detail-section-title">插件</div>' + '<div class="settings-list-card">' + rows + '</div>';
-}
-
-function renderProvidersPage() {
-    let cards = state.providers.map(p => {
-        const active = p.id === state.activeProviderId;
-        return '<div class="provider-card' + (active ? ' active' : '') + '"><div class="provider-card-left"><div class="provider-card-icon"><i data-lucide="cloud"></i></div><div class="provider-card-info"><div class="provider-card-name">' + escapeHtml(p.name) + '</div><div class="provider-card-url">' + escapeHtml(p.apiBase || '未配置') + '</div></div></div><div class="provider-card-actions"><button onclick="event.stopPropagation();setActiveProvider(\'' + p.id + '\')" title="设为当前"><i data-lucide="' + (active ? 'check-circle' : 'circle') + '"></i></button><button onclick="event.stopPropagation();editProvider(\'' + p.id + '\')" title="编辑"><i data-lucide="pencil"></i></button><button onclick="event.stopPropagation();deleteProvider(\'' + p.id + '\')" title="删除"><i data-lucide="trash-2"></i></button></div></div>';
-    }).join('');
-    cards += '<div class="add-provider-btn" onclick="addNewProvider()"><i data-lucide="plus"></i> 添加供应商</div>';
-    return '<div class="settings-detail-section-title">供应商列表</div>' + cards;
-}
-
-function renderModelsPage() {
-    return '<div class="settings-detail-section-title">默认模型</div>' +
-        '<div class="settings-list-card">' +
-            '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;border-bottom:none;"><span class="settings-row-label">当前模型</span><input type="text" id="modelInput" placeholder="输入或选择模型名称" value="' + escapeHtml(state.settings.model || '') + '"></div>' +
-        '</div>' +
-        '<button class="btn-secondary" style="width:100%;justify-content:center;margin:12px 0;" id="fetchModelsBtn"><i data-lucide="refresh-cw" style="width:13px;height:13px;margin-right:4px;"></i>获取模型列表</button>' +
-        '<input type="text" class="model-search-input" id="modelSearchInput" placeholder="🔍 搜索模型..." style="display:none;">' +
-        '<div class="model-list" id="modelList" style="display:none;"></div>';
-}
-
-function renderProfileDetail() {
-    const name = state.settings.userName || '郑郑';
-    const avatar = state.settings.userAvatar || '';
-    return '<div class="settings-detail-section-title">个人信息</div>' +
-        '<div class="settings-list-card">' +
-            '<div class="settings-row" style="justify-content:center;border-bottom:none;padding:20px 16px;"><div style="text-align:center;"><div class="edit-user-avatar" id="profileAvatarDisplay">' + (avatar ? '<img src="' + avatar + '">' : '<i data-lucide="moon"></i>') + '</div><div style="margin-top:10px;"><button class="btn-secondary" id="changeProfileAvatarBtn" style="font-size:12px;">更换头像</button></div></div></div>' +
-            '<div class="settings-row"><span class="settings-row-label">用户名</span><input type="text" id="profileNameInput" placeholder="输入用户名" value="' + escapeHtml(name) + '" style="width:150px;text-align:right;border:none;outline:none;background:transparent;padding:4px 0;"></div>' +
-        '</div>' +
-        '<button class="btn-primary" id="saveProfileBtn" style="width:100%;justify-content:center;margin-top:14px;">保存</button>' +
-        '<input type="file" id="profileAvatarInput" accept="image/*" hidden>';
-}
-function saveProfileDetail() {
-    const ni = document.getElementById('profileNameInput');
-    if (ni) state.settings.userName = ni.value.trim() || '郑郑';
-    saveState();
-    applyUserName(); applyUserAvatar();
-    renderSettingsView();
-    showToast('已保存');
-}
-
-function renderAssistantDetail() {
-    const n = state.settings.aiName || 'AI'; const av = state.settings.aiAvatar || ''; const t = state.settings.temperature || 0.7; const mt = state.settings.maxTokens || ''; const ctx = state.settings.contextCount || 50;
-    const avHtml = av ? '<img src="' + av + '">' : '✦';
-    const sp = state.settings.systemPrompt || ''; const rules = state.settings.regexRules || [];
-    let rh = '<div class="regex-list" id="regexList">'; rules.forEach((rule, i) => { rh += '<div class="regex-item"><span class="regex-item-text">' + escapeHtml(rule) + '</span><button onclick="deleteRegexDetail(' + i + ')"><i data-lucide="x"></i></button></div>'; }); rh += '</div>';
-    return '<div class="settings-detail-section-title">基础设定</div>' +
-        '<div class="settings-list-card">' +
-            '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;"><span class="settings-row-label">助手名称</span><input type="text" id="assistantNameInput" value="' + escapeHtml(n) + '" placeholder="给AI起个名字"></div>' +
-            '<div class="settings-row" style="border-bottom:none;"><div class="settings-entry-info"><div class="settings-entry-title">助手头像</div><div class="settings-entry-sub">点击更换</div></div><div class="ai-avatar-preview" style="width:44px;height:44px;cursor:pointer;" onclick="document.getElementById(\'aiAvatarInputDetail\').click()">' + avHtml + '</div></div>' +
-        '</div>' +
-        '<div class="settings-list-card" style="margin-top:10px;">' +
-            '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;"><span class="settings-row-label">Temperature：<span id="assistantTempDisplay">' + t + '</span></span><input type="range" id="assistantTemp" min="0" max="200" value="' + Math.round(t * 100) + '"></div>' +
-            '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;"><span class="settings-row-label">Max Tokens <span style="font-size:11px;color:var(--text-light);">（留空=无限制）</span></span><input type="number" id="assistantMaxTokens" placeholder="无限制" value="' + (mt || '') + '"></div>' +
-            '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;border-bottom:none;"><span class="settings-row-label">上下文消息数：<span id="assistantCtxDisplay">' + (ctx >= 50 ? '无限制' : ctx) + '</span></span><input type="range" id="assistantCtx" min="1" max="50" value="' + ctx + '"></div>' +
-        '</div>' +
-        '<div class="settings-detail-section-title">提示词</div>' +
-        '<div class="settings-list-card">' +
-            '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;"><span class="settings-row-label">System Prompt</span><textarea id="assistantSystemPrompt" class="system-prompt-textarea" rows="8" placeholder="设定AI的人设...">' + escapeHtml(sp) + '</textarea></div>' +
-            '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;border-bottom:none;"><span class="settings-row-label">消息正则表达式</span>' + rh + '<div class="regex-add-row"><input type="text" id="regexNewInput" placeholder="输入正则表达式..."><button class="btn-secondary" onclick="addRegexDetail()">添加</button></div><div style="margin-top:8px;"><button class="btn-secondary" onclick="document.getElementById(\'regexFileInputDetail\').click()"><i data-lucide="upload" style="width:12px;height:12px;margin-right:4px;"></i>批量导入</button><input type="file" id="regexFileInputDetail" accept=".txt,.json" hidden></div></div>' +
-        '</div>' +
-        '<button class="btn-primary" style="width:100%;justify-content:center;margin-top:14px;" onclick="saveAssistantDetail()">保存设置</button>' +
-        '<input type="file" id="aiAvatarInputDetail" accept="image/*" hidden>';
-}
-function addRegexDetail() { const i = document.getElementById('regexNewInput'); const v = i.value.trim(); if (!v) return; if (!state.settings.regexRules) state.settings.regexRules = []; state.settings.regexRules.push(v); renderSettingsView(); }
-function deleteRegexDetail(idx) { if (!state.settings.regexRules) return; state.settings.regexRules.splice(idx, 1); renderSettingsView(); }
-function handleRegexImportDetail(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { const txt = ev.target.result; let rules = []; try { rules = JSON.parse(txt); if (!Array.isArray(rules)) rules = [rules]; } catch (_) { rules = txt.split('\n').map(l => l.trim()).filter(l => l); } if (!state.settings.regexRules) state.settings.regexRules = []; state.settings.regexRules.push(...rules); renderSettingsView(); }; r.readAsText(f); e.target.value = ''; }
-function saveAssistantDetail() {
-    const ni = document.getElementById('assistantNameInput'); if (ni) state.settings.aiName = ni.value.trim() || 'AI';
-    const ti = document.getElementById('assistantTemp'); if (ti) state.settings.temperature = parseInt(ti.value) / 100;
-    const mt = document.getElementById('assistantMaxTokens'); if (mt) state.settings.maxTokens = parseInt(mt.value) || 0;
-    const ctx = document.getElementById('assistantCtx'); if (ctx) state.settings.contextCount = parseInt(ctx.value);
-    const sp = document.getElementById('assistantSystemPrompt'); if (sp) state.settings.systemPrompt = sp.value;
-    saveState(); renderMessages(); updateHeader(); applyAiIdentity(); renderSettingsView(); showToast('已保存');
-}
-
-function wallpaperRow(key, label, value) {
-    const meta = state.settings[key + 'Name'] || (value ? '已设置（本地图片）' : '未设置');
-    return '<div class="wp-row">' +
-        '<div class="wp-row-info">' +
-            '<div class="wp-row-label">' + label + '</div>' +
-            '<div class="wp-row-meta">' + escapeHtml(meta) + '</div>' +
-        '</div>' +
-        '<div class="wp-row-actions">' +
-            (value ? '<button class="wp-btn wp-btn-clear" onclick="clearWallpaperSetting(\'' + key + '\')">清除</button>' : '') +
-            '<label class="wp-btn wp-btn-pick" for="' + key + 'Input">选择图片</label>' +
-        '</div>' +
-        '<input type="file" id="' + key + 'Input" class="wp-hidden-input" accept="image/*" data-wp-key="' + key + '">' +
-        '</div>';
-}
-
-function clearWallpaperSetting(key) {
-    state.settings[key] = '';
-    state.settings[key + 'Name'] = '';
-    saveState();
-    if (key === 'wallpaper') applyWallpaper();
-    else if (key === 'homeWallpaper') applyHomeBg();
-    else applyCustomImages();
-    renderSettingsView();
+function renderDataBackupPage() {
+    return '<div class="settings-list-card">' +
+        '<div class="settings-row settings-row-click" onclick="exportData()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>数据导出</span><i data-lucide="chevron-right"></i></div>' +
+        '<div class="settings-row settings-row-click" onclick="document.getElementById(\'importFileInput\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>数据导入</span><i data-lucide="chevron-right"></i></div>' +
+        '<div class="settings-row settings-row-click" onclick="openCloudSyncSettings()"><span class="settings-row-label"><i data-lucide="cloud" class="settings-row-icon"></i>云端同步</span><i data-lucide="chevron-right"></i></div>' +
+        '<input type="file" id="importFileInput" accept=".json" hidden>' +
+    '</div>';
 }
 
 function hexToHsl(hex) {
@@ -937,28 +819,644 @@ function renderProviderDetail(provider) {
     return '<div class="form-group"><label>供应商名称</label><input type="text" id="providerNameInput" placeholder="例如：聚梦AI" value="' + escapeHtml(name) + '"></div><div class="form-group"><label>API Base URL</label><input type="text" id="providerBaseInput" placeholder="https://api.example.com/v1" value="' + escapeHtml(apiBase) + '"></div><div class="form-group"><label>API Key</label><div class="input-with-btn"><input type="password" id="providerKeyInput" placeholder="sk-..." value="' + escapeHtml(apiKey) + '"><button class="btn-small" onclick="toggleProviderKeyVisibility()"><i data-lucide="eye"></i></button></div></div><button class="btn-primary" onclick="testProviderConnection()"><i data-lucide="plug" style="width:14px;height:14px;margin-right:6px;"></i>测试连接</button><span class="connection-status" id="providerConnectionStatus"></span>';
 }
 
-function bindMainSettingsEvents() {
-    const f = document.getElementById('fontSize'); if (f) f.addEventListener('input', e => { document.getElementById('fontSizeDisplay').textContent = getFontSizeLabel(parseInt(e.target.value)); state.settings.fontSize = parseInt(e.target.value); saveState(); applyFontSize(); });
-    const fb = document.getElementById('fetchModelsBtn'); if (fb) fb.addEventListener('click', fetchModels);
-    const mi = document.getElementById('modelInput'); if (mi) { mi.addEventListener('focus', () => { const ml = document.getElementById('modelList'); if (ml && ml.children.length > 0) { ml.style.display = 'block'; showModelSearch(); } }); mi.addEventListener('change', () => { state.settings.model = mi.value.trim(); saveState(); updateHeader(); }); }
+function bindSettingsContentEvents() {
+    const tms = document.getElementById('themeModeSelect');
+    if (tms) tms.addEventListener('change', () => { state.settings.theme = tms.value; saveState(); applyTheme(); renderSettingsView(); });
+    const imp = document.getElementById('importFileInput');
+    if (imp) imp.addEventListener('change', handleImportData);
     document.querySelectorAll('.wp-hidden-input').forEach(inp => inp.addEventListener('change', handleWallpaperPick));
-    const imp = document.getElementById('importFileInput'); if (imp) imp.addEventListener('change', handleImportData);
-    const tms = document.getElementById('themeModeSelect'); if (tms) tms.addEventListener('change', () => { state.settings.theme = tms.value; saveState(); applyTheme(); renderSettingsView(); });
-    const fontSel = document.getElementById('fontFamilySelect'); if (fontSel) fontSel.addEventListener('change', () => { state.settings.fontFamily = fontSel.value; saveState(); applyFontFamily(); });
-    document.querySelectorAll('.msg-display-toggle').forEach(t => t.addEventListener('change', () => { state.settings[t.dataset.key] = t.checked; saveState(); if (t.dataset.key === 'glassMode') applyGlassMode(); renderMessages(); }));
-    document.querySelectorAll('.plugin-toggle').forEach(t => t.addEventListener('change', () => { if (!state.settings.plugins) state.settings.plugins = {}; state.settings.plugins[t.dataset.plugin] = t.checked; saveState(); }));
-    const at = document.getElementById('assistantTemp'); if (at) at.addEventListener('input', e => { const d = document.getElementById('assistantTempDisplay'); if (d) d.textContent = (e.target.value / 100).toFixed(2); });
-    const ac = document.getElementById('assistantCtx'); if (ac) ac.addEventListener('input', e => { const d = document.getElementById('assistantCtxDisplay'); if (d) d.textContent = (e.target.value >= 50 ? '无限制' : e.target.value); });
-    const ai = document.getElementById('aiAvatarInputDetail'); if (ai) ai.addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { state.settings.aiAvatar = ev.target.result; saveState(); renderSettingsView(); }; r.readAsDataURL(f); });
-    const ri = document.getElementById('regexFileInputDetail'); if (ri) ri.addEventListener('change', handleRegexImportDetail);
-    const pab = document.getElementById('changeProfileAvatarBtn'); if (pab) pab.addEventListener('click', () => document.getElementById('profileAvatarInput').click());
-    const pai = document.getElementById('profileAvatarInput'); if (pai) pai.addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { state.settings.userAvatar = ev.target.result; saveState(); applyUserAvatar(); renderSettingsView(); }; r.readAsDataURL(f); });
-    const psb = document.getElementById('saveProfileBtn'); if (psb) psb.addEventListener('click', saveProfileDetail);
+    document.querySelectorAll('.msg-display-toggle').forEach(t => t.addEventListener('change', () => {
+        state.settings[t.dataset.key] = t.checked;
+        saveState();
+        applySettingChange(t.dataset.key);
+        renderMessages();
+    }));
+    document.querySelectorAll('.settings-range').forEach(r => r.addEventListener('input', () => {
+        const key = r.dataset.key;
+        const raw = parseFloat(r.value);
+        const scale = parseFloat(r.dataset.scale || '1');
+        const val = raw / scale;
+        state.settings[key] = val;
+        saveState();
+        const d = document.getElementById('rangeVal-' + key);
+        if (d) d.textContent = rangeDisplayText(key, val);
+        applySettingChange(key);
+    }));
+    document.querySelectorAll('.settings-text-input').forEach(inp => inp.addEventListener('change', () => {
+        state.settings[inp.dataset.key] = inp.value.trim();
+        saveState();
+        applySettingChange(inp.dataset.key);
+    }));
+    document.querySelectorAll('.settings-number-input').forEach(inp => inp.addEventListener('change', () => {
+        const v = parseFloat(inp.value);
+        if (!isNaN(v)) state.settings[inp.dataset.key] = v;
+        else state.settings[inp.dataset.key] = inp.value.trim();
+        saveState();
+        applySettingChange(inp.dataset.key);
+    }));
+    document.querySelectorAll('[data-fm-model]').forEach(inp => inp.addEventListener('change', () => {
+        if (!state.settings.functionModels) state.settings.functionModels = {};
+        if (!state.settings.functionModels[inp.dataset.fmModel]) state.settings.functionModels[inp.dataset.fmModel] = {};
+        state.settings.functionModels[inp.dataset.fmModel].model = inp.value.trim();
+        saveState();
+    }));
+    document.querySelectorAll('.fm-default-toggle').forEach(t => t.addEventListener('change', () => {
+        if (!state.settings.functionModels) state.settings.functionModels = {};
+        if (!state.settings.functionModels[t.dataset.fm]) state.settings.functionModels[t.dataset.fm] = {};
+        state.settings.functionModels[t.dataset.fm].useDefault = t.checked;
+        saveState();
+        renderSettingsView();
+    }));
+    document.querySelectorAll('.mcp-toggle').forEach(t => t.addEventListener('change', () => {
+        const srv = (state.settings.mcpServers || []).find(s => s.id === t.dataset.mcp);
+        if (srv) { srv.enabled = t.checked; saveState(); }
+    }));
+    document.querySelectorAll('.general-bg-page-check').forEach(c => c.addEventListener('change', () => {
+        if (!state.settings.generalBgPages) state.settings.generalBgPages = [];
+        const arr = state.settings.generalBgPages;
+        const v = c.value;
+        if (c.checked && arr.indexOf(v) < 0) arr.push(v);
+        if (!c.checked && arr.indexOf(v) >= 0) arr.splice(arr.indexOf(v), 1);
+        saveState();
+        applyGeneralBg();
+    }));
+    document.querySelectorAll('.segmented-btn[data-chat-font]').forEach(b => b.addEventListener('click', () => {
+        state.settings.chatFont = b.dataset.chatFont;
+        saveState();
+        applyChatFont();
+        renderSettingsView();
+    }));
+    const sel = document.getElementById('providerSelect');
+    if (sel) sel.addEventListener('change', () => { state.activeProviderId = sel.value; saveState(); renderSettingsView(); });
+    const pBase = document.getElementById('providerBaseEdit');
+    if (pBase) pBase.addEventListener('change', saveChatModelProvider);
+    const pKey = document.getElementById('providerKeyEdit');
+    if (pKey) pKey.addEventListener('change', saveChatModelProvider);
+    const cModel = document.getElementById('chatModelInput');
+    if (cModel) cModel.addEventListener('change', () => { state.settings.model = cModel.value.trim(); saveState(); updateHeader(); });
+    const fb = document.getElementById('chatFetchModelsBtn');
+    if (fb) fb.addEventListener('click', fetchChatModels);
+    const spEl = document.getElementById('settingsSystemPrompt');
+    if (spEl) spEl.addEventListener('change', () => { state.settings.systemPrompt = spEl.value; saveState(); });
+    const cfi = document.getElementById('customFontInput');
+    if (cfi) cfi.addEventListener('change', handleCustomFontPick);
+    const rf = document.getElementById('regexFileInputDetail');
+    if (rf) rf.addEventListener('change', handleRegexImportDetail);
+    initProfileSheet();
 }
 
-function openCloudSyncSettings() { ensureMemorySystem(); settingsGo('cloud-sync'); }
-function addNewProvider() { editingProviderId = null; settingsGo('provider-detail'); }
-function editProvider(id) { editingProviderId = id; settingsGo('provider-detail'); }
+// ===== 个人资料编辑底部抽屉 =====
+function ensureProfileSheet() {
+    let wrap = document.getElementById('profileSheetWrap');
+    if (wrap) { if (!wrap.dataset.bound) bindProfileSheetEvents(); return; }
+    wrap = document.createElement('div');
+    wrap.id = 'profileSheetWrap';
+    wrap.className = 'profile-sheet-wrap';
+    wrap.innerHTML =
+        '<div class="profile-sheet-backdrop" id="profileSheetBackdrop"></div>' +
+        '<div class="profile-sheet" id="profileSheet">' +
+            '<div class="profile-sheet-handle"></div>' +
+            '<div class="profile-sheet-avatar-wrap">' +
+                '<div class="profile-sheet-avatar" id="profileSheetAvatar"><i data-lucide="moon"></i></div>' +
+                '<button class="profile-sheet-camera" id="profileSheetCamera" title="更换头像"><i data-lucide="camera"></i></button>' +
+            '</div>' +
+            '<div class="profile-sheet-field"><label>名字</label><input type="text" id="profileSheetName" placeholder="输入你的名字" maxlength="16"></div>' +
+            '<button class="btn-primary profile-sheet-save" id="profileSheetSave">保存个人资料</button>' +
+            '<button class="profile-sheet-cancel" id="profileSheetCancel">取消</button>' +
+            '<input type="file" id="profileSheetAvatarInput" accept="image/*" hidden>' +
+        '</div>';
+    document.body.appendChild(wrap);
+    bindProfileSheetEvents();
+}
+function bindProfileSheetEvents() {
+    const wrap = document.getElementById('profileSheetWrap');
+    if (!wrap || wrap.dataset.bound) return;
+    wrap.dataset.bound = '1';
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+    on('profileSheetBackdrop', closeProfileSheet);
+    on('profileSheetCancel', closeProfileSheet);
+    on('profileSheetCamera', () => document.getElementById('profileSheetAvatarInput').click());
+    document.getElementById('profileSheetAvatarInput').addEventListener('change', e => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+            const dataUrl = ev.target.result;
+            try {
+                state.settings.userAvatar = dataUrl;
+                saveState();
+                const av = document.getElementById('profileSheetAvatar');
+                if (av) av.innerHTML = '<img src="' + dataUrl + '">';
+                showToast('头像已更新');
+            } catch (err) { alert('图片过大，无法保存'); }
+        };
+        r.readAsDataURL(f);
+        e.target.value = '';
+    });
+    on('profileSheetSave', saveProfileSheet);
+}
+function openProfileSheet() {
+    ensureProfileSheet();
+    const wrap = document.getElementById('profileSheetWrap');
+    const av = document.getElementById('profileSheetAvatar');
+    if (av) { const avatar = state.settings.userAvatar || ''; av.innerHTML = avatar ? '<img src="' + avatar + '">' : '<i data-lucide="moon"></i>'; }
+    const ni = document.getElementById('profileSheetName');
+    if (ni) ni.value = state.settings.userName || '郑郑';
+    wrap.classList.add('active');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function closeProfileSheet() {
+    const wrap = document.getElementById('profileSheetWrap');
+    if (wrap) wrap.classList.remove('active');
+}
+function saveProfileSheet() {
+    const ni = document.getElementById('profileSheetName');
+    if (ni) state.settings.userName = ni.value.trim() || '郑郑';
+    saveState();
+    applyUserName(); applyUserAvatar();
+    renderSettingsView();
+    closeProfileSheet();
+    showToast('已保存');
+}
+function initProfileSheet() {
+    const wrap = document.getElementById('profileSheetWrap');
+    if (!wrap) return;
+    if (!wrap.dataset.bound) bindProfileSheetEvents();
+}
+// ===== 设置页：二级/三级页面注册表 =====
+const SETTINGS_PAGES = {
+    'displaySettings': ['显示设置', 'layout', renderDisplaySettingsPage],
+    'assistantSettings': ['助手设置', 'bot', renderAssistantSettingsPage],
+    'chatModel': ['聊天模型', 'cpu', renderChatModelPage],
+    'functionModel': ['功能模型', 'layers', renderFunctionModelPage],
+    'mcpService': ['MCP服务', 'blocks', renderMcpServicePage],
+    'contextSummary': ['上下文总结', 'file-text', renderContextSummaryPage],
+    'dataBackup': ['数据备份与恢复', 'database', renderDataBackupPage],
+    'appearance': ['外观设置', 'palette', renderAppearancePage],
+    'fontSettings': ['字体设置', 'type', renderFontSettingsPage],
+    'opacitySettings': ['透明度设置', 'droplets', renderOpacitySettingsPage],
+    'messageDisplay': ['消息显示', 'message-square', renderMessageDisplayPage],
+    'codeInteraction': ['代码与交互', 'code-2', renderCodeInteractionPage],
+    'assistantBasic': ['基础设置', 'user-cog', renderAssistantBasicPage],
+    'assistantPrompt': ['提示词与正则', 'file-text', renderAssistantPromptPage]
+};
+
+// ===== 显示设置 =====
+function renderDisplaySettingsPage() {
+    return settingsGroup('', [
+        settingsEntry('palette', '外观设置', '壁纸、插图、背景', settingsChevron(), "settingsGo('appearance')"),
+        settingsEntry('type', '字体设置', '聊天字体、大小', settingsChevron(), "settingsGo('fontSettings')"),
+        settingsEntry('droplets', '透明度设置', '气泡、思维链、侧边栏', settingsChevron(), "settingsGo('opacitySettings')"),
+        settingsEntry('message-square', '消息显示', '思维链、数学公式', settingsChevron(), "settingsGo('messageDisplay')"),
+        settingsEntry('code-2', '代码与交互', '代码块、Enter发送、自动滚动', settingsChevron(), "settingsGo('codeInteraction')")
+    ]);
+}
+
+// 外观设置
+function renderAppearancePage() {
+    return settingsGroup('壁纸与插图', [
+        imageSettingRow('wallpaper', '聊天壁纸插图'),
+        imageSettingRow('generalBg', '通用背景插图')
+    ]) + generalBgPagesRow() +
+    settingsGroup('', [
+        imageSettingRow('sidebarImage', '侧边栏插图'),
+        imageSettingRow('inputImage', '输入框插图'),
+        imageSettingRow('bubbleImage', '气泡插图')
+    ]) +
+    settingsGroup('主题色', [
+        '<div class="theme-swatch-grid" style="border-bottom:none;">' + renderThemeSwatches() + '</div>'
+    ]);
+}
+function generalBgPagesRow() {
+    const cur = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
+    const opts = [['living', '客厅'], ['study', '书房'], ['bedroom', '卧室'], ['garden', '花园'], ['kitchen', '厨房']];
+    return settingsGroup('使用此背景的页面', [
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;"><div class="general-bg-checks">' +
+        opts.map(([v, l]) => '<label class="general-bg-check"><input type="checkbox" class="general-bg-page-check" value="' + v + '"' + (cur.indexOf(v) >= 0 ? ' checked' : '') + '><span>' + l + '</span></label>').join('') +
+        '</div></div>'
+    ]);
+}
+function imageSettingRow(key, label) {
+    const value = state.settings[key];
+    const meta = state.settings[key + 'Name'] || (value ? '已设置（本地图片）' : '未设置');
+    return '<div class="image-setting">' +
+        '<div class="settings-row">' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">' + label + '</div><div class="settings-entry-sub">' + escapeHtml(meta) + '</div></div>' +
+            '<div class="wp-row-actions">' +
+                (value ? '<button class="wp-btn wp-btn-clear" onclick="clearImageSetting(\'' + key + '\')">清除</button>' : '') +
+                '<label class="wp-btn wp-btn-pick" for="' + key + 'Input">选择图片</label>' +
+            '</div>' +
+        '</div>' +
+        '<input type="file" id="' + key + 'Input" class="wp-hidden-input" accept="image/*" data-wp-key="' + key + '">' +
+        (value ? rangeRow(key + 'Opacity', '透明度', 0, 100, 1, { def: 100 }) : '') +
+    '</div>';
+}
+function clearImageSetting(key) {
+    state.settings[key] = '';
+    state.settings[key + 'Name'] = '';
+    state.settings[key + 'Opacity'] = undefined;
+    saveState();
+    if (key === 'wallpaper') applyWallpaper();
+    else if (key === 'homeWallpaper') applyHomeBg();
+    else if (key === 'generalBg') applyGeneralBg();
+    else applyCustomImages();
+    renderSettingsView();
+}
+
+// 字体设置
+function renderFontSettingsPage() {
+    const cur = state.settings.chatFont || 'default';
+    const opts = [['default', '默认'], ['serif', '衬线体'], ['mono', '等宽']];
+    if (state.settings.customFontDataUrl) opts.push(['custom', '自定义']);
+    const segs = opts.map(([v, l]) => '<button class="segmented-btn' + (cur === v ? ' active' : '') + '" data-chat-font="' + v + '">' + l + '</button>').join('');
+    return settingsGroup('聊天字体', [
+        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">字体</div><div class="segmented-control">' + segs + '</div></div>'
+    ]) +
+    settingsGroup('字号', [
+        rangeRow('chatFontScale', '聊天字体大小', 50, 150, 5, { def: 100 }),
+        '<div class="settings-row" style="flex-direction:column;align-items:stretch;border-bottom:none;"><div class="font-preview">凌晨四点钟，看到海棠花未眠。</div></div>',
+        rangeRow('thinkingFontScale', '思维链字体大小', 50, 150, 5, { def: 100 })
+    ]) +
+    settingsGroup('自定义字体', [
+        '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">导入自定义字体</div><div class="settings-entry-sub">支持 .ttf / .otf</div></div>' + (state.settings.customFontName ? '<span class="settings-range-value">' + escapeHtml(state.settings.customFontName) + '</span>' : '') + '<label class="wp-btn wp-btn-pick" for="customFontInput">选择文件</label></div>' +
+        '<input type="file" id="customFontInput" accept=".ttf,.otf,font/ttf,font/otf" hidden>'
+    ]);
+}
+
+// 透明度设置
+function renderOpacitySettingsPage() {
+    return settingsGroup('透明度', [
+        rangeRow('bubbleOpacity', '聊天气泡透明度', 0, 100, 1, { def: 100 }),
+        rangeRow('thinkingOpacity', '思维链透明度', 0, 100, 1, { def: 100 }),
+        rangeRow('sidebarOpacity', '侧边栏元素透明度', 0, 100, 1, { def: 100 })
+    ]);
+}
+
+// 消息显示
+function renderMessageDisplayPage() {
+    return settingsGroup('消息显示', [
+        settingsSwitch('showThinking', '显示思考内容', '在消息中显示 AI 的思考过程', state.settings.showThinking !== false),
+        settingsSwitch('autoCollapseThinking', '自动折叠思考', '思考完成后自动折叠', !!state.settings.autoCollapseThinking),
+        settingsSwitch('renderMath', '渲染数学表达式', '渲染 $...$ 与 $...$ 公式', !!state.settings.renderMath),
+        settingsSwitch('glassMode', '玻璃拟态', '气泡、输入栏、顶栏半透明', !!state.settings.glassMode)
+    ]);
+}
+
+// 代码与交互
+function renderCodeInteractionPage() {
+    return settingsGroup('代码块', [
+        settingsSwitch('codeWrap', '代码块自动换行', '自动换行代码块中的长行', !!state.settings.codeWrap),
+        settingsSwitch('codeAutoFold', '代码块自动折叠', '默认自动折叠代码块', !!state.settings.codeAutoFold),
+        settingsSwitch('codeLineNumbers', '显示行号', '在代码块中显示行号', !!state.settings.codeLineNumbers)
+    ]) + settingsGroup('交互', [
+        settingsSwitch('enterToSend', '按Enter发送', '按Enter发送消息而非换行', state.settings.enterToSend !== false),
+        settingsSwitch('autoScrollChat', '自动滚动', 'AI生成内容时自动滚动到底部', state.settings.autoScrollChat !== false),
+        settingsSwitch('inputBlur', '启用模糊效果', '在聊天输入栏启用模糊效果', !!state.settings.inputBlur),
+        settingsSwitch('pasteLongAsFile', '粘贴长文本为文件', '粘贴的文本超过阈值时自动保存为文件附件', !!state.settings.pasteLongAsFile)
+    ]);
+}
+
+// ===== 助手设置 =====
+function renderAssistantSettingsPage() {
+    return settingsGroup('', [
+        settingsEntry('user-cog', '基础设置', '名称、温度、上下文、输出', settingsChevron(), "settingsGo('assistantBasic')"),
+        settingsEntry('file-text', '提示词与正则', 'System Prompt 与规则', settingsChevron(), "settingsGo('assistantPrompt')"),
+        settingsEntry('brain', '记忆', '敬请期待', settingsChevron(), 'settingsComingSoon()'),
+        settingsEntry('wrench', '本地工具', '敬请期待', settingsChevron(), 'settingsComingSoon()')
+    ]);
+}
+function renderAssistantBasicPage() {
+    return settingsGroup('基础设定', [
+        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">助手名称</div><input type="text" class="settings-text-input" data-key="aiName" placeholder="给AI起个名字" value="' + escapeHtml(state.settings.aiName || '') + '"></div>',
+        rangeRow('temperature', '温度 (Temperature)', 0, 200, 5, { def: 0.7, scale: 100 }),
+        rangeRow('contextCount', '上下文消息数量', 1, 50, 1, { def: 50 }),
+        settingsSwitch('streaming', '流式输出', '逐字显示生成的内容', state.settings.streaming !== false),
+        '<div class="settings-row settings-row-stack"><div class="settings-entry-info"><div class="settings-entry-title">最大token数</div><div class="settings-entry-sub">留空 = 无限制</div></div><input type="number" class="settings-number-input settings-input-right" data-key="maxTokens" placeholder="无限制" value="' + (state.settings.maxTokens || '') + '"></div>',
+        settingsSwitch('splitLines', '按行拆分气泡', '将助手的回复按换行拆分成多个独立气泡发送', !!state.settings.splitLines)
+    ]);
+}
+function renderAssistantPromptPage() {
+    const sp = state.settings.systemPrompt || '';
+    const rules = state.settings.regexRules || [];
+    let rh = '<div class="regex-list" id="regexList">';
+    rules.forEach((rule, i) => { rh += '<div class="regex-item"><span class="regex-item-text">' + escapeHtml(rule) + '</span><button onclick="deleteRegexDetail(' + i + ')"><i data-lucide="x"></i></button></div>'; });
+    rh += '</div>';
+    return settingsGroup('System Prompt', [
+        '<div class="settings-row settings-row-stack"><textarea id="settingsSystemPrompt" class="system-prompt-textarea" rows="8" placeholder="设定AI的人设...">' + escapeHtml(sp) + '</textarea></div>'
+    ]) + settingsGroup('正则表达式', [
+        '<div class="settings-row settings-row-stack">' + rh + '<div class="regex-add-row"><input type="text" id="regexNewInput" placeholder="输入正则表达式..."><button class="btn-secondary" onclick="addRegexDetail()">添加</button></div><div style="margin-top:8px;"><button class="btn-secondary" onclick="document.getElementById(\'regexFileInputDetail\').click()"><i data-lucide="upload" style="width:12px;height:12px;margin-right:4px;"></i>批量导入</button><input type="file" id="regexFileInputDetail" accept=".txt,.json" hidden></div></div>'
+    ]);
+}
+function addRegexDetail() { const i = document.getElementById('regexNewInput'); const v = i.value.trim(); if (!v) return; if (!state.settings.regexRules) state.settings.regexRules = []; state.settings.regexRules.push(v); saveState(); renderSettingsView(); }
+function deleteRegexDetail(idx) { if (!state.settings.regexRules) return; state.settings.regexRules.splice(idx, 1); saveState(); renderSettingsView(); }
+function handleRegexImportDetail(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+        const txt = ev.target.result; let rules = [];
+        try { rules = JSON.parse(txt); if (!Array.isArray(rules)) rules = [rules]; } catch (_) { rules = txt.split('\n').map(l => l.trim()).filter(l => l); }
+        if (!state.settings.regexRules) state.settings.regexRules = [];
+        state.settings.regexRules.push(...rules);
+        saveState(); renderSettingsView();
+    };
+    r.readAsText(f);
+    e.target.value = '';
+}
+
+// ===== 聊天模型 =====
+function renderChatModelPage() {
+    const provider = getActiveProvider();
+    const opts = state.providers.map(p => '<option value="' + p.id + '"' + (p.id === state.activeProviderId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>').join('');
+    return settingsGroup('模型与参数配置', [
+        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">API提供商</div><select id="providerSelect" class="settings-inline-select">' + opts + '</select></div>',
+        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">API端点</div><input type="text" id="providerBaseEdit" class="settings-input-right" placeholder="https://api.example.com/v1" value="' + escapeHtml(provider ? provider.apiBase : '') + '"></div>',
+        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">API密钥</div><div class="input-with-btn"><input type="password" id="providerKeyEdit" class="settings-input-right" placeholder="sk-..." value="' + escapeHtml(provider ? provider.apiKey : '') + '"><button class="btn-small" onclick="toggleProviderKeyVisibilityId(\'providerKeyEdit\')"><i data-lucide="eye"></i></button></div></div>',
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;"><div class="settings-entry-title">模型名称</div><div style="display:flex;gap:8px;align-items:center;flex:1;min-width:0;"><input type="text" id="chatModelInput" class="settings-input-right" style="width:100%;" placeholder="输入或选择模型" value="' + escapeHtml(state.settings.model || '') + '"><button class="btn-small" id="chatFetchModelsBtn">获取列表</button></div></div>'
+    ]) +
+    '<div style="padding:0 4px;"><input type="text" class="model-search-input" id="modelSearchInput" placeholder="搜索模型..." style="display:none;"><div class="model-list" id="modelList" style="display:none;"></div></div>' +
+    settingsGroup('', [
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;"><span class="settings-entry-title" style="cursor:pointer;" onclick="testChatModelConnection()"><i data-lucide="plug" class="settings-row-icon"></i>测试连接</span><span class="connection-status" id="chatModelStatus"></span></div>',
+        '<div class="settings-row settings-row-click" style="border-bottom:none;" onclick="addNewProvider()"><span class="settings-row-label"><i data-lucide="plus" class="settings-row-icon"></i>添加新供应商</span><i data-lucide="chevron-right"></i></div>'
+    ]);
+}
+function toggleProviderKeyVisibilityId(id) {
+    const i = document.getElementById(id); if (!i) return;
+    i.type = i.type === 'password' ? 'text' : 'password';
+}
+function saveChatModelProvider() {
+    const p = getActiveProvider(); if (!p) return;
+    const b = document.getElementById('providerBaseEdit'); if (b) p.apiBase = b.value.trim();
+    const k = document.getElementById('providerKeyEdit'); if (k) p.apiKey = k.value.trim();
+    saveState();
+}
+async function testChatModelConnection() {
+    const s = document.getElementById('chatModelStatus');
+    const base = document.getElementById('providerBaseEdit').value.trim().replace(/\/$/, '');
+    const key = document.getElementById('providerKeyEdit').value.trim();
+    if (!base || !key) { if (s) { s.textContent = '请先填写端点与密钥'; s.style.color = '#e74c3c'; } return; }
+    if (s) { s.textContent = '测试中...'; s.style.color = '#f39c12'; }
+    try { const r = await fetch(base + '/models', { headers: { 'Authorization': 'Bearer ' + key } }); if (s) { s.textContent = r.ok ? '连接成功' : '错误 ' + r.status; s.style.color = r.ok ? '#27ae60' : '#e74c3c'; } } catch (e) { if (s) { s.textContent = '无法连接'; s.style.color = '#e74c3c'; } }
+}
+async function fetchChatModels() {
+    const provider = getActiveProvider(); if (!provider || !provider.apiBase || !provider.apiKey) { alert('请先配置供应商的端点与密钥'); return; }
+    try {
+        const r = await fetch(provider.apiBase + '/models', { headers: { 'Authorization': 'Bearer ' + provider.apiKey } });
+        const d = await r.json(); const models = d.data || [];
+        const ml = document.getElementById('modelList'); const si = document.getElementById('modelSearchInput');
+        const ids = models.map(m => m.id).sort((a, b) => a.localeCompare(b));
+        state.settings.cachedModels = ids; saveState();
+        if (!ml) return;
+        if (!ids.length) ml.innerHTML = '<div class="model-list-item">没有找到可用模型</div>';
+        else {
+            ml.innerHTML = ids.map(id => '<div class="model-list-item" data-model="' + escapeHtml(id) + '">' + escapeHtml(id) + '</div>').join('');
+            ml.querySelectorAll('.model-list-item').forEach(el => el.addEventListener('click', () => {
+                const inp = document.getElementById('chatModelInput');
+                if (inp) { inp.value = el.dataset.model; state.settings.model = el.dataset.model; saveState(); updateHeader(); }
+                ml.style.display = 'none'; if (si) si.style.display = 'none';
+            }));
+        }
+        ml.style.display = 'block'; showModelSearch();
+    } catch (e) { alert('获取模型列表失败: ' + e.message); }
+}
+
+// ===== 功能模型 =====
+const FUNCTION_MODEL_DEFS = [
+    { id: 'chat', icon: 'message-circle', name: '对话功能', desc: '主要对话' },
+    { id: 'summary', icon: 'file-text', name: '上下文总结', desc: '压缩上下文生成摘要' },
+    { id: 'image', icon: 'image', name: '图像识别', desc: '处理图片内容' },
+    { id: 'audio', icon: 'mic', name: '音频识别', desc: '处理音频内容' },
+    { id: 'video', icon: 'video', name: '视频识别', desc: '处理视频内容' }
+];
+function renderFunctionModelPage() {
+    const cards = FUNCTION_MODEL_DEFS.map(f => {
+        const cfg = (state.settings.functionModels && state.settings.functionModels[f.id]) || {};
+        const useDefault = cfg.useDefault !== false;
+        const modelName = cfg.model || state.settings.model || '未配置';
+        return '<div class="fm-card">' +
+            '<div class="settings-row fm-card-head" onclick="toggleFmCard(this)">' +
+                '<div class="fm-card-icon"><i data-lucide="' + f.icon + '"></i></div>' +
+                '<div class="settings-entry-info"><div class="settings-entry-title">' + f.name + '</div><div class="settings-entry-sub">' + f.desc + '，当前配置：' + (useDefault ? '默认配置' : '自定义') + '，模型：' + escapeHtml(modelName) + '</div></div>' +
+                '<button class="btn-small" onclick="event.stopPropagation();testFmModel(\'' + f.id + '\')">测试</button>' +
+                '<i data-lucide="chevron-down" class="fm-chevron"></i>' +
+            '</div>' +
+            '<div class="fm-card-body" style="display:none;">' +
+                '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">使用默认模型</div><div class="settings-entry-sub">默认使用当前聊天模型：' + escapeHtml(state.settings.model || '未配置') + '</div></div><label class="switch"><input type="checkbox" class="fm-default-toggle" data-fm="' + f.id + '"' + (useDefault ? ' checked' : '') + '><span class="switch-slider"></span></label></div>' +
+                '<div class="settings-row settings-row-stack" style="border-bottom:none;"><div class="settings-entry-title">模型</div><input type="text" class="fm-model-input" data-fm-model="' + f.id + '" placeholder="输入模型名称" value="' + escapeHtml(cfg.model || '') + '"></div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+    return '<div class="fm-list">' + cards + '</div>';
+}
+function toggleFmCard(head) {
+    const body = head.nextElementSibling;
+    const ch = head.querySelector('.fm-chevron');
+    if (!body) return;
+    const open = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    if (ch) ch.style.transform = open ? 'rotate(180deg)' : '';
+}
+async function testFmModel(id) {
+    const cfg = (state.settings.functionModels && state.settings.functionModels[id]) || {};
+    const model = cfg.useDefault === false && cfg.model ? cfg.model : state.settings.model;
+    const provider = getActiveProvider();
+    if (!provider || !provider.apiBase || !provider.apiKey) { showToast('请先配置供应商'); return; }
+    showToast('测试中...');
+    try { const r = await fetch(provider.apiBase + '/models', { headers: { 'Authorization': 'Bearer ' + provider.apiKey } }); showToast(r.ok ? '模型服务正常' : '错误 ' + r.status); } catch (e) { showToast('无法连接'); }
+}
+
+// ===== MCP服务 =====
+function renderMcpServicePage() {
+    const servers = state.settings.mcpServers || [];
+    const weatherConfigured = !!(state.settings.weather && state.settings.weather.key && state.settings.weather.location);
+    const supabaseConfigured = typeof isSupabaseConfigured === 'function' && isSupabaseConfigured();
+    const builtin = [
+        { id: 'weather', name: '和风天气', tools: '实时天气', connected: weatherConfigured, error: weatherConfigured ? '' : '未配置 Key / LocationID', enabled: true },
+        { id: 'supabase', name: 'Supabase', tools: '云端同步', connected: supabaseConfigured, error: supabaseConfigured ? '' : '未配置 URL / Key', enabled: true }
+    ];
+    const html = builtin.map(s => mcpCard(s)).join('');
+    const custom = servers.map(s => mcpCard(s)).join('');
+    return '<div class="mcp-group-title">内置服务</div>' + html +
+        (custom ? '<div class="mcp-group-title">自定义服务</div>' + custom : '') +
+        '<button class="btn-secondary mcp-add-btn" onclick="addMcpServer()"><i data-lucide="plus" style="width:14px;height:14px;margin-right:6px;"></i>添加MCP服务器</button>';
+}
+function mcpCard(s) {
+    const on = s.enabled !== false;
+    const statusCls = s.connected ? 'mcp-ok' : 'mcp-err';
+    return '<div class="mcp-card">' +
+        '<div class="settings-row" style="border-bottom:none;">' +
+            '<div class="mcp-icon"><i data-lucide="paperclip"></i></div>' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">' + escapeHtml(s.name) + '</div>' +
+                '<div class="settings-entry-sub"><span class="mcp-status ' + statusCls + '">' + (s.connected ? 'Connected' : 'Error') + '</span> · ' + escapeHtml(s.tools || '0 tools') + '</div>' +
+                (s.error ? '<div class="mcp-error">' + escapeHtml(s.error) + '</div>' : '') +
+            '</div>' +
+            '<label class="switch"><input type="checkbox" class="mcp-toggle" data-mcp="' + s.id + '"' + (on ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+        '</div>' +
+    '</div>';
+}
+function addMcpServer() {
+    const name = prompt('MCP服务器名称', '');
+    if (!name) return;
+    const url = prompt('MCP服务器地址', 'https://');
+    if (!url) return;
+    if (!state.settings.mcpServers) state.settings.mcpServers = [];
+    state.settings.mcpServers.push({ id: 'mcp_' + Date.now().toString(36), name: name, url: url, tools: '0 tools', connected: false, error: '未测试连接', enabled: true });
+    saveState(); renderSettingsView();
+}
+
+// ===== 上下文总结 =====
+function renderContextSummaryPage() {
+    return settingsGroup('上下文设置', [
+        '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:4px;border-bottom:none;"><div class="settings-entry-sub" style="font-size:12px;line-height:1.7;">上下文长度建议设为您日常使用的最大值。超过该长度后，更早的对话将被压缩成摘要。</div></div>',
+        inputWithSuffixRow('contextLengthK', '上下文长度', 'K', state.settings.contextLengthK || 64),
+        inputWithSuffixRow('maxContextLengthK', '最大上下文长度', 'K', state.settings.maxContextLengthK || 200)
+    ]) + settingsGroup('总结设置', [
+        settingsSwitch('summaryEnabled', '启用对话总结', '当上下文过长时自动生成对话总结', !!state.settings.summaryEnabled),
+        inputWithSuffixRow('summaryRatio', '上下文使用比例阈值', '', state.settings.summaryRatio != null ? state.settings.summaryRatio : 0.7),
+        settingsSwitch('summaryByMessages', '按消息条数触发总结', '达到消息条数阈值时触发', !!state.settings.summaryByMessages),
+        inputWithSuffixRow('summaryMessageThreshold', '消息条数阈值', '条', state.settings.summaryMessageThreshold || 16)
+    ]);
+}
+function inputWithSuffixRow(key, label, suffix, value) {
+    return '<div class="settings-row"><div class="settings-entry-title">' + label + '</div><div class="settings-input-suffix"><input type="text" class="settings-number-input settings-input-right" data-key="' + key + '" value="' + escapeHtml(value) + '"><span>' + suffix + '</span></div></div>';
+}
+
+// ===== 通用设置项渲染助手 =====
+function settingsSwitch(key, label, sub, checked) {
+    return '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">' + label + '</div>' + (sub ? '<div class="settings-entry-sub">' + sub + '</div>' : '') + '</div><label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="' + key + '"' + (checked ? ' checked' : '') + '><span class="switch-slider"></span></label></div>';
+}
+function rangeRow(key, label, min, max, step, opts) {
+    opts = opts || {};
+    const cur = state.settings[key] != null ? state.settings[key] : opts.def;
+    const scale = opts.scale || 1;
+    const raw = Math.round(cur * scale);
+    return '<div class="settings-row settings-row-stack">' +
+        '<div class="settings-range-head"><span class="settings-entry-title">' + label + '</span><span class="settings-range-value" id="rangeVal-' + key + '">' + rangeDisplayText(key, cur) + '</span></div>' +
+        '<input type="range" class="settings-range" data-key="' + key + '" data-scale="' + scale + '" min="' + min + '" max="' + max + '" step="' + (step || 1) + '" value="' + raw + '">' +
+    '</div>';
+}
+function rangeDisplayText(key, val) {
+    if (key === 'temperature') return Number(val).toFixed(2);
+    if (key === 'contextCount') return val >= 50 ? '无限制' : String(Math.round(val));
+    if (key.indexOf('Opacity') >= 0 || key.indexOf('Scale') >= 0) return Math.round(val) + '%';
+    return String(Math.round(val));
+}
+function renderThemeSwatches() {
+    const cur = state.settings.themeSeed || '#7BAF9E';
+    return THEME_PRESETS.map(p => {
+        const t = deriveTheme(p.seed);
+        const active = cur.toLowerCase() === p.seed.toLowerCase();
+        return '<div class="theme-swatch' + (active ? ' active' : '') + '" onclick="setThemeSeed(\'' + p.seed + '\')">' +
+            '<div class="theme-swatch-ring" style="background:' + t.primaryLight + '">' +
+                '<div class="theme-swatch-dot" style="background:' + t.primaryDark + '">' + (active ? '✓' : '') + '</div>' +
+            '</div>' +
+            '<span class="theme-swatch-name" style="color:' + t.primaryDark + '">' + p.name + '</span>' +
+        '</div>';
+    }).join('');
+}
+
+// ===== 外观设置应用 =====
+function applyCustomImages() {
+    const root = document.documentElement.style;
+    const keys = [['sidebarImage', '--sidebar-image'], ['inputImage', '--input-image'], ['bubbleImage', '--bubble-image']];
+    keys.forEach(([key, cssVar]) => {
+        if (state.settings[key]) {
+            root.setProperty(cssVar, 'url(' + state.settings[key] + ')');
+            const op = state.settings[key + 'Opacity'] != null ? state.settings[key + 'Opacity'] / 100 : 1;
+            root.setProperty(cssVar + '-opacity', op.toFixed(3));
+            document.body.classList.add('has-' + key);
+        } else {
+            root.removeProperty(cssVar);
+            root.removeProperty(cssVar + '-opacity');
+            document.body.classList.remove('has-' + key);
+        }
+    });
+}
+function applyGeneralBg() {
+    const root = document.documentElement.style;
+    const bg = state.settings.generalBg;
+    const pages = state.settings.generalBgPages;
+    const home = document.getElementById('homePage');
+    const ov = document.getElementById('bedroomOverlay');
+    if (bg && pages && pages.length) {
+        root.setProperty('--general-bg', 'url(' + bg + ')');
+        root.setProperty('--general-bg-opacity', ((state.settings.generalBgOpacity != null ? state.settings.generalBgOpacity : 100) / 100).toFixed(3));
+        document.body.setAttribute('data-general-pages', pages.join(' '));
+        document.body.classList.add('has-general-bg');
+        if (home) home.classList.toggle('general-bg-page', pages.indexOf('living') >= 0);
+        if (ov) ov.classList.toggle('general-bg-room', pages.some(p => p !== 'living'));
+    } else {
+        root.removeProperty('--general-bg');
+        root.removeProperty('--general-bg-opacity');
+        document.body.classList.remove('has-general-bg');
+        document.body.removeAttribute('data-general-pages');
+        if (home) home.classList.remove('general-bg-page');
+        if (ov) ov.classList.remove('general-bg-room');
+    }
+}
+function applyOpacityVars() {
+    const root = document.documentElement.style;
+    const pairs = [['bubbleOpacity', '--bubble-opacity'], ['thinkingOpacity', '--thinking-opacity'], ['sidebarOpacity', '--sidebar-opacity']];
+    pairs.forEach(([key, cssVar]) => {
+        const v = state.settings[key] != null ? state.settings[key] / 100 : 1;
+        root.setProperty(cssVar, v.toFixed(3));
+    });
+}
+const CHAT_FONT_MAP = {
+    default: 'inherit',
+    serif: "'Songti SC', 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif",
+    mono: "'SF Mono', 'Consolas', 'Courier New', monospace",
+    custom: "'CustomFont', 'PingFang SC', sans-serif"
+};
+function applyChatFont() {
+    const f = state.settings.chatFont || 'default';
+    document.documentElement.style.setProperty('--chat-font-family', CHAT_FONT_MAP[f] || 'inherit');
+}
+function applyFontScales() {
+    const root = document.documentElement.style;
+    root.setProperty('--chat-font-scale', ((state.settings.chatFontScale != null ? state.settings.chatFontScale : 100) / 100).toFixed(3));
+    root.setProperty('--thinking-font-scale', ((state.settings.thinkingFontScale != null ? state.settings.thinkingFontScale : 100) / 100).toFixed(3));
+}
+function applyCodeWrap() { document.documentElement.setAttribute('data-code-wrap', state.settings.codeWrap ? 'on' : 'off'); }
+function applyInputBlur() { document.documentElement.setAttribute('data-input-blur', state.settings.inputBlur ? 'on' : 'off'); }
+function applyCustomFontFace() {
+    let style = document.getElementById('customFontStyle');
+    const url = state.settings.customFontDataUrl;
+    if (!url) { if (style) style.remove(); return; }
+    if (!style) { style = document.createElement('style'); style.id = 'customFontStyle'; document.head.appendChild(style); }
+    style.textContent = '@font-face { font-family: "CustomFont"; src: url("' + url + '") format("truetype"); font-display: swap; }';
+}
+function handleCustomFontPick(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+        const dataUrl = ev.target.result;
+        try {
+            state.settings.customFontDataUrl = dataUrl;
+            state.settings.customFontName = f.name;
+            saveState(); applyCustomFontFace(); renderSettingsView();
+            showToast('字体已导入');
+        } catch (err) { alert('字体文件过大，无法保存'); }
+    };
+    r.readAsDataURL(f);
+    e.target.value = '';
+}
+function applySettingChange(key) {
+    if (key === 'glassMode') { applyGlassMode(); }
+    else if (key === 'wallpaperOpacity') { applyWallpaper(); }
+    else if (key === 'homeWallpaperOpacity') { applyHomeBg(); }
+    else if (key === 'generalBgOpacity') { applyGeneralBg(); }
+    else if (key === 'chatFontScale' || key === 'thinkingFontScale') { applyFontScales(); }
+    else if (key === 'chatFont') { applyChatFont(); }
+    else if (key === 'bubbleOpacity' || key === 'thinkingOpacity' || key === 'sidebarOpacity') { applyOpacityVars(); }
+    else if (key === 'codeWrap') { applyCodeWrap(); }
+    else if (key === 'inputBlur') { applyInputBlur(); }
+    else if (key.indexOf('ImageOpacity') >= 0) { applyCustomImages(); }
+    else if (key === 'showThinking' || key === 'autoCollapseThinking' || key === 'renderMath') { renderMessages(); }
+}
+
+
+function openCloudSyncSettings() { ensureMemorySystem(); settingsStack.push('cloud-sync'); settingsView = 'cloud-sync'; renderSettingsView(); }
+function addNewProvider() { editingProviderId = null; settingsStack.push('provider-detail'); settingsView = 'provider-detail'; renderSettingsView(); }
+function editProvider(id) { editingProviderId = id; settingsStack.push('provider-detail'); settingsView = 'provider-detail'; renderSettingsView(); }
 function deleteProvider(id) { if (!confirm('确定删除这个供应商？')) return; state.providers = state.providers.filter(p => p.id !== id); if (state.activeProviderId === id) state.activeProviderId = state.providers.length > 0 ? state.providers[0].id : null; saveState(); renderSettingsView(); updateHeader(); }
 function setActiveProvider(id) { state.activeProviderId = id; saveState(); renderSettingsView(); updateHeader(); }
 
@@ -969,7 +1467,7 @@ function saveProviderDetail() {
     if (!name) { alert('请填写供应商名称'); return; }
     if (editingProviderId) { const p = state.providers.find(x => x.id === editingProviderId); if(p) { p.name = name; p.apiBase = apiBase; p.apiKey = apiKey; } }
     else { const np = { id: Date.now().toString(), name, apiBase, apiKey }; state.providers.push(np); if (!state.activeProviderId) state.activeProviderId = np.id; }
-    saveState(); settingsView = settingsPrevView || 'main'; renderSettingsView(); updateHeader();
+    saveState(); settingsStack = ['main']; settingsView = 'main'; renderSettingsView(); updateHeader();
 }
 
 function toggleProviderKeyVisibility() { const i = document.getElementById('providerKeyInput'); i.type = i.type === 'password' ? 'text' : 'password'; }
@@ -1003,8 +1501,6 @@ function saveWeatherConfig() {
     const h = document.getElementById('weatherHostInput'); if (h) state.settings.weather.host = h.value.trim();
     saveState();
 }
-function setWallpaper(v) { state.settings.wallpaper = v; saveState(); applyWallpaper(); renderSettingsView(); }
-function uploadWallpaper() { document.getElementById('wallpaperInput').click(); }
 function handleWallpaperPick(e) {
     const f = e.target.files[0]; if (!f) return;
     const key = e.target.dataset.wpKey;
@@ -1022,7 +1518,7 @@ function handleWallpaperPick(e) {
             renderSettingsView();
             return;
         }
-        if (key === 'wallpaper') applyWallpaper(); else if (key === 'homeWallpaper') applyHomeBg(); else applyCustomImages();
+        if (key === 'wallpaper') applyWallpaper(); else if (key === 'homeWallpaper') applyHomeBg(); else { applyCustomImages(); if (key === 'generalBg') applyGeneralBg(); }
         renderSettingsView();
     }).catch(err => {
         alert('图片处理失败：' + err.message);
@@ -1059,9 +1555,11 @@ function applyWallpaper() {
     if (!m || !msg) return;
     msg.style.backgroundImage = '';
     if (state.settings.wallpaper) {
+        const op = state.settings.wallpaperOpacity != null ? state.settings.wallpaperOpacity / 100 : 1;
+        const overlay = 'rgba(255,255,255,' + (1 - op).toFixed(3) + ')';
         m.classList.add('has-wallpaper');
         m.classList.remove('default-gingham');
-        m.style.backgroundImage = 'url(' + state.settings.wallpaper + ')';
+        m.style.backgroundImage = 'linear-gradient(' + overlay + ', ' + overlay + '), url(' + state.settings.wallpaper + ')';
     } else {
         m.classList.remove('has-wallpaper');
         m.classList.add('default-gingham');
@@ -1138,18 +1636,6 @@ function applyCustomColors() {
     const root = document.documentElement.style;
     if (state.settings.inputBgColor) root.setProperty('--input-card-bg', state.settings.inputBgColor); else root.removeProperty('--input-card-bg');
     if (state.settings.sidebarBgColor) root.setProperty('--sidebar-bg', state.settings.sidebarBgColor); else root.removeProperty('--sidebar-bg');
-}
-function applyCustomImages() {
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) {
-        if (state.settings.sidebarImage) { sidebar.style.backgroundImage = 'url(' + state.settings.sidebarImage + ')'; sidebar.style.backgroundSize = 'cover'; sidebar.style.backgroundPosition = 'center'; }
-        else { sidebar.style.backgroundImage = ''; sidebar.style.backgroundSize = ''; sidebar.style.backgroundPosition = ''; }
-    }
-    const inputCard = document.querySelector('.input-card');
-    if (inputCard) {
-        if (state.settings.inputImage) { inputCard.style.backgroundImage = 'url(' + state.settings.inputImage + ')'; inputCard.style.backgroundSize = 'cover'; inputCard.style.backgroundPosition = 'center'; }
-        else { inputCard.style.backgroundImage = ''; inputCard.style.backgroundSize = ''; inputCard.style.backgroundPosition = ''; }
-    }
 }
 
 // ===== 主题色系统（HSL 推导，近似 HCT）=====
@@ -1411,7 +1897,7 @@ function renderMcpSheet() {
             '</div>';
     }).join('');
     if (!list.length) html = '<div class="bedroom-empty">还没有连接 MCP 服务器</div>';
-    html += '<button class="btn-secondary mcp-add-btn" onclick="addMcpServer()"><i data-lucide="plus"></i> 添加 MCP 服务器</button>';
+    html += '<button class="btn-secondary mcp-add-btn" onclick="addMcpServerLegacy()"><i data-lucide="plus"></i> 添加 MCP 服务器</button>';
     return html;
 }
 
@@ -1421,7 +1907,7 @@ function renderMcpSheetInto() {
     el.innerHTML = '<div class="bedroom-empty" style="padding:40px 10px;">🛠️ MCP 工具正在开发中<br><span style="font-size:11px;opacity:0.7;">敬请期待</span></div>';
 }
 
-function addMcpServer() {
+function addMcpServerLegacy() {
     const name = prompt('服务器名称（如 supabase）：');
     if (!name) return;
     const url = prompt('服务器地址（可留空）：') || '';
@@ -1595,8 +2081,15 @@ function updateGreeting() { updateTogetherDays(); renderCalendar(); }
 function applyHomeBg() {
     const page = document.getElementById('homePage'); if (!page) return;
     const bg = state.settings.homeWallpaper;
-    if (bg) { page.classList.remove('no-bg'); document.documentElement.style.setProperty('--home-bg', 'url(' + bg + ')'); }
-    else { page.classList.add('no-bg'); document.documentElement.style.removeProperty('--home-bg'); }
+    if (bg) {
+        page.classList.remove('no-bg');
+        document.documentElement.style.setProperty('--home-bg', 'url(' + bg + ')');
+        document.documentElement.style.setProperty('--home-bg-opacity', ((state.settings.homeWallpaperOpacity != null ? state.settings.homeWallpaperOpacity : 100) / 100).toFixed(3));
+    } else {
+        page.classList.add('no-bg');
+        document.documentElement.style.removeProperty('--home-bg');
+        document.documentElement.style.removeProperty('--home-bg-opacity');
+    }
 }
 
 function applyGlassMode() {
@@ -1699,7 +2192,7 @@ function setupEventListeners() {
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
-            const rootViews = { diary: 'bedroomHome', study: 'studyHome', kitchen: 'kitchenHome', garden: 'gardenHome' };
+            const rootViews = { diary: 'home', living: 'livingHome', study: 'studyHome', kitchen: 'kitchenHome', balcony: 'balconyHome', garden: 'gardenHome' };
             if (rootViews[room]) { openRoom(rootViews[room]); }
             else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
         });
@@ -1719,7 +2212,7 @@ function setupEventListeners() {
     on('fullscreenSend', 'click', sendFromFullscreen);
     on('closeSettings', 'click', closeSettingsPanel);
     on('settingsOverlay', 'click', e => { if(e.target===e.currentTarget) closeSettingsPanel(); });
-    on('settingsBackBtn', 'click', () => { settingsView = settingsPrevView || 'main'; settingsPrevView = 'main'; renderSettingsView(); });
+    on('settingsBackBtn', 'click', settingsBack);
     on('closeStats', 'click', closeStats);
     on('statsOverlay', 'click', e => { if(e.target===e.currentTarget) closeStats(); });
     on('bedroomBack', 'click', bedroomBack);
@@ -1826,7 +2319,8 @@ function formatTime(iso) { const d=new Date(iso); const now=new Date(); const di
 function formatMsgTime(iso) { if(!iso)return''; const d=new Date(iso); const Y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const D=String(d.getDate()).padStart(2,'0'); const h=String(d.getHours()).padStart(2,'0'); const m=String(d.getMinutes()).padStart(2,'0'); return Y+'-'+M+'-'+D+' '+h+':'+m; }
 
 // ===== 卧室 / 记忆系统 (Bedroom / Memory System) =====
-let bedroomStack = ['bedroomHome'];
+let bedroomStack = ['home'];
+let bedroomView = '';
 let bedroomParams = {};
 let selectedMood = 'sun';
 let pickedMemCat = 'core';
@@ -1835,7 +2329,7 @@ function dateKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).pa
 function todayDateKey() { return dateKey(new Date()); }
 function moodEmoji(m) { return ({ sun: '☀️', 'cloud-sun': '🌤️', cloud: '⛅', rain: '🌧️', moon: '🌙' })[m] || '☀️'; }
 
-function openBedroom() { openRoom('bedroomHome'); }
+function openBedroom() { openRoom('home'); }
 function openRoom(rootView) {
     closeSidebar();
     bedroomStack = [rootView];
@@ -1911,12 +2405,13 @@ function renderBedroom() {
     stopFishTank();
     ensureMemorySystem();
     const view = bedroomStack[bedroomStack.length - 1];
+    bedroomView = view;
     const titleEl = document.getElementById('bedroomTitle');
     const content = document.getElementById('bedroomContent');
     const extraBtn = document.getElementById('bedroomExtraBtn');
     if (!content) return;
     let title = '卧室', html = '', showAdd = null;
-    if (view === 'bedroomHome') { title = '卧室'; html = renderBedroomHeatmap() + renderBedroomGrid(); }
+    if (view === 'home') { title = '卧室'; html = renderBedroomHeatmap() + renderBedroomGrid(); }
     else if (view === 'diaryList') { title = '拾光'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryDetail') { title = '日记'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryEdit') { title = '写日记'; html = renderDiaryEditPage(bedroomParams.id || diaryCurrentId); }
@@ -1934,22 +2429,43 @@ function renderBedroom() {
     else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
     else if (view === 'piggyHome') { title = '小金库'; html = renderPiggyHome(); }
     else if (view === 'piggyAdd') { title = '添加记录'; html = renderPiggyAdd(); }
-
+    else if (view === 'livingHome') { title = '客厅'; html = renderPlaceholderGrid([
+        { icon: '🛋️', name: '沙发', desc: '', go: 'sofaHome' },
+        { icon: '🐠', name: '鱼缸', desc: '生活轨迹', go: 'fishtankHome' },
+        { icon: '🔊', name: '音响', desc: '敬请期待' },
+        { icon: '📺', name: '电视', desc: '敬请期待' }
+    ]); }
+    else if (view === 'sofaHome') { title = '沙发'; html = renderPlaceholderGrid([
+        { icon: '📱', name: '朋友圈', desc: '敬请期待' },
+        { icon: '🔊', name: '回声', desc: '聊天历史', go: 'echoHome' }
+    ]); }
     else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
     else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
-    else if (view === 'studyHome') { title = '书房'; html = renderStudyHome(); }
+    else if (view === 'studyHome') { title = '书房'; html = renderPlaceholderGrid([
+        { icon: '📖', name: '共读室', desc: '敬请期待' },
+        { icon: '🖋️', name: '创作室', desc: '敬请期待' },
+        { icon: '🎮', name: '游戏屋', desc: '敬请期待' },
+        { icon: '✏️', name: '自习室', desc: '', go: 'zixiHome' } 
+    ]); }
+    else if (view === 'zixiHome') { title = '自习室'; html = renderPlaceholderGrid([
+        { icon: '💻', name: '工作台', desc: '敬请期待' },
+        { icon: '🗓️', name: '计划板', desc: '敬请期待' }
+    ]); }
     else if (view === 'kitchenHome') { title = '厨房'; html = renderPlaceholderGrid([
         { icon: '🍽️', name: '饮食记录', desc: '敬请期待' },
         { icon: '🛵', name: '外卖点单', desc: '敬请期待' },
-        { icon: '📖', name: '菜谱研究', desc: '敬请期待' },
-        { icon: '🫊', name: '冰箱', desc: '敬请期待' }
+        { icon: '📖', name: '菜谱研究', desc: '敬请期待' }
+    ]); }
+    else if (view === 'balconyHome') { title = '阳台'; html = renderPlaceholderGrid([
+        { icon: '🍵', name: '榻榻米', desc: '敬请期待' },
+        { icon: '⛅', name: '天气角', desc: '敬请期待' },
+        { icon: '🪴', name: '植物架', desc: '敬请期待' },
+        { icon: '🏙️', name: '城市窗', desc: '敬请期待' }
     ]); }
     else if (view === 'gardenHome') { title = '花园'; html = renderPlaceholderGrid([
         { icon: '🐾', name: '宠物', desc: '敬请期待' },
-        { icon: '🏃', name: '运动健康', desc: '敬请期待' },
-        { icon: '🌾', name: '农田', desc: '敬请期待' },
-        { icon: '☘️', name: '草坪', desc: '发呆+白噪音+植物' }
+        { icon: '🏃', name: '运动', desc: '敬请期待' }
     ]); }
     if (titleEl) titleEl.textContent = title;
     content.innerHTML = html;
@@ -2022,12 +2538,12 @@ function renderBedroomGrid() {
     const items = [
         { icon: '📔', name: '拾光', desc: dc + ' 篇日记', go: 'diaryList' },
         { icon: '🟠', name: '琥珀', desc: mc + ' 条记忆', go: 'memoryHome' },
-        { icon: '💰', name: '小金库', desc: piggyBalance().toFixed(0) + ' 元', go: 'piggyHome' },
-        { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true }
+        { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true },
+        { icon: '💰', name: '小金库', desc: piggyBalance().toFixed(0) + ' 元', go: 'piggyHome' }
     ];
     return '<div class="room-grid bedroom-grid">' + items.map(it =>
         it.placeholder
-        ? '<div class="room-card" onclick="alert(\'' + it.name + '\u5f00\u53d1\u4e2d\uff0c\u656c\u8bf7\u671f\u5f85\uff5e\')"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
+        ? '<div class="room-card" onclick="alert(\'' + it.name + '开发中，敬请期待～\')"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
         : '<div class="room-card" onclick="bedroomGo(\'' + it.go + '\',{})"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
     ).join('') + '</div>';
 }
@@ -2090,7 +2606,7 @@ function saveDiary(date) {
     if (!d) { d = { date, createdAt: new Date().toISOString() }; state.memorySystem.diaries.push(d); }
     d.mood = selectedMood; d.userNote = userNote; d.aiNote = aiNote; d.updatedAt = new Date().toISOString();
     saveState();
-    bedroomStack = ['bedroomHome', 'diaryList']; bedroomParams = {}; renderBedroom();
+    bedroomStack = ['home', 'diaryList']; bedroomParams = {}; renderBedroom();
 }
 function renderDiaryDetail() {
     const date = bedroomParams.date;
@@ -2150,7 +2666,7 @@ function saveMemory(id) {
     if (!m) { m = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6), createdAt: new Date().toISOString(), source: 'manual' }; state.memorySystem.memories.push(m); }
     m.content = content; m.summary = summary; m.category = pickedMemCat; m.tags = tags; m.updatedAt = new Date().toISOString();
     saveState();
-    bedroomStack = ['bedroomHome', 'memoryHome', 'memoryList']; bedroomParams = { category: m.category }; renderBedroom();
+    bedroomStack = ['home', 'memoryHome', 'memoryList']; bedroomParams = { category: m.category }; renderBedroom();
 }
 function renderMemoryDetail() {
     const m = state.memorySystem.memories.find(x => x.id === bedroomParams.id);
@@ -2167,7 +2683,7 @@ function deleteMemory(id) {
     const m = state.memorySystem.memories.find(x => x.id === id);
     state.memorySystem.memories = state.memorySystem.memories.filter(x => x.id !== id);
     saveState();
-    bedroomStack = ['bedroomHome', 'memoryHome', 'memoryList']; bedroomParams = { category: m ? m.category : 'core' }; renderBedroom();
+    bedroomStack = ['home', 'memoryHome', 'memoryList']; bedroomParams = { category: m ? m.category : 'core' }; renderBedroom();
 }
 
 // --- 周记 ---
@@ -2202,7 +2718,7 @@ function saveWeekly(id) {
     w.moodChange = document.getElementById('weekMood').value.trim();
     w.aiWords = document.getElementById('weekAiWords').value.trim();
     saveState();
-    bedroomStack = ['bedroomHome', 'weeklyList']; bedroomParams = {}; renderBedroom();
+    bedroomStack = ['home', 'weeklyList']; bedroomParams = {}; renderBedroom();
 }
 function renderWeeklyDetail() {
     const w = state.memorySystem.weeklyReports.find(x => x.id === bedroomParams.id);
