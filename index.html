@@ -23,37 +23,30 @@
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
         <aside class="sidebar hidden" id="sidebar">
             <div class="sidebar-header">
-                <div class="user-info" id="userInfoClickable" style="cursor:pointer;">
-                    <div class="avatar user-avatar" id="userAvatarDisplay">
-                        <i data-lucide="moon" class="avatar-icon"></i>
-                    </div>
-                    <input type="file" id="userAvatarInput" accept="image/*" hidden>
-                    <div class="user-meta">
-                        <span class="username" id="usernameDisplay">郑郑</span>
-                        <span class="user-status">点击编辑</span>
-                    </div>
-                </div>
                 <button class="btn-icon" id="closeSidebar"><i data-lucide="x"></i></button>
+                <input type="file" id="userAvatarInput" accept="image/*" hidden>
             </div>
-            <button class="btn-new-chat" id="newChatBtn">
-                <i data-lucide="plus"></i>
-                <span>新建对话</span>
+            <div class="sidebar-search">
+                <i data-lucide="search" class="sidebar-search-icon"></i>
+                <input type="text" id="chatSearchInput" class="sidebar-search-input" placeholder="搜索对话...">
+                <button class="sidebar-search-clear" id="chatSearchClear" title="清除" style="display:none;"><i data-lucide="x"></i></button>
+            </div>
+            <button class="btn-new-folder" id="newFolderBtn">
+                <i data-lucide="folder-plus"></i>
+                <span>新建文件夹</span>
             </button>
+            
             <div class="chat-list" id="chatList"></div>
             <div class="sidebar-footer">
-                <button class="nav-icon-btn" id="openStats"><i data-lucide="bar-chart-3"></i><span>统计</span></button>
                 <button class="nav-icon-btn nav-icon-btn-home" id="sidebarBackToHome"><i data-lucide="home"></i><span>小家</span></button>
-                <button class="nav-icon-btn" id="editAiAssistant"><i data-lucide="bot"></i><span>助手</span></button>
+                <button class="nav-icon-btn" id="sidebarOpenSettings" onclick="closeSidebar();openSettingsPanel()"><i data-lucide="settings"></i><span>设置</span></button>
             </div>
         </aside>
 
         <!-- ===== 小家首页 ===== -->
         <div class="home-page active" id="homePage">
             <div class="home-hero">
-                <button class="btn-icon home-settings-btn" id="homeOpenSettings"><i data-lucide="settings"></i></button>
-                <div class="hero-label">TOGETHER</div>
-                <div class="hero-days"><span id="greetingDays">0</span><span class="hero-days-unit">days</span></div>
-                <div class="hero-since">since 2026.06.21 · <span id="loveNameUser">郑郑</span> &amp; <span id="loveNameAi">晏晏</span></div>
+                <button class="btn-icon home-settings-btn" id="homeOpenChat" onclick="showPage('chat')"><i data-lucide="message-circle"></i></button>
             </div>
             <div class="home-content">
                 <div class="home-duo">
@@ -74,52 +67,43 @@
                         <div class="weather-note" id="weatherNote"></div>
                     </div>
                 </div>
-                <button class="chat-entry-bar" id="chatEntryBar">
-                    <span>和晏晏聊天...</span>
-                </button>
-                <div class="glass-card note-card">
-                    <div class="note-quote">"</div>
-                    <div class="note-text" id="taMessageText">今天也要元气满满地开始呀～</div>
-                    <div class="note-sign" id="taMessageSign">晏晏</div>
-                </div>
-                <div class="room-grid">
-                    <div class="room-card" data-room="living">
-                        <div class="room-icon">🛋️</div>
-                        <div class="room-info"><span class="room-name">客厅</span><span class="room-desc">沙发 · 鱼缸</span></div>
-                    </div>
-                    <div class="room-card" data-room="diary">
-                        <div class="room-icon">🛏️</div>
-                        <div class="room-info"><span class="room-name">卧室</span><span class="room-desc">拾光 · 琥珀</span></div>
-                    </div>
-                    <div class="room-card" data-room="study">
-                        <div class="room-icon">📚</div>
-                        <div class="room-info"><span class="room-name">书房</span><span class="room-desc">创作 · 自习</span></div>
-                    </div>
-                    <div class="room-card" data-room="kitchen">
-                        <div class="room-icon">🍳</div>
-                        <div class="room-info"><span class="room-name">厨房</span><span class="room-desc">敬请期待</span></div>
-                    </div>
-                    <div class="room-card" data-room="balcony">
-                        <div class="room-icon">🌙</div>
-                        <div class="room-info"><span class="room-name">阳台</span><span class="room-desc">敬请期待</span></div>
-                    </div>
-                    <div class="room-card" data-room="garden">
-                        <div class="room-icon">🌷</div>
-                        <div class="room-info"><span class="room-name">花园</span><span class="room-desc">敬请期待</span></div>
-                    </div>
+
+                <div class="home-actions">
+                    <button class="home-action" onclick="openRoom('echoHome')">
+                        <span class="home-action-icon">🛋️</span>
+                        <span class="home-action-name">沙发</span>
+                        <span class="home-action-desc">回声</span>
+                    </button>
+                    <button class="home-action" onclick="openRoom('fishtankHome')">
+                        <span class="home-action-icon">🐠</span>
+                        <span class="home-action-name">鱼缸</span>
+                        <span class="home-action-desc">生活轨迹</span>
+                    </button>
+                    <button class="home-action" onclick="alert('音响开发中，敬请期待～')">
+                        <span class="home-action-icon">🔊</span>
+                        <span class="home-action-name">音响</span>
+                        <span class="home-action-desc">敬请期待</span>
+                    </button>
+                    <button class="home-action" onclick="alert('游戏开发中，敬请期待～')">
+                        <span class="home-action-icon">🎮</span>
+                        <span class="home-action-name">游戏</span>
+                        <span class="home-action-desc">敬请期待</span>
+                    </button>
                 </div>
             </div>
         </div>
 
 
         <main class="chat-main" id="chatMain" style="display:none;">
-            <header class="chat-header">
-                <button class="btn-icon" id="openSidebar" title="侧边栏"><i data-lucide="menu"></i></button>
-                <div class="chat-title">
-                    <span id="currentChatTitle">新对话</span>
-                    <span class="model-badge" id="modelBadge">未配置模型</span>
+                        <header class="chat-header">
+                <div class="chat-header-capsule chat-header-capsule-left">
+                    <button class="chat-header-menu" id="openSidebar" title="侧边栏"><i data-lucide="menu"></i></button>
+                    <div class="chat-header-titles">
+                        <span id="currentChatTitle">新对话</span>
+                        <span class="chat-header-subtitle" id="headerSubtitle"></span>
+                    </div>
                 </div>
-                <button class="btn-icon" id="headerNewChat" title="新建对话"><i data-lucide="message-circle-plus"></i></button>
+                <button class="chat-header-capsule chat-header-capsule-right" id="headerNewChat" title="新建对话"><i data-lucide="plus"></i></button>
             </header>
 
             <div class="messages" id="messages"></div>
@@ -231,6 +215,34 @@
                 <div class="stats-content" id="bedroomContent"></div>
             </div>
         </div>
+        <!-- ===== 底部房间 Tab 栏 ===== -->
+        <nav class="room-tabbar" id="roomTabBar" aria-label="房间导航">
+            <input type="radio" name="roomTab" class="room-tab-input" id="roomTabStudy">
+            <label class="room-tab" for="roomTabStudy" onclick="openRoom('studyHome')">
+                <span class="room-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+                <span class="room-tab-name">书房</span>
+            </label>
+            <input type="radio" name="roomTab" class="room-tab-input" id="roomTabKitchen">
+            <label class="room-tab" for="roomTabKitchen" onclick="openRoom('kitchenHome')">
+                <span class="room-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21h10"/><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7 2.51 2.51 0 0 1 .03 1.1"/><path d="m13 12 4-4"/><path d="M10.9 7.25A3.99 3.99 0 0 0 4 10c0 .73.2 1.41.54 2"/></svg></span>
+                <span class="room-tab-name">厨房</span>
+            </label>
+            <input type="radio" name="roomTab" class="room-tab-input" id="roomTabLiving" checked>
+            <label class="room-tab room-tab-heart" for="roomTabLiving" onclick="showPage('home')">
+                <span class="room-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg></span>
+                <span class="room-tab-name">客厅</span>
+            </label>
+            <input type="radio" name="roomTab" class="room-tab-input" id="roomTabBalcony">
+            <label class="room-tab" for="roomTabBalcony" onclick="openRoom('balconyHome')">
+                <span class="room-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></span>
+                <span class="room-tab-name">阳台</span>
+            </label>
+            <input type="radio" name="roomTab" class="room-tab-input" id="roomTabGarden">
+            <label class="room-tab" for="roomTabGarden" onclick="openRoom('gardenHome')">
+                <span class="room-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></span>
+                <span class="room-tab-name">花园</span>
+            </label>
+        </nav>
     </div>
 
 <div class="bottom-sheet-backdrop" id="bottomSheetBackdrop"></div>
@@ -300,6 +312,7 @@
     <script src="tool-system.js"></script>
     <script src="app.js"></script>
     <script src="piggy-bank.js"></script>
+    <script src="sidebar.js"></script>
     <script>
         lucide.createIcons();
         if ('serviceWorker' in navigator) {

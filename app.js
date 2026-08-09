@@ -1600,7 +1600,7 @@ function setupEventListeners() {
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
-            const rootViews = { diary: 'home', living: 'livingHome', study: 'studyHome', kitchen: 'kitchenHome', balcony: 'balconyHome', garden: 'gardenHome' };
+            const rootViews = { diary: 'home', study: 'studyHome', kitchen: 'kitchenHome', balcony: 'balconyHome', garden: 'gardenHome' };
             if (rootViews[room]) { openRoom(rootViews[room]); }
             else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
         });
@@ -1835,16 +1835,7 @@ function renderBedroom() {
     else if (view === 'memoryDetail') { title = '记忆详情'; html = renderMemoryDetail(); }
     else if (view === 'piggyHome') { title = '小金库'; html = renderPiggyHome(); }
     else if (view === 'piggyAdd') { title = '添加记录'; html = renderPiggyAdd(); }
-    else if (view === 'livingHome') { title = '客厅'; html = renderPlaceholderGrid([
-        { icon: '🛋️', name: '沙发', desc: '', go: 'sofaHome' },
-        { icon: '🐠', name: '鱼缸', desc: '生活轨迹', go: 'fishtankHome' },
-        { icon: '🔊', name: '音响', desc: '敬请期待' },
-        { icon: '📺', name: '电视', desc: '敬请期待' }
-    ]); }
-    else if (view === 'sofaHome') { title = '沙发'; html = renderPlaceholderGrid([
-        { icon: '📱', name: '朋友圈', desc: '敬请期待' },
-        { icon: '🔊', name: '回声', desc: '聊天历史', go: 'echoHome' }
-    ]); }
+
     else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
     else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
