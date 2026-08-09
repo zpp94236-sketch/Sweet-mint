@@ -275,6 +275,55 @@
     };
 
     // ---------- 初始化 ----------
+    // ---------- 房间 tab 栏：显示/隐藏/高亮 ----------
+    var ROOM_TAB_HOME = { studyHome: 'roomTabStudy', kitchenHome: 'roomTabKitchen', bedroomHome: 'roomTabBedroom', gardenHome: 'roomTabGarden' };
+    function syncRoomTab() {
+        var bar = document.getElementById('roomTabBar');
+        var overlay = document.getElementById('bedroomOverlay');
+        var home = document.getElementById('homePage');
+        if (!bar || !overlay || !home) return;
+        var homeActive = home.classList.contains('active');
+        var overlayActive = overlay.classList.contains('active');
+        var view = (typeof bedroomStack !== 'undefined' && bedroomStack.length) ? bedroomStack[bedroomStack.length - 1] : null;
+        var starred = (typeof bedroomView !== 'undefined' && bedroomView === 'starred');
+        var isRoomHome = overlayActive && !starred && !!ROOM_TAB_HOME[view];
+        var show = (homeActive && !overlayActive) || isRoomHome;
+        bar.classList.toggle('show', show);
+        overlay.classList.toggle('has-tabbar', isRoomHome);
+        if (show) {
+            var radioId = (homeActive && !overlayActive) ? 'roomTabLiving' : ROOM_TAB_HOME[view];
+            var radio = document.getElementById(radioId);
+            if (radio && !radio.checked) radio.checked = true;
+        }
+    }
+    window.showHomeFromTab = function () {
+        var ov = document.getElementById('bedroomOverlay');
+        if (ov) ov.classList.remove('active');
+        if (typeof showPage === 'function') showPage('home');
+    };
+    (function installTabSync() {
+        var origRenderBedroom = window.renderBedroom;
+        window.renderBedroom = function () {
+            if (typeof origRenderBedroom === 'function') origRenderBedroom();
+            syncRoomTab();
+        };
+        var origOpenRoom = window.openRoom;
+        window.openRoom = function (v) {
+            if (typeof origOpenRoom === 'function') origOpenRoom(v);
+            syncRoomTab();
+        };
+        var origShowPage = window.showPage;
+        window.showPage = function (page) {
+            if (typeof origShowPage === 'function') origShowPage(page);
+            syncRoomTab();
+        };
+        var origBedroomBack = window.bedroomBack;
+        window.bedroomBack = function () {
+            if (typeof origBedroomBack === 'function') origBedroomBack();
+            syncRoomTab();
+        };
+    })();
+
     function init() {
         if (typeof state === 'undefined') return;
         ensureChatExtras();
@@ -336,6 +385,7 @@
         updateHeaderSubtitle();
         window.renderChatList = renderChatList;
         renderChatList();
+        syncRoomTab();
     }
 
     if (document.readyState === 'loading') {

@@ -1600,7 +1600,7 @@ function setupEventListeners() {
     document.querySelectorAll('.room-card[data-room]').forEach(card => {
         card.addEventListener('click', () => {
             const room = card.dataset.room;
-            const rootViews = { diary: 'home', study: 'studyHome', kitchen: 'kitchenHome', balcony: 'balconyHome', garden: 'gardenHome' };
+            const rootViews = { diary: 'bedroomHome', study: 'studyHome', kitchen: 'kitchenHome', garden: 'gardenHome' };
             if (rootViews[room]) { openRoom(rootViews[room]); }
             else { alert(card.querySelector('.room-name').textContent + '开发中，敬请期待～'); }
         });
@@ -1727,7 +1727,7 @@ function formatTime(iso) { const d=new Date(iso); const now=new Date(); const di
 function formatMsgTime(iso) { if(!iso)return''; const d=new Date(iso); const Y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const D=String(d.getDate()).padStart(2,'0'); const h=String(d.getHours()).padStart(2,'0'); const m=String(d.getMinutes()).padStart(2,'0'); return Y+'-'+M+'-'+D+' '+h+':'+m; }
 
 // ===== 卧室 / 记忆系统 (Bedroom / Memory System) =====
-let bedroomStack = ['home'];
+let bedroomStack = ['bedroomHome'];
 let bedroomParams = {};
 let selectedMood = 'sun';
 let pickedMemCat = 'core';
@@ -1736,7 +1736,7 @@ function dateKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).pa
 function todayDateKey() { return dateKey(new Date()); }
 function moodEmoji(m) { return ({ sun: '☀️', 'cloud-sun': '🌤️', cloud: '⛅', rain: '🌧️', moon: '🌙' })[m] || '☀️'; }
 
-function openBedroom() { openRoom('home'); }
+function openBedroom() { openRoom('bedroomHome'); }
 function openRoom(rootView) {
     closeSidebar();
     bedroomStack = [rootView];
@@ -1817,7 +1817,7 @@ function renderBedroom() {
     const extraBtn = document.getElementById('bedroomExtraBtn');
     if (!content) return;
     let title = '卧室', html = '', showAdd = null;
-    if (view === 'home') { title = '卧室'; html = renderBedroomHeatmap() + renderBedroomGrid(); }
+    if (view === 'bedroomHome') { title = '卧室'; html = renderBedroomHeatmap() + renderBedroomGrid(); }
     else if (view === 'diaryList') { title = '拾光'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryDetail') { title = '日记'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryEdit') { title = '写日记'; html = renderDiaryEditPage(bedroomParams.id || diaryCurrentId); }
@@ -1839,30 +1839,18 @@ function renderBedroom() {
     else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
     else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
-    else if (view === 'studyHome') { title = '书房'; html = renderPlaceholderGrid([
-        { icon: '📖', name: '共读室', desc: '敬请期待' },
-        { icon: '🖋️', name: '创作室', desc: '敬请期待' },
-        { icon: '🎮', name: '游戏屋', desc: '敬请期待' },
-        { icon: '✏️', name: '自习室', desc: '', go: 'zixiHome' } 
-    ]); }
-    else if (view === 'zixiHome') { title = '自习室'; html = renderPlaceholderGrid([
-        { icon: '💻', name: '工作台', desc: '敬请期待' },
-        { icon: '🗓️', name: '计划板', desc: '敬请期待' }
-    ]); }
+    else if (view === 'studyHome') { title = '书房'; html = renderStudyHome(); }
     else if (view === 'kitchenHome') { title = '厨房'; html = renderPlaceholderGrid([
         { icon: '🍽️', name: '饮食记录', desc: '敬请期待' },
         { icon: '🛵', name: '外卖点单', desc: '敬请期待' },
-        { icon: '📖', name: '菜谱研究', desc: '敬请期待' }
-    ]); }
-    else if (view === 'balconyHome') { title = '阳台'; html = renderPlaceholderGrid([
-        { icon: '🍵', name: '榻榻米', desc: '敬请期待' },
-        { icon: '⛅', name: '天气角', desc: '敬请期待' },
-        { icon: '🪴', name: '植物架', desc: '敬请期待' },
-        { icon: '🏙️', name: '城市窗', desc: '敬请期待' }
+        { icon: '📖', name: '菜谱研究', desc: '敬请期待' },
+        { icon: '🫊', name: '冰箱', desc: '敬请期待' }
     ]); }
     else if (view === 'gardenHome') { title = '花园'; html = renderPlaceholderGrid([
         { icon: '🐾', name: '宠物', desc: '敬请期待' },
-        { icon: '🏃', name: '运动', desc: '敬请期待' }
+        { icon: '🏃', name: '运动健康', desc: '敬请期待' },
+        { icon: '🌾', name: '农田', desc: '敬请期待' },
+        { icon: '☘️', name: '草坪', desc: '发呆+白噪音+植物' }
     ]); }
     if (titleEl) titleEl.textContent = title;
     content.innerHTML = html;
@@ -1935,12 +1923,12 @@ function renderBedroomGrid() {
     const items = [
         { icon: '📔', name: '拾光', desc: dc + ' 篇日记', go: 'diaryList' },
         { icon: '🟠', name: '琥珀', desc: mc + ' 条记忆', go: 'memoryHome' },
-        { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true },
-        { icon: '💰', name: '小金库', desc: piggyBalance().toFixed(0) + ' 元', go: 'piggyHome' }
+        { icon: '💰', name: '小金库', desc: piggyBalance().toFixed(0) + ' 元', go: 'piggyHome' },
+        { icon: '🦋', name: '蝶翼', desc: '敬请期待', placeholder: true }
     ];
     return '<div class="room-grid bedroom-grid">' + items.map(it =>
         it.placeholder
-        ? '<div class="room-card" onclick="alert(\'' + it.name + '开发中，敬请期待～\')"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
+        ? '<div class="room-card" onclick="alert(\'' + it.name + '\u5f00\u53d1\u4e2d\uff0c\u656c\u8bf7\u671f\u5f85\uff5e\')"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
         : '<div class="room-card" onclick="bedroomGo(\'' + it.go + '\',{})"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
     ).join('') + '</div>';
 }
@@ -2003,7 +1991,7 @@ function saveDiary(date) {
     if (!d) { d = { date, createdAt: new Date().toISOString() }; state.memorySystem.diaries.push(d); }
     d.mood = selectedMood; d.userNote = userNote; d.aiNote = aiNote; d.updatedAt = new Date().toISOString();
     saveState();
-    bedroomStack = ['home', 'diaryList']; bedroomParams = {}; renderBedroom();
+    bedroomStack = ['bedroomHome', 'diaryList']; bedroomParams = {}; renderBedroom();
 }
 function renderDiaryDetail() {
     const date = bedroomParams.date;
@@ -2063,7 +2051,7 @@ function saveMemory(id) {
     if (!m) { m = { id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6), createdAt: new Date().toISOString(), source: 'manual' }; state.memorySystem.memories.push(m); }
     m.content = content; m.summary = summary; m.category = pickedMemCat; m.tags = tags; m.updatedAt = new Date().toISOString();
     saveState();
-    bedroomStack = ['home', 'memoryHome', 'memoryList']; bedroomParams = { category: m.category }; renderBedroom();
+    bedroomStack = ['bedroomHome', 'memoryHome', 'memoryList']; bedroomParams = { category: m.category }; renderBedroom();
 }
 function renderMemoryDetail() {
     const m = state.memorySystem.memories.find(x => x.id === bedroomParams.id);
@@ -2080,7 +2068,7 @@ function deleteMemory(id) {
     const m = state.memorySystem.memories.find(x => x.id === id);
     state.memorySystem.memories = state.memorySystem.memories.filter(x => x.id !== id);
     saveState();
-    bedroomStack = ['home', 'memoryHome', 'memoryList']; bedroomParams = { category: m ? m.category : 'core' }; renderBedroom();
+    bedroomStack = ['bedroomHome', 'memoryHome', 'memoryList']; bedroomParams = { category: m ? m.category : 'core' }; renderBedroom();
 }
 
 // --- 周记 ---
@@ -2115,7 +2103,7 @@ function saveWeekly(id) {
     w.moodChange = document.getElementById('weekMood').value.trim();
     w.aiWords = document.getElementById('weekAiWords').value.trim();
     saveState();
-    bedroomStack = ['home', 'weeklyList']; bedroomParams = {}; renderBedroom();
+    bedroomStack = ['bedroomHome', 'weeklyList']; bedroomParams = {}; renderBedroom();
 }
 function renderWeeklyDetail() {
     const w = state.memorySystem.weeklyReports.find(x => x.id === bedroomParams.id);
