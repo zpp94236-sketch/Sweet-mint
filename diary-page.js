@@ -143,49 +143,113 @@ function formatDiaryTime(iso) {
 }
 
 // --- 首页 ---
-function renderDiaryHomePage() {
-    const days = diaryDaysCount();
-    const entries = diaryCache.entries;
+let diaryViewMode = 'timeline'; // timeline | wall
+let diaryWallLimit = 15;
 
-    let cardsHtml = '';
-    entries.forEach(e => {
-        const color = diaryUserColor(e.user_id);
-        const isLocked = e.private && e.user_id === 'ai_晏晏';
-        const preview = isLocked
-            ? '<div class="diary-card-locked">诶呀 这条日记被锁住啦 🔒</div>'
-            : '<div class="diary-card-content">' + escapeHtml((e.content || '').slice(0, 80)) + (e.content && e.content.length > 80 ? '...' : '') + '</div>';
+function diaryDateKey(iso) {
+    const d = new Date(iso);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 
-        cardsHtml += '<div class="diary-timeline-item">' +
-            '<div class="diary-timeline-dot ' + color + '"></div>' +
-            '<div class="diary-card ' + color + '" data-id="' + e.id + '">' +
-                '<div class="diary-card-header">' +
-                    '<span class="diary-card-time">' + formatDiaryTime(e.created_at) + '</span>' +
-                    '<div class="diary-card-right">' +
-                        (e.mood ? '<span class="diary-card-mood">' + e.mood + '</span>' : '') +
-                        '<button class="diary-card-menu-btn" onclick="event.stopPropagation();toggleDiaryMenu(\'' + e.id + '\')">&middot;&middot;&middot;</button>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="diary-card-menu" id="diaryMenu_' + e.id + '">' +
-                    '<button onclick="event.stopPropagation();diaryEditEntry(\'' + e.id + '\')">编辑</button>' +
-                    '<button class="danger" onclick="event.stopPropagation();diaryDeleteEntry(\'' + e.id + '\')">删除</button>' +
-                '</div>' +
+function diaryDayEntries() {
+    // 按 created_at 倒序，每天保留最新一条
+    const map = new Map();
+    [...diaryCache.entries]
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .forEach(e => {
+            const k = diaryDateKey(e.created_at);
+            if (!map.has(k)) map.set(k, e);
+        });
+    return Array.from(map.values());
+}
+
+function diaryMoodNoteClass(mood) {
+    const m = mood || '';
+    if (['😊', '🥰', '😍'].some(e => m.includes(e))) return 'note-warm';
+    if (['😌', '☀', '☀️'].some(e => m.includes(e))) return 'note-cool';
+    if (['😢', '😤'].some(e => m.includes(e))) return 'note-gray';
+    if (['🔥', '🌙'].some(e => m.includes(e))) return 'note-pink';
+    return 'note-cream';
+}
+
+function renderDiaryTimeline(entries) {
+    if (!entries.length) return '<div class="diary-empty">还没有日记，写下第一篇吧～</div>';
+    return entries.map(e => {
+        const locked = e.private && e.user_id === 'ai_晏晏';
+        const key = diaryDateKey(e.created_at);
+        const parts = key.split('-');
+        const month = parseInt(parts[1], 10), day = parseInt(parts[2], 10);
+        const who = e.user_id === 'ai_晏晏' ? 'ai' : 'user';
+        const content = e.content || '';
+        const preview = locked
+            ? '<div class="diary-tl-content tl-locked">🔒 这篇日记被锁住了</div>'
+            : '<div class="diary-tl-content tl-' + who + '">' + escapeHtml(content.slice(0, 90)) + (content.length > 90 ? '...' : '') + '</div>';
+        return '<div class="diary-tl-item" onclick="openDiaryDetail(\'' + e.id + '\')">' +
+            '<div class="diary-tl-date">' +
+                '<span class="diary-tl-day">' + String(day).padStart(2, '0') + '</span>' +
+                '<span class="diary-tl-month">' + month + '月</span>' +
+            '</div>' +
+            '<div class="diary-tl-body">' +
                 preview +
+                (locked || !e.mood ? '' : '<span class="diary-tl-mood">' + e.mood + '</span>') +
             '</div>' +
         '</div>';
-    });
+    }).join('');
+}
 
-    if (!entries.length) {
-        cardsHtml = '<div class="diary-empty">还没有日记，写下第一篇吧～</div>';
-    }
+function renderDiaryWall(entries) {
+    const shown = entries.slice(0, diaryWallLimit);
+    if (!shown.length) return '<div class="diary-empty">还没有日记，写下第一篇吧～</div>';
+    const notes = shown.map(e => {
+        const locked = e.private && e.user_id === 'ai_晏晏';
+        const key = diaryDateKey(e.created_at);
+        const parts = key.split('-');
+        const month = parseInt(parts[1], 10), day = parseInt(parts[2], 10);
+        const rot = (Math.random() * 5 - 2).toFixed(1);
+        const cls = locked ? 'diary-note note-locked' : 'diary-note ' + diaryMoodNoteClass(e.mood);
+        const inner = locked
+            ? '<div class="diary-note-date">' + month + '月' + day + '日</div><div class="diary-note-locked">🔒</div>'
+            : '<div class="diary-note-date">' + month + '月' + day + '日</div>' +
+                (e.mood ? '<div class="diary-note-mood">' + e.mood + '</div>' : '') +
+                '<div class="diary-note-summary">' + escapeHtml((e.content || '').slice(0, 25)) + '</div>';
+        return '<div class="' + cls + '" style="transform: rotate(' + rot + 'deg)" onclick="openDiaryDetail(\'' + e.id + '\')">' + inner + '</div>';
+    }).join('');
+    const more = diaryWallLimit < entries.length ? '<button class="diary-wall-more" onclick="diaryLoadMore()">加载更多</button>' : '';
+    return '<div class="diary-wall">' + notes + '</div>' + more;
+}
 
+function renderDiaryHomePage() {
+    const days = diaryDaysCount();
+    const dayEntries = diaryDayEntries();
+    const bodyHtml = diaryViewMode === 'wall' ? renderDiaryWall(dayEntries) : renderDiaryTimeline(dayEntries);
+    const icon = diaryViewMode === 'wall'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>';
     return '<div class="diary-home">' +
-        '<div class="diary-home-header">' +
+        '<div class="diary-home-top">' +
             '<span class="diary-home-title">拾光</span>' +
-            '<span class="diary-home-days">' + days + '天</span>' +
+            '<button class="diary-view-toggle" onclick="switchDiaryView()"><span>' + days + '天</span>' + icon + '</button>' +
         '</div>' +
-        '<div class="diary-timeline">' + cardsHtml + '</div>' +
+        '<div class="diary-home-body"><div class="diary-view-content">' + bodyHtml + '</div></div>' +
         '<button class="diary-fab" onclick="diaryNewEntry()">+</button>' +
     '</div>';
+}
+
+function openDiaryDetail(id) {
+    diaryCurrentId = id;
+    bedroomGo('diaryDetail', { id: id });
+}
+
+function switchDiaryView() {
+    diaryViewMode = diaryViewMode === 'timeline' ? 'wall' : 'timeline';
+    const content = document.getElementById('bedroomContent');
+    if (content) content.innerHTML = renderDiaryHomePage();
+}
+
+function diaryLoadMore() {
+    diaryWallLimit += 15;
+    const content = document.getElementById('bedroomContent');
+    if (content) content.innerHTML = renderDiaryHomePage();
 }
 
 function toggleDiaryMenu(id) {
