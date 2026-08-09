@@ -239,24 +239,6 @@
 
 
 
-    // ---------- 设置页：个人信息模块 ----------
-    const origRenderMainSettings = window.renderMainSettings;
-    window.renderMainSettings = function () {
-        const base = typeof origRenderMainSettings === 'function' ? origRenderMainSettings() : '';
-        const name = (state.settings && state.settings.userName) || '郑郑';
-        const avatar = (state.settings && state.settings.userAvatar) || '';
-        const avatarHtml = avatar
-            ? '<img src="' + avatar + '" alt="">'
-            : '<i data-lucide="user"></i>';
-        return '<div class="settings-module">' +
-            '<div class="settings-module-title">个人信息</div>' +
-            '<div class="settings-list-card">' +
-            '<div class="settings-row settings-row-click" onclick="openEditUser()">' +
-            '<span class="settings-row-label"><span class="settings-profile-avatar">' + avatarHtml + '</span><span>' + escapeHtml(name) + '</span></span>' +
-            '<span class="settings-row-value"><i data-lucide="chevron-right"></i></span>' +
-            '</div></div></div>' + base;
-    };
-
     // ---------- 初始化 ----------
     // ---------- 房间 tab 栏：显示/隐藏/高亮 ----------
     var ROOM_TAB_HOME = { studyHome: 'roomTabStudy', kitchenHome: 'roomTabKitchen', bedroomHome: 'roomTabBedroom', gardenHome: 'roomTabGarden' };
