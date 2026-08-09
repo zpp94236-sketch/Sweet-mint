@@ -244,39 +244,65 @@ function renderMessages() {
     }
 }
 
+function extractThinking(content) {
+    const open = '<' + 'think>'; const close = '</' + 'think>';
+    if (!content || content.indexOf(open) < 0) return { think: null, main: content || '' };
+    const s = content.indexOf(open) + open.length;
+    const e = content.indexOf(close);
+    if (e <= s) return { think: null, main: content || '' };
+    return {
+        think: content.substring(s, e).trim() || null,
+        main: (content.substring(0, content.indexOf(open)) + content.substring(e + close.length)).trim()
+    };
+}
+
+function toolDisplayCn(name) {
+    const dn = (typeof ToolSystem !== 'undefined') ? ToolSystem.displayName(name) : name;
+    return String(dn).replace(/^[\s\p{Extended_Pictographic}\u{FE0F}\u{200D}]+/u, '').trim() || String(name);
+}
+
+function classifyToolCall(tc) {
+    const name = tc.name || '';
+    if (tc.source === 'mcp' || name.indexOf('mcp_') === 0) return 'mcp';
+    if (tc.source === 'search' || /search|tavily|web_search|bing/i.test(name)) return 'search';
+    return 'tool';
+}
+
+function buildInfoMarkers(msg) {
+    const markers = [];
+    if (!msg || msg.role === 'user') return markers;
+    if (state.settings.showThinking !== false && extractThinking(msg.content).think) {
+        markers.push({ kind: 'thinking', sub: 0, label: '💭 思考' });
+    }
+    (msg.toolCalls || []).forEach((tc, i) => {
+        const kind = classifyToolCall(tc);
+        if (kind === 'mcp') markers.push({ kind: 'mcp', sub: i, label: '⚡ MCP' });
+        else if (kind === 'search') {
+            const kw = tc.args && (tc.args.query || tc.args.keywords || tc.args.keyword);
+            markers.push({ kind: 'search', sub: i, label: '🔍 搜索了' + (kw || toolDisplayCn(tc.name)) });
+        }
+        else markers.push({ kind: 'tool', sub: i, label: '🔧 调用了' + toolDisplayCn(tc.name) });
+    });
+    return markers;
+}
+
 function renderSingleMessage(msg, idx) {
     const isUser = msg.role === 'user';
     const time = msg.timestamp ? formatHM(msg.timestamp) : '';
-    let thinkingHtml = ''; let mainContent = msg.content || '';
-    const thinkOpen = '<' + 'think>'; const thinkClose = '</' + 'think>';
-    if (!isUser && mainContent.includes(thinkOpen)) {
-        const s = mainContent.indexOf(thinkOpen) + thinkOpen.length;
-        const e = mainContent.indexOf(thinkClose);
-        if (e > s) {
-            const t = mainContent.substring(s, e).trim();
-            if (state.settings.showThinking !== false) {
-                const expanded = state.settings.autoCollapseThinking ? '' : ' expanded';
-                const show = state.settings.autoCollapseThinking ? '' : ' show';
-                thinkingHtml = '<div class="thinking-block"><div class="thinking-header' + expanded + '" onclick="toggleThinking(this)"><i data-lucide="chevron-right"></i><span>Thinking</span></div><div class="thinking-content' + show + '">' + escapeHtml(t) + '</div></div>';
-            }
-            mainContent = mainContent.substring(0, mainContent.indexOf(thinkOpen)) + mainContent.substring(e + thinkClose.length); mainContent = mainContent.trim();
-        }
-    }
+    let mainContent = msg.content || '';
+    if (!isUser) mainContent = extractThinking(msg.content).main;
     const rendered = isUser ? escapeHtml(mainContent).replace(/\n/g, '<br>') : renderMarkdown(mainContent);
     const userAvatarHtml = state.settings.userAvatar ? '<img src="' + state.settings.userAvatar + '">' : '🌙';
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     const nameText = isUser ? (state.settings.userName || '我') : (state.settings.aiName || '晏晏');
     const avatarHtml = isUser ? userAvatarHtml : aiAvatarHtml;
-        // 工具调用卡片
-    let toolCallsHtml = '';
-    if (!isUser && msg.toolCalls && msg.toolCalls.length) {
-        toolCallsHtml = msg.toolCalls.map(tc => {
-            const isErr = !!tc.result.error;
-            const dispName = (typeof ToolSystem !== 'undefined') ? ToolSystem.displayName(tc.name) : tc.name;
-            return '<div class="tool-call-block"><div class="tool-call-header tool-call-done" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.tool-call-toggle\').textContent=this.nextElementSibling.style.display===\'none\'?\'▶\':\'▼\'"><span class="tool-call-icon">' + (isErr ? '❌' : '✅') + '</span><span class="tool-call-name">' + dispName + '</span><span class="tool-call-toggle">▶</span></div><div class="tool-call-detail" style="display:none"><pre>' + escapeHtml(JSON.stringify(tc.result, null, 2)) + '</pre></div></div>';
-        }).join('');
+    // 幕后信息标记行（思维链 / 工具调用 / MCP / 联网搜索）
+    let infoMarkersHtml = '';
+    if (!isUser) {
+        infoMarkersHtml = buildInfoMarkers(msg).map(m =>
+            '<div class="info-marker" onclick="openMsgInfoSheet(' + idx + ',\'' + m.kind + '\',' + m.sub + ')">' + m.label + '</div>'
+        ).join('');
     }
-
     // 第一轮文字（工具调用前AI说的话）
     let preToolBubble = '';
     if (!isUser && msg.preToolContent) {
@@ -288,18 +314,92 @@ function renderSingleMessage(msg, idx) {
             '<div class="message-avatar">' + avatarHtml + '</div>' +
             '<span class="msg-name">' + escapeHtml(nameText) + '</span>' +
         '</div>' +
-        thinkingHtml +
         '<div class="msg-bubble-holder">' +
             '<div class="msg-action-bar" id="actionBar' + idx + '">' + getActionBar(idx) + '</div>' +
+            infoMarkersHtml +
             preToolBubble +
-            toolCallsHtml +
             '<div class="message-bubble' + (msg.starred ? ' starred' : '') + '" data-idx="' + idx + '">' + rendered + '</div>' +
         '</div>' +
         '<div class="message-footer"><span class="message-time">' + time + '</span></div>' +
     '</div>';
 }
 
+// ===== 消息幕后信息抽屉（info-sheet）=====
+function openInfoSheet(title, html) {
+    const sheet = document.getElementById('infoSheet');
+    if (!sheet) return;
+    const backdrop = document.getElementById('infoSheetBackdrop');
+    const t = document.getElementById('infoSheetTitle'); if (t) t.textContent = title;
+    const c = document.getElementById('infoSheetContent'); if (c) c.innerHTML = html;
+    sheet.classList.add('active'); if (backdrop) backdrop.classList.add('active');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function closeInfoSheet() {
+    const sheet = document.getElementById('infoSheet');
+    const backdrop = document.getElementById('infoSheetBackdrop');
+    if (sheet) sheet.classList.remove('active');
+    if (backdrop) backdrop.classList.remove('active');
+}
+function infoSheetJsonBlock(label, data) {
+    if (data === undefined || data === null || data === '') data = '—';
+    const value = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    return '<div class="info-sheet-block"><div class="info-sheet-block-label">' + label + '</div><pre class="info-sheet-pre">' + escapeHtml(value) + '</pre></div>';
+}
+function openMsgInfoSheet(msgIdx, kind, sub) {
+    const chat = getCurrentChat();
+    if (!chat || !chat.messages[msgIdx]) return;
+    const msg = chat.messages[msgIdx];
+    let title = '', html = '';
+    if (kind === 'thinking') {
+        const t = extractThinking(msg.content);
+        title = '思考';
+        html = '<div class="info-sheet-text">' + escapeHtml(t.think || '') + '</div>';
+    } else if (kind === 'tool' || kind === 'mcp') {
+        const tc = (msg.toolCalls || [])[sub || 0];
+        if (!tc) return;
+        title = kind === 'mcp' ? 'MCP调用' : '工具调用';
+        html = infoSheetJsonBlock('工具', toolDisplayCn(tc.name)) + infoSheetJsonBlock('输入参数', tc.args) + infoSheetJsonBlock('返回结果', tc.result);
+    } else if (kind === 'search') {
+        const tc = (msg.toolCalls || [])[sub || 0];
+        if (!tc) return;
+        const kw = tc.args && (tc.args.query || tc.args.keywords || tc.args.keyword);
+        title = '联网搜索';
+        html = infoSheetJsonBlock('搜索关键词', kw || toolDisplayCn(tc.name)) + infoSheetJsonBlock('返回结果', tc.result);
+    } else return;
+    openInfoSheet(title, html);
+}
 
+function setupInfoSheetDrag() {
+    const sheet = document.getElementById('infoSheet');
+    const handle = document.getElementById('infoSheetHandle');
+    const header = document.getElementById('infoSheetHeader');
+    if (!sheet || !handle) return;
+    const dragTargets = [handle, header].filter(Boolean);
+    let startY = 0, currentY = 0, dragging = false;
+    dragTargets.forEach(target => {
+        target.style.touchAction = 'none';
+        target.addEventListener('pointerdown', e => {
+            dragging = true; startY = e.clientY; currentY = 0;
+            sheet.style.transition = 'none';
+            if (target.setPointerCapture) { try { target.setPointerCapture(e.pointerId); } catch (err) {} }
+        });
+        target.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            currentY = Math.max(0, e.clientY - startY);
+            sheet.style.transform = 'translateY(' + currentY + 'px)';
+        });
+        const finish = () => {
+            if (!dragging) return;
+            dragging = false;
+            sheet.style.transition = '';
+            sheet.style.transform = '';
+            if (currentY > 90) closeInfoSheet();
+            currentY = 0;
+        };
+        target.addEventListener('pointerup', finish);
+        target.addEventListener('pointercancel', finish);
+    });
+}
 
 function formatHM(iso) { if (!iso) return ''; const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 
@@ -589,28 +689,26 @@ currentAbortController = new AbortController();
                     const toolName = tc.function.name;
                     const toolArgs = tc.function.arguments;
 
-                    // UI: 显示正在调用
+                    // UI: 显示正在调用（统一标记行）
                     const toolEl = document.createElement('div');
-                    toolEl.className = 'tool-call-block';
-                    toolEl.innerHTML = '<div class="tool-call-header"><span class="tool-call-icon">⚙️</span><span class="tool-call-name">正在调用 ' + ToolSystem.displayName(toolName) + '...</span><span class="tool-call-spinner"></span></div>';
+                    toolEl.className = 'info-marker';
+                    toolEl.innerHTML = '<span class="info-marker-spinner"></span><span>🔧 调用了' + toolDisplayCn(toolName) + '...</span>';
                     toolContainer.insertBefore(toolEl, bubble || null);
                     scrollToBottom();
 
                     // 执行
                     const result = await ToolSystem.execute(toolName, toolArgs);
 
-                    // UI: 显示完成
+                    // UI: 显示完成（点击查看详情）
                     const isErr = !!result.error;
-                    toolEl.innerHTML = '<div class="tool-call-header tool-call-done"><span class="tool-call-icon">' + (isErr ? '❌' : '✅') + '</span><span class="tool-call-name">' + ToolSystem.displayName(toolName) + '</span><span class="tool-call-toggle">▶</span></div><div class="tool-call-detail" style="display:none"><pre>' + escapeHtml(JSON.stringify(result, null, 2)) + '</pre></div>';
-                    toolEl.querySelector('.tool-call-header').addEventListener('click', function () {
-                        const detail = this.nextElementSibling;
-                        const toggle = this.querySelector('.tool-call-toggle');
-                        if (detail.style.display === 'none') { detail.style.display = 'block'; toggle.textContent = '▼'; }
-                        else { detail.style.display = 'none'; toggle.textContent = '▶'; }
-                    });
+                    toolEl.innerHTML = '<span>🔧 调用了' + toolDisplayCn(toolName) + (isErr ? '（失败）' : '') + '</span>';
+                    toolEl.classList.add('info-marker-done');
+                    toolEl.onclick = function () {
+                        openInfoSheet('工具调用', infoSheetJsonBlock('工具', toolDisplayCn(toolName)) + infoSheetJsonBlock('输入参数', toolArgs) + infoSheetJsonBlock('返回结果', result));
+                    };
 
                     // 记录
-                    toolCallLog.push({ name: toolName, result: result });
+                    toolCallLog.push({ name: toolName, args: toolArgs, result: result });
                     currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
                 }
 
@@ -1836,6 +1934,7 @@ function closeInputPopups() {
 
 // ===== MCP / Search tool sheet =====
 function showToolSheetView(view) {
+    const sheet = document.getElementById('bottomSheet');
     const grid = document.getElementById('bottomSheetGrid');
     const mcp = document.getElementById('bottomSheetMcp');
     const search = document.getElementById('bottomSheetSearch');
@@ -1844,6 +1943,7 @@ function showToolSheetView(view) {
     if (mcp) mcp.classList.toggle('active', view === 'mcp');
     if (search) search.classList.toggle('active', view === 'search');
     if (model) model.classList.toggle('active', view === 'model');
+    if (sheet) sheet.classList.toggle('half', view !== 'grid');
     if (view === 'mcp') renderMcpSheetInto();
     if (view === 'search') renderSearchSheetInto();
     if (view === 'model') renderModelSheetInto();
@@ -2223,6 +2323,9 @@ function setupEventListeners() {
     on('modelSwitchRow', 'click', (e) => { e.stopPropagation(); toggleModelQuickList(); });
     on('emojiRow', 'click', (e) => { e.stopPropagation(); const s=document.getElementById('stickerPanel'); if(s) s.classList.toggle('active'); });
     on('bottomSheetBackdrop', 'click', closeBottomSheet);
+    on('infoSheetBackdrop', 'click', closeInfoSheet);
+    on('infoSheetClose', 'click', closeInfoSheet);
+    setupInfoSheetDrag();
     on('bsImage', 'click', () => { closeBottomSheet(); document.getElementById('imageInputHidden').click(); });
     on('bsCamera', 'click', () => { closeBottomSheet(); document.getElementById('cameraInputHidden').click(); });
     on('bsModel', 'click', () => { showToolSheetView('model'); });
@@ -2289,8 +2392,6 @@ function saveEditTitle() {
     closeEditTitle();
 }
 function toggleMoreMenu(btn) { document.querySelectorAll('.msg-more-dropdown.show').forEach(el=>el.classList.remove('show')); const dd=btn.parentElement.querySelector('.msg-more-dropdown'); dd.classList.toggle('show'); setTimeout(()=>{document.addEventListener('click',function cl(e){if(!btn.parentElement.contains(e.target)){dd.classList.remove('show');document.removeEventListener('click',cl);}});},0); }
-function toggleThinking(header) { header.classList.toggle('expanded'); header.nextElementSibling.classList.toggle('show'); }
-
 function openFullscreenInput() { const i=document.getElementById('messageInput'); const fs=document.getElementById('fullscreenInput'); document.getElementById('fullscreenTextarea').value=i.value; fs.classList.add('active'); document.getElementById('fullscreenTextarea').focus(); }
 function closeFullscreenInput() { const i=document.getElementById('messageInput'); i.value=document.getElementById('fullscreenTextarea').value; document.getElementById('fullscreenInput').classList.remove('active'); autoResize(i); updateSendButton(); }
 function sendFromFullscreen() { document.getElementById('messageInput').value=document.getElementById('fullscreenTextarea').value; document.getElementById('fullscreenInput').classList.remove('active'); sendMessage(); }
