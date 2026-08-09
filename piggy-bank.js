@@ -235,7 +235,7 @@ async function savePiggyRecord() {
         await loadPiggyRecords(true);
         pickedPiggyTag = '';
         pickedPiggyType = 'expense';
-        bedroomStack = ['home', 'piggyHome'];
+        bedroomStack = ['bedroomHome', 'piggyHome'];
         bedroomParams = {};
         renderBedroom();
     }

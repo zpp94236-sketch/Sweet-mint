@@ -521,7 +521,7 @@ async function diarySaveFromEdit(id) {
         diaryEditMood = '';
         diaryEditWeather = '';
         // 回到日记首页
-        bedroomStack = ['home', 'diaryList'];
+        bedroomStack = ['bedroomHome', 'diaryList'];
         bedroomParams = {};
         renderBedroom();
     }
