@@ -66,13 +66,7 @@
             '<section class="todo-panel">' +
             '<div class="todo-panel-head">' +
             '<span class="todo-panel-title">待办</span>' +
-            '<div class="todo-settings-wrap">' +
-            '<button class="todo-settings-btn" onclick="studyToggleSettingsMenu(event)">⚙️</button>' +
-            '<div class="todo-settings-menu" id="todoSettingsMenu" style="display:none">' +
-            '<button onclick="studyExpandAll()">展开全部</button>' +
-            '<button onclick="studyCollapseAll()">收起全部</button>' +
-            '<button class="danger" onclick="studyClearDone()">清空已完成</button>' +
-            '</div></div></div>' +
+            '</div>' +
             '<div class="todo-list">' + (active.length ? active.map(todoItemHtml).join('') : '<div class="todo-empty">还没有待办事项，点右下角 + 新建</div>') + '</div>' +
             doneHtml +
             '</section>' +

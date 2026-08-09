@@ -712,6 +712,9 @@ body {
 
 /* ===== Bedroom (memory system) ===== */
 .bedroom-grid { margin-top: 14px; grid-template-columns: repeat(2, 1fr); }
+/* ?????????????????????????????? */
+#bedroomContent .stats-heatmap-card { margin-bottom: 24px; container-type: inline-size; }
+#bedroomContent .cal-heatmap-grid { min-height: 300px; min-height: calc((100cqw - 24px) / 7 * 6 + 20px); }
 .diary-today-card { background: linear-gradient(135deg, var(--primary-light), var(--primary-lighter)); border-radius: 18px; padding: 18px; margin-bottom: 14px; cursor: pointer; box-shadow: 0 2px 8px var(--shadow); }
 .diary-today-label { font-size: 13px; font-weight: 700; color: var(--primary-dark); margin-bottom: 6px; }
 .diary-today-preview { font-size: 13px; color: var(--text); line-height: 1.6; }
@@ -1472,6 +1475,8 @@ body {
 .messages { padding-bottom: 28px; }
 .home-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 44px); }
 #bedroomOverlay.has-tabbar .stats-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 30px); }
+#bedroomOverlay.has-tabbar .stats-header { display: none; }
+#bedroomOverlay.has-tabbar .stats-content { padding-top: 18px; }
 
 /* ===== Tab 栏与快捷按钮的暗色适配 ===== */
 [data-theme="dark"] .room-tabbar {
@@ -1498,26 +1503,6 @@ body {
 }
 .todo-panel-head { display: flex; align-items: center; justify-content: center; position: relative; padding: 2px 0 10px; }
 .todo-panel-title { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: 1px; }
-.todo-settings-wrap { position: absolute; right: 0; top: 0; }
-.todo-settings-btn {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: var(--primary-lighter); border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; color: var(--text-light);
-}
-.todo-settings-menu {
-    position: absolute; right: 0; top: 36px; z-index: 30;
-    background: var(--bg-white); border: 1px solid var(--border);
-    border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,0.14);
-    padding: 4px; min-width: 122px;
-}
-.todo-settings-menu button {
-    display: block; width: 100%; text-align: left; padding: 8px 10px;
-    background: none; border: none; font-size: 12.5px; color: var(--text);
-    border-radius: 8px; cursor: pointer; font-family: inherit;
-}
-.todo-settings-menu button:hover { background: var(--primary-lighter); }
-.todo-settings-menu button.danger { color: #C75F58; }
 .todo-list { display: flex; flex-direction: column; gap: 8px; }
 .todo-item { border-radius: 14px; background: var(--primary-lighter); overflow: hidden; }
 .todo-item.done .todo-item-title { text-decoration: line-through; color: var(--text-light); }
@@ -1555,7 +1540,6 @@ body {
 .todo-fab:active { transform: scale(0.92); }
 [data-theme="dark"] .todo-item { background: rgba(255,255,255,0.08); }
 [data-theme="dark"] .todo-done-body .todo-item { background: rgba(255,255,255,0.05); }
-[data-theme="dark"] .todo-settings-menu { background: var(--bg-white); border-color: rgba(255,255,255,0.12); }
 
 
 /* ===== 侧边栏搜索栏 ===== */

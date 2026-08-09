@@ -90,23 +90,28 @@ async function piggyAutoDaily() {
     const startDate = new Date(PIGGY_START_DATE + 'T00:00:00+08:00');
     if (today < startDate) return;
 
-    // 找出所有已有的 daily 记录的日期
+    // 将任意 Date 转成 +08:00 时区的 YYYY-MM-DD，避免设备时区/UTC 导致日期错位
+    function piggyDateKey(d) {
+        const t = new Date(d.getTime() + 8 * 3600 * 1000);
+        return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');
+    }
+
+    // 检查当天是否已有 daily 记录（按 +08:00 本地时区比较），已有则跳过
     const dailyDates = new Set();
+
     piggyRecords.forEach(r => {
         if (r.tag === 'daily' && r.type === 'income') {
-            const d = new Date(r.created_at);
-            const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            dailyDates.add(key);
+            dailyDates.add(piggyDateKey(new Date(r.created_at)));
         }
     });
 
     // 补发从起始日到今天所有缺失的天数
     const cur = new Date(startDate);
-    const todayKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    const todayKey = piggyDateKey(today);
     const missing = [];
 
     while (true) {
-        const key = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
+        const key = piggyDateKey(cur);
         if (!dailyDates.has(key)) {
             missing.push(key);
         }
