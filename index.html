@@ -112,25 +112,30 @@
                     <input type="file" id="cameraInputHidden" accept="image/*" capture="environment" hidden>
                     <input type="file" id="imageInputHidden" accept="image/*" hidden>
 
-                <!-- Sticker popup -->
-                <div class="input-popup sticker-popup" id="stickerPopup">
-                    <div class="sticker-panel active" id="stickerPanel"></div>
+                <div class="input-pill-bar" id="inputPillBar">
+                    <button class="input-pill" id="pillPhoto" title="照片（长按拍摄）">📷 照片</button>
+                    <button class="input-pill" id="pillFile" title="文件">📁 文件</button>
+                    <button class="input-pill" id="pillCompress" title="压缩历史">🗜️ 压缩</button>
+                    <button class="input-pill" id="pillSearch" title="搜索配置">🌐 搜索</button>
+                    <button class="input-pill" id="pillMcp" title="MCP 配置">🧩 MCP</button>
+                    <button class="input-pill" id="pillStar" title="收藏">⭐ 收藏</button>
+                    <button class="input-pill" id="pillAdd" title="更多">➕ 添加</button>
                 </div>
 
-                <div class="input-card">
-                    <div class="input-card-top">
-                        <button class="btn-input-icon" id="voiceBtn" title="语音输入"><i data-lucide="mic"></i></button>
-                        <textarea id="messageInput" placeholder="和ta说点什么..." rows="1"></textarea>
-                        <button class="btn-input-icon" id="expandInput" title="全屏输入"><i data-lucide="maximize-2"></i></button>
-                        <button class="btn-send" id="sendBtn" disabled><i data-lucide="corner-right-up"></i></button>
+                <div class="input-pill-wrap">
+                    <!-- Sticker popup -->
+                    <div class="input-popup sticker-popup" id="stickerPopup">
+                        <div class="sticker-panel active" id="stickerPanel"></div>
                     </div>
-                    <div class="input-card-toolbar">
-                        <div class="input-card-toolbar-left">
-                            <button class="toolbar-btn" id="stickerBtn" title="表情"><i data-lucide="smile"></i></button>
+
+                    <div class="input-pill-row">
+                        <button class="input-pill-btn" id="voiceBtn" title="语音输入"><i data-lucide="mic"></i></button>
+                        <div class="input-pill-field">
+                            <textarea id="messageInput" placeholder="和ta说点什么..." rows="1"></textarea>
+                            <button class="input-pill-expand" id="expandInput" title="全屏输入"><i data-lucide="maximize-2"></i></button>
                         </div>
-                        <div class="input-card-toolbar-right">
-                            <button class="toolbar-btn" id="plusBtn" title="更多"><i data-lucide="plus"></i></button>
-                        </div>
+                        <button class="input-pill-btn" id="stickerBtn" title="表情"><i data-lucide="smile"></i></button>
+                        <button class="input-pill-send" id="sendBtn" disabled><i data-lucide="corner-right-up"></i></button>
                     </div>
                 </div>
             </div>
@@ -244,65 +249,6 @@
         </nav>
     </div>
 
-<div class="bottom-sheet-backdrop" id="bottomSheetBackdrop"></div>
-<div class="bottom-sheet" id="bottomSheet">
-    <div class="bottom-sheet-handle"></div>
-    <div class="bottom-sheet-grid" id="bottomSheetGrid">
-        <div class="bottom-sheet-item" id="bsImage">
-            <div class="bottom-sheet-icon"><i data-lucide="image"></i></div>
-            <span class="bottom-sheet-label">相册</span>
-        </div>
-        <div class="bottom-sheet-item" id="bsCamera">
-            <div class="bottom-sheet-icon"><i data-lucide="camera"></i></div>
-            <span class="bottom-sheet-label">拍摄</span>
-        </div>
-        <div class="bottom-sheet-item" id="bsModel">
-            <div class="bottom-sheet-icon"><i data-lucide="bot"></i></div>
-            <span class="bottom-sheet-label">模型</span>
-        </div>
-        <div class="bottom-sheet-item" id="bsCompress">
-            <div class="bottom-sheet-icon"><i data-lucide="archive"></i></div>
-            <span class="bottom-sheet-label">压缩历史</span>
-        </div>
-        <div class="bottom-sheet-item" id="bsSearch">
-            <div class="bottom-sheet-icon"><i data-lucide="globe"></i></div>
-            <span class="bottom-sheet-label">联网搜索</span>
-        </div>
-        <div class="bottom-sheet-item" id="bsMcp">
-            <div class="bottom-sheet-icon"><i data-lucide="blocks"></i></div>
-            <span class="bottom-sheet-label">MCP</span>
-        </div>
-        <div class="bottom-sheet-item" id="bsFile">
-            <div class="bottom-sheet-icon"><i data-lucide="file"></i></div>
-            <span class="bottom-sheet-label">文件</span>
-        </div>
-        <div class="bottom-sheet-item" id="bsStar">
-            <div class="bottom-sheet-icon"><i data-lucide="star"></i></div>
-            <span class="bottom-sheet-label">收藏</span>
-        </div>
-    </div>
-    <div class="tool-sheet-view" id="bottomSheetMcp">
-        <div class="tool-sheet-header">
-            <button class="tool-sheet-back" id="mcpSheetBack"><i data-lucide="arrow-left"></i></button>
-            <h3>MCP服务器</h3>
-        </div>
-        <div class="tool-sheet-list" id="mcpSheetList"></div>
-    </div>
-    <div class="tool-sheet-view" id="bottomSheetSearch">
-        <div class="tool-sheet-header">
-            <button class="tool-sheet-back" id="searchSheetBack"><i data-lucide="arrow-left"></i></button>
-            <h3>搜索设置</h3>
-        </div>
-        <div class="tool-sheet-list" id="searchSheetList"></div>
-    </div>
-    <div class="tool-sheet-view" id="bottomSheetModel">
-        <div class="tool-sheet-header">
-            <button class="tool-sheet-back" id="modelSheetBack"><i data-lucide="arrow-left"></i></button>
-            <h3>选择模型</h3>
-        </div>
-        <div class="tool-sheet-list" id="modelSheetList"></div>
-    </div>
-</div>
 
 <div class="info-sheet-backdrop" id="infoSheetBackdrop"></div>
 <div class="info-sheet" id="infoSheet">

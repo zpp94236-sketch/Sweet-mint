@@ -1901,22 +1901,7 @@ function openStats() {
 }
 function closeStats() { document.getElementById('statsOverlay').classList.remove('active'); }
 
-// ===== Input toolbar popups =====
-function togglePlusMenu() {
-    const sheet = document.getElementById('bottomSheet');
-    const backdrop = document.getElementById('bottomSheetBackdrop');
-    if (!sheet) return;
-    const isOpen = sheet.classList.contains('active');
-    if (isOpen) { closeBottomSheet(); }
-    else { closeInputPopups(); showToolSheetView('grid'); sheet.classList.add('active'); backdrop.classList.add('active'); if(typeof lucide!=='undefined') lucide.createIcons(); }
-}
-function closeBottomSheet() {
-    const sheet = document.getElementById('bottomSheet');
-    const backdrop = document.getElementById('bottomSheetBackdrop');
-    if (sheet) sheet.classList.remove('active');
-    if (backdrop) backdrop.classList.remove('active');
-}
-
+// ===== 输入栏工具 =====
 function toggleStickerPopup() {
     const popup = document.getElementById('stickerPopup');
     if (!popup) return;
@@ -1927,59 +1912,49 @@ function toggleStickerPopup() {
 function closeInputPopups() {
     const sticker = document.getElementById('stickerPopup');
     if (sticker) sticker.classList.remove('active');
-    closeBottomSheet();
     const mq = document.getElementById('modelQuickList');
     if (mq) mq.style.display = 'none';
 }
 
-// ===== MCP / Search tool sheet =====
-function showToolSheetView(view) {
-    const sheet = document.getElementById('bottomSheet');
-    const grid = document.getElementById('bottomSheetGrid');
-    const mcp = document.getElementById('bottomSheetMcp');
-    const search = document.getElementById('bottomSheetSearch');
-    const model = document.getElementById('bottomSheetModel');
-    if (grid) grid.style.display = (view === 'grid') ? 'grid' : 'none';
-    if (mcp) mcp.classList.toggle('active', view === 'mcp');
-    if (search) search.classList.toggle('active', view === 'search');
-    if (model) model.classList.toggle('active', view === 'model');
-    if (sheet) sheet.classList.toggle('half', view !== 'grid');
-    if (view === 'mcp') renderMcpSheetInto();
-    if (view === 'search') renderSearchSheetInto();
-    if (view === 'model') renderModelSheetInto();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+// ===== 搜索 / MCP 配置面板（复用 info-sheet 半屏抽屉）=====
+function openConfigSheet(kind) {
+    closeInputPopups();
+    const title = kind === 'search' ? '搜索配置' : 'MCP服务';
+    const html = kind === 'search' ? renderSearchSheet() : renderMcpSheet();
+    openInfoSheet(title, html);
+    bindConfigSheetEvents(kind);
+}
+function bindConfigSheetEvents(kind) {
+    if (kind === 'search') {
+        const tw = document.getElementById('sheetWebSearchToggle');
+        if (tw) tw.addEventListener('change', () => { state.settings.webSearch = tw.checked; saveState(); });
+    } else {
+        document.querySelectorAll('#infoSheetContent .mcp-toggle').forEach(t => {
+            t.addEventListener('change', () => {
+                const srv = (state.settings.mcpServers || []).find(x => x.id === t.dataset.id);
+                if (srv) { srv.enabled = t.checked; saveState(); }
+            });
+        });
+    }
 }
 
-function renderModelSheetInto() {
-    const el = document.getElementById('modelSheetList');
-    if (!el) return;
-    const models = state.settings.cachedModels || [];
-    const current = state.settings.model || '';
-    let html = '<input type="text" class="model-search-input" id="sheetModelSearch" placeholder="🔍 搜索模型..." style="display:block;margin-bottom:10px;">';
-    if (!models.length) {
-        html += '<div class="bedroom-empty">还没有模型列表<br>请先在设置里获取</div>';
-    } else {
-        html += '<div class="model-list" id="sheetModelList" style="display:block;max-height:55vh;border:none;">' +
-            models.map(m => '<div class="model-list-item' + (m === current ? ' active' : '') + '" data-model="' + escapeHtml(m) + '">' + escapeHtml(m) + '</div>').join('') +
-            '</div>';
-    }
-    el.innerHTML = html;
-    // 绑定搜索
-    const si = document.getElementById('sheetModelSearch');
-    if (si) si.oninput = function() {
-        const f = this.value.toLowerCase();
-        document.querySelectorAll('#sheetModelList .model-list-item').forEach(item => {
-            item.style.display = item.textContent.toLowerCase().includes(f) ? '' : 'none';
-        });
-    };
-    // 绑定选择
-    el.querySelectorAll('.model-list-item').forEach(item => {
-        item.addEventListener('click', () => {
-            state.settings.model = item.dataset.model;
-            saveState();
-            updateHeader();
-            closeBottomSheet();
-        });
+// 照片按钮：短按打开相册，长按触发拍摄
+function setupPillPhotoLongPress() {
+    const btn = document.getElementById('pillPhoto');
+    if (!btn) return;
+    let timer = null, longFired = false;
+    btn.addEventListener('pointerdown', e => {
+        if (e.button !== undefined && e.button !== 0) return;
+        longFired = false;
+        timer = setTimeout(() => { longFired = true; document.getElementById('cameraInputHidden').click(); }, 500);
+    });
+    const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    btn.addEventListener('pointerup', clear);
+    btn.addEventListener('pointerleave', clear);
+    btn.addEventListener('pointercancel', clear);
+    btn.addEventListener('click', e => {
+        if (longFired) { e.preventDefault(); e.stopPropagation(); longFired = false; return; }
+        document.getElementById('imageInputHidden').click();
     });
 }
 
@@ -2001,12 +1976,6 @@ function renderMcpSheet() {
     return html;
 }
 
-function renderMcpSheetInto() {
-    const el = document.getElementById('mcpSheetList');
-    if (!el) return;
-    el.innerHTML = '<div class="bedroom-empty" style="padding:40px 10px;">🛠️ MCP 工具正在开发中<br><span style="font-size:11px;opacity:0.7;">敬请期待</span></div>';
-}
-
 function addMcpServerLegacy() {
     const name = prompt('服务器名称（如 supabase）：');
     if (!name) return;
@@ -2014,7 +1983,7 @@ function addMcpServerLegacy() {
     if (!state.settings.mcpServers) state.settings.mcpServers = [];
     state.settings.mcpServers.push({ id: 'mcp' + Date.now(), name: name.trim(), url: url.trim(), status: 'connected', toolCount: 0, toolTotal: 0, enabled: true });
     saveState();
-    renderMcpSheetInto();
+    if (document.getElementById('infoSheet') && document.getElementById('infoSheet').classList.contains('active')) openConfigSheet('mcp');
 }
 
 function renderSearchSheet() {
@@ -2027,13 +1996,7 @@ function renderSearchSheet() {
         '</div>';
 }
 
-function renderSearchSheetInto() {
-    const el = document.getElementById('searchSheetList');
-    if (!el) return;
-    el.innerHTML = '<div class="bedroom-empty" style="padding:40px 10px;">🔍 联网搜索正在开发中<br><span style="font-size:11px;opacity:0.7;">敬请期待</span></div>';
-}
-
-function pickSearchProvider(p) { state.settings.searchProvider = p; saveState(); renderSearchSheetInto(); }
+function pickSearchProvider(p) { state.settings.searchProvider = p; saveState(); openConfigSheet('search'); }
 
 async function compressHistory() {
     const chat = getCurrentChat();
@@ -2071,12 +2034,6 @@ function saveEditUser() {
     closeEditUser();
 }
 
-function toggleUploadMenu() {
-    const u = document.getElementById('uploadMenu');
-    const p = document.getElementById('plusMenu');
-    if (p) p.classList.remove('active');
-    if (u) u.classList.toggle('active');
-}
 function handleUploadedFile(file, type) {
     if (!file) return;
     const input = document.getElementById('messageInput');
@@ -2097,16 +2054,6 @@ function buildStickerPanel() {
     if (!s) return;
     s.innerHTML = STICKERS.map(e => '<button class="sticker-item">' + e + '</button>').join('');
     s.querySelectorAll('.sticker-item').forEach(btn => btn.addEventListener('click', () => { const input = document.getElementById('messageInput'); input.value += btn.textContent; autoResize(input); updateSendButton(); input.focus(); }));
-}
-
-function toggleModelQuickList() {
-    const list = document.getElementById('modelQuickList');
-    if (!list) return;
-    if (list.style.display === 'block') { list.style.display = 'none'; return; }
-    const models = state.settings.cachedModels || [];
-    if (models.length === 0) { list.innerHTML = '<div class="model-quick-empty">请先在设置里获取模型列表</div>'; }
-    else { list.innerHTML = models.map(m => '<div class="model-quick-item' + (m === state.settings.model ? ' active' : '') + '" data-model="' + escapeHtml(m) + '">' + escapeHtml(m) + '</div>').join(''); list.querySelectorAll('.model-quick-item').forEach(el => el.addEventListener('click', () => { state.settings.model = el.dataset.model; saveState(); updateHeader(); list.style.display = 'none'; closeInputPopups(); })); }
-    list.style.display = 'block';
 }
 
 let recognition = null; let isRecording = false;
@@ -2316,31 +2263,18 @@ function setupEventListeners() {
     on('closeStats', 'click', closeStats);
     on('statsOverlay', 'click', e => { if(e.target===e.currentTarget) closeStats(); });
     on('bedroomBack', 'click', bedroomBack);
-    on('plusBtn', 'click', (e) => { e.stopPropagation(); togglePlusMenu(); });
     on('stickerBtn', 'click', (e) => { e.stopPropagation(); toggleStickerPopup(); });
     on('voiceBtn', 'click', toggleVoiceInput);
-    on('modelPill', 'click', (e) => { e.stopPropagation(); togglePlusMenu(); toggleModelQuickList(); });
-    on('modelSwitchRow', 'click', (e) => { e.stopPropagation(); toggleModelQuickList(); });
-    on('emojiRow', 'click', (e) => { e.stopPropagation(); const s=document.getElementById('stickerPanel'); if(s) s.classList.toggle('active'); });
-    on('bottomSheetBackdrop', 'click', closeBottomSheet);
     on('infoSheetBackdrop', 'click', closeInfoSheet);
     on('infoSheetClose', 'click', closeInfoSheet);
     setupInfoSheetDrag();
-    on('bsImage', 'click', () => { closeBottomSheet(); document.getElementById('imageInputHidden').click(); });
-    on('bsCamera', 'click', () => { closeBottomSheet(); document.getElementById('cameraInputHidden').click(); });
-    on('bsModel', 'click', () => { showToolSheetView('model'); });
-    on('bsCompress', 'click', () => { closeBottomSheet(); setTimeout(compressHistory, 320); });
-    on('bsSearch', 'click', () => { showToolSheetView('search'); });
-    on('bsMcp', 'click', () => { showToolSheetView('mcp'); });
-    on('mcpSheetBack', 'click', () => { showToolSheetView('grid'); });
-    on('searchSheetBack', 'click', () => { showToolSheetView('grid'); });
-    on('modelSheetBack', 'click', () => { showToolSheetView('grid'); });
-    on('bsFile', 'click', () => { closeBottomSheet(); document.getElementById('fileInputHidden').click(); });
-    on('bsStar', 'click', () => { closeBottomSheet(); setTimeout(openStarredList, 320); });
-    on('compressRow', 'click', (e) => { e.stopPropagation(); closeInputPopups(); compressHistory(); });
-    on('plusUploadFile', 'click', () => { document.getElementById('fileInputHidden').click(); });
-    on('plusUploadCamera', 'click', () => { document.getElementById('cameraInputHidden').click(); });
-    on('plusUploadImage', 'click', () => { document.getElementById('imageInputHidden').click(); });
+    on('pillFile', 'click', () => document.getElementById('fileInputHidden').click());
+    on('pillCompress', 'click', compressHistory);
+    on('pillSearch', 'click', () => openConfigSheet('search'));
+    on('pillMcp', 'click', () => openConfigSheet('mcp'));
+    on('pillStar', 'click', openStarredList);
+    on('pillAdd', 'click', () => showToast('敬请期待'));
+    setupPillPhotoLongPress();
     on('userInfoClickable', 'click', openEditUser);
     on('closeEditUser', 'click', closeEditUser);
     on('saveEditUser', 'click', saveEditUser);
@@ -2355,8 +2289,6 @@ function setupEventListeners() {
         document.addEventListener('click', (e) => {
         if (!e.target.closest('.msg-bubble-holder')) hideAllActionBars();
         const ia = document.querySelector('.input-area');
-        const bs = document.getElementById('bottomSheet');
-        if (bs && bs.contains(e.target)) return;
         if (ia && !ia.contains(e.target)) closeInputPopups();
     });
     on('editTitleCancel', 'click', closeEditTitle);
