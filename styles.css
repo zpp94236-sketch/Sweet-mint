@@ -1287,7 +1287,7 @@ body {
 .msg-bubble-holder { position: relative; max-width: 100%; }
 
 /* ===== 消息纯气泡：去掉头像、名字与每条时间 ===== */
-.msg-name-row, .msg-name, .message-avatar, .message-footer { display: none; }
+.msg-name-row, .msg-name, .message-avatar { display: none; }
 .message, .message.user, .message.assistant { flex-direction: column; }
 .message { align-items: flex-start; }
 .message.user { align-items: flex-end; }
@@ -1336,7 +1336,6 @@ body {
     opacity: 0.8;
     text-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7);
 }
-.message-footer { display: none; }
 
 /* 时间分隔线：灰底胶囊 */
 .time-divider {
