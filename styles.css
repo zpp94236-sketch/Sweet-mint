@@ -272,6 +272,7 @@ body {
 .model-list-item { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--primary-lighter); transition: background var(--transition); }
 .model-list-item:hover { background: var(--primary-light); }
 .model-list-item:last-child { border-bottom: none; }
+.model-list-item.active { color: var(--primary-dark); font-weight: 600; background: var(--primary-light); }
 .settings-footer { padding: 14px 20px; padding-bottom: max(14px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); text-align: right; background: var(--bg); }
 
 .provider-card { border: 1px solid var(--border); border-radius: var(--radius-small); padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: all var(--transition); display: flex; align-items: center; justify-content: space-between; }

@@ -325,7 +325,10 @@ function renderSingleMessage(msg, idx) {
 }
 
 // ===== 消息幕后信息抽屉（info-sheet）=====
+let infoSheetOpening = false;
 function openInfoSheet(title, html) {
+    infoSheetOpening = true;
+    setTimeout(() => { infoSheetOpening = false; }, 60);
     const sheet = document.getElementById('infoSheet');
     if (!sheet) return;
     const backdrop = document.getElementById('infoSheetBackdrop');
@@ -334,7 +337,9 @@ function openInfoSheet(title, html) {
     sheet.classList.add('active'); if (backdrop) backdrop.classList.add('active');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
+
 function closeInfoSheet() {
+    if (infoSheetOpening) return;
     const sheet = document.getElementById('infoSheet');
     const backdrop = document.getElementById('infoSheetBackdrop');
     if (sheet) sheet.classList.remove('active');
@@ -1938,6 +1943,41 @@ function bindConfigSheetEvents(kind) {
     }
 }
 
+// 模型选择面板（复用 info-sheet 半屏抽屉）
+function renderModelSheet() {
+    const models = state.settings.cachedModels || [];
+    const current = state.settings.model || '';
+    let html = '<input type="text" class="model-search-input" id="sheetModelSearch" placeholder="🔍 搜索模型..." style="display:block;margin-bottom:10px;">';
+    if (!models.length) {
+        html += '<div class="bedroom-empty">还没有模型列表<br>请先在设置里获取模型列表</div>' +
+            '<button class="btn-secondary" style="width:100%;justify-content:center;" onclick="closeInfoSheet();openSettingsPanel();settingsGo(' + String.fromCharCode(39) + 'chatModel' + String.fromCharCode(39) + ')">去设置获取模型</button>';
+    } else {
+        html += '<div class="model-list" id="sheetModelList" style="display:block;max-height:38vh;border:none;margin-top:0;">' +
+            models.map(m => '<div class="model-list-item' + (m === current ? ' active' : '') + '" data-model="' + escapeHtml(m) + '">' + escapeHtml(m) + '</div>').join('') +
+            '</div>';
+    }
+    return html;
+}
+function openModelSheet() {
+    closeInputPopups();
+    openInfoSheet('选择模型', renderModelSheet());
+    const si = document.getElementById('sheetModelSearch');
+    if (si) si.oninput = function () {
+        const f = this.value.toLowerCase();
+        document.querySelectorAll('#infoSheetContent .model-list-item').forEach(item => {
+            item.style.display = item.textContent.toLowerCase().includes(f) ? '' : 'none';
+        });
+    };
+    document.querySelectorAll('#infoSheetContent .model-list-item').forEach(item => {
+        item.addEventListener('click', () => {
+            state.settings.model = item.dataset.model;
+            saveState();
+            updateHeader();
+            closeInfoSheet();
+        });
+    });
+}
+
 // 照片按钮：短按打开相册，长按触发拍摄
 function setupPillPhotoLongPress() {
     const btn = document.getElementById('pillPhoto');
@@ -2265,16 +2305,16 @@ function setupEventListeners() {
     on('bedroomBack', 'click', bedroomBack);
     on('stickerBtn', 'click', (e) => { e.stopPropagation(); toggleStickerPopup(); });
     on('voiceBtn', 'click', toggleVoiceInput);
-    on('infoSheetBackdrop', 'click', closeInfoSheet);
+    on('infoSheetBackdrop', 'pointerdown', closeInfoSheet);
     on('infoSheetClose', 'click', closeInfoSheet);
     setupInfoSheetDrag();
-    on('pillFile', 'click', () => document.getElementById('fileInputHidden').click());
-    on('pillCompress', 'click', compressHistory);
-    on('pillSearch', 'click', () => openConfigSheet('search'));
-    on('pillMcp', 'click', () => openConfigSheet('mcp'));
-    on('pillStar', 'click', openStarredList);
-    on('pillAdd', 'click', () => showToast('敬请期待'));
-    setupPillPhotoLongPress();
+    on('pillFile', 'click', (e) => { e.stopPropagation(); document.getElementById('fileInputHidden').click(); });
+    on('pillCompress', 'click', (e) => { e.stopPropagation(); compressHistory(); });
+    on('pillModel', 'click', (e) => { e.stopPropagation(); openModelSheet(); });
+    on('pillSearch', 'click', (e) => { e.stopPropagation(); openConfigSheet('search'); });
+    on('pillMcp', 'click', (e) => { e.stopPropagation(); openConfigSheet('mcp'); });
+    on('pillStar', 'click', (e) => { e.stopPropagation(); openStarredList(); });
+    on('pillAdd', 'click', (e) => { e.stopPropagation(); showToast('敬请期待'); });
     on('userInfoClickable', 'click', openEditUser);
     on('closeEditUser', 'click', closeEditUser);
     on('saveEditUser', 'click', saveEditUser);
