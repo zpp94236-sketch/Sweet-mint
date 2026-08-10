@@ -794,7 +794,17 @@ currentAbortController = new AbortController();
 let settingsView = 'main'; let editingProviderId = null; let settingsStack = ['main'];
 
 function openSettingsPanel() { settingsView = 'main'; settingsStack = ['main']; editingProviderId = null; renderSettingsView(); document.getElementById('settingsOverlay').classList.add('active'); }
-function closeSettingsPanel() { document.getElementById('settingsOverlay').classList.remove('active'); closeProfileSheet(); }
+function closeSettingsPanel() {
+    // 保存当前页面可能的修改
+    const spEl = document.getElementById('settingsSystemPrompt');
+    if (spEl) state.settings.systemPrompt = spEl.value;
+    saveState();
+    document.getElementById('settingsOverlay').classList.remove('active');
+    closeProfileSheet();
+    renderMessages();
+    updateHeader();
+    applyAiIdentity();
+}
 
 function renderSettingsView() {
     const content = document.getElementById('settingsContent'); const footer = document.getElementById('settingsFooter');
@@ -1036,6 +1046,8 @@ function bindSettingsContentEvents() {
     if (cfi) cfi.addEventListener('change', handleCustomFontPick);
     const rf = document.getElementById('regexFileInputDetail');
     if (rf) rf.addEventListener('change', handleRegexImportDetail);
+    const mms = document.getElementById('memoryModeSelect');
+    if (mms) mms.addEventListener('change', () => { state.settings.memoryMode = mms.value; saveState(); });
     initProfileSheet();
 }
 
@@ -1131,7 +1143,9 @@ const SETTINGS_PAGES = {
     'messageDisplay': ['消息显示', 'message-square', renderMessageDisplayPage],
     'codeInteraction': ['代码与交互', 'code-2', renderCodeInteractionPage],
     'assistantBasic': ['基础设置', 'user-cog', renderAssistantBasicPage],
-    'assistantPrompt': ['提示词与正则', 'file-text', renderAssistantPromptPage]
+    'memorySettings': ['记忆', 'brain', renderMemorySettingsPage],
+    'regexSettings': ['正则表达式', 'braces', renderRegexSettingsPage],
+    'localTools': ['本地工具', 'wrench', () => renderSettingsPlaceholder('wrench', '本地工具')]
 };
 
 // ===== 显示设置 =====
@@ -1249,34 +1263,153 @@ function renderCodeInteractionPage() {
 
 // ===== 助手设置 =====
 function renderAssistantSettingsPage() {
-    return settingsGroup('', [
-        settingsEntry('user-cog', '基础设置', '名称、温度、上下文、输出', settingsChevron(), "settingsGo('assistantBasic')"),
-        settingsEntry('file-text', '提示词与正则', 'System Prompt 与规则', settingsChevron(), "settingsGo('assistantPrompt')"),
-        settingsEntry('brain', '记忆', '敬请期待', settingsChevron(), 'settingsComingSoon()'),
-        settingsEntry('wrench', '本地工具', '敬请期待', settingsChevron(), 'settingsComingSoon()')
+    const name = state.settings.aiName || '晏晏';
+    const sp = state.settings.systemPrompt || '';
+    const charCount = sp.length;
+
+    return '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><i data-lucide="user" class="settings-row-icon"></i><span class="settings-entry-title">助手名称</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:8px;">给你的助手起个名字吧</div>' +
+            '<input type="text" class="settings-text-input" data-key="aiName" placeholder="输入名称" value="' + escapeHtml(name) + '" maxlength="30">' +
+        '</div>' +
+    '</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><i data-lucide="message-square" class="settings-row-icon"></i><span class="settings-entry-title">系统提示词</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:8px;">设定助手的行为、风格和规则</div>' +
+            '<textarea id="settingsSystemPrompt" class="system-prompt-textarea" rows="6" placeholder="设定AI的人设...">' + escapeHtml(sp) + '</textarea>' +
+            '<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:6px;font-size:11px;color:var(--text-light);"><span>' + charCount + '/2000</span><button class="btn-icon" style="padding:2px;" onclick="openFullscreenPrompt()"><i data-lucide="maximize-2" style="width:13px;height:13px;"></i></button></div>' +
+        '</div>' +
+    '</div>' +
+    settingsGroup('', [
+        settingsEntry('sliders-horizontal', '基础设置', '温度、上下文、流式输出、Token', settingsChevron(), "settingsGo('assistantBasic')"),
+        settingsEntry('brain', '记忆', '管理助手的长期记忆与知识库', settingsChevron(), "settingsGo('memorySettings')"),
+        settingsEntry('braces', '正则表达式', '批量匹配与替换，支持导入导出', settingsChevron(), "settingsGo('regexSettings')"),
+        settingsEntry('wrench', '本地工具', '配置与调用本地工具与插件', settingsChevron(), "settingsGo('localTools')")
     ]);
 }
 function renderAssistantBasicPage() {
-    return settingsGroup('基础设定', [
-        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">助手名称</div><input type="text" class="settings-text-input" data-key="aiName" placeholder="给AI起个名字" value="' + escapeHtml(state.settings.aiName || '') + '"></div>',
-        rangeRow('temperature', '温度 (Temperature)', 0, 200, 5, { def: 0.7, scale: 100 }),
-        rangeRow('contextCount', '上下文消息数量', 1, 50, 1, { def: 50 }),
-        settingsSwitch('streaming', '流式输出', '逐字显示生成的内容', state.settings.streaming !== false),
-        '<div class="settings-row settings-row-stack"><div class="settings-entry-info"><div class="settings-entry-title">最大token数</div><div class="settings-entry-sub">留空 = 无限制</div></div><input type="number" class="settings-number-input settings-input-right" data-key="maxTokens" placeholder="无限制" value="' + (state.settings.maxTokens || '') + '"></div>',
+    const temp = state.settings.temperature || 0.7;
+    const ctx = state.settings.contextCount || 50;
+    const mt = state.settings.maxTokens || '';
+    const streaming = state.settings.streaming !== false;
+
+    return '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="thermometer" class="settings-row-icon"></i><span class="settings-entry-title">模型温度</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">控制回复的随机性和创造性</div>' +
+            '<div class="settings-range-head"><span style="font-size:12px;color:var(--text-light);">更保守</span><span class="settings-range-value" id="rangeVal-temperature">' + temp.toFixed(2) + '</span><span style="font-size:12px;color:var(--text-light);">更有创造性</span></div>' +
+            '<input type="range" class="settings-range" data-key="temperature" data-scale="100" min="0" max="200" step="5" value="' + Math.round(temp * 100) + '">' +
+        '</div>' +
+    '</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="layers" class="settings-row-icon"></i><span class="settings-entry-title">上下文消息数量</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">控制模型接收的历史消息数量</div>' +
+            '<div class="settings-range-head"><span style="font-size:12px;color:var(--text-light);">1</span><span class="settings-range-value" id="rangeVal-contextCount">' + (ctx >= 50 ? '无限制' : ctx) + '</span><span style="font-size:12px;color:var(--text-light);">无限制</span></div>' +
+            '<input type="range" class="settings-range" data-key="contextCount" data-scale="1" min="1" max="50" step="1" value="' + ctx + '">' +
+        '</div>' +
+    '</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row" style="border-bottom:none;">' +
+            '<div class="settings-entry-info"><div style="display:flex;align-items:center;gap:8px;"><i data-lucide="zap" class="settings-row-icon"></i><span class="settings-entry-title">流式输出</span></div><div class="settings-entry-sub">开启后，模型回复将以流式方式实时显示</div></div>' +
+            '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="streaming"' + (streaming ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+        '</div>' +
+    '</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="gauge" class="settings-row-icon"></i><span class="settings-entry-title">最大 Token 数</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:8px;">限制模型回复的最大 Token 数量，留空为无限制</div>' +
+            '<input type="number" class="settings-number-input" data-key="maxTokens" placeholder="无限制" value="' + (mt || '') + '">' +
+        '</div>' +
+    '</div>' +
+    settingsGroup('', [
         settingsSwitch('splitLines', '按行拆分气泡', '将助手的回复按换行拆分成多个独立气泡发送', !!state.settings.splitLines)
     ]);
 }
-function renderAssistantPromptPage() {
-    const sp = state.settings.systemPrompt || '';
-    const rules = state.settings.regexRules || [];
-    let rh = '<div class="regex-list" id="regexList">';
-    rules.forEach((rule, i) => { rh += '<div class="regex-item"><span class="regex-item-text">' + escapeHtml(rule) + '</span><button onclick="deleteRegexDetail(' + i + ')"><i data-lucide="x"></i></button></div>'; });
-    rh += '</div>';
-    return settingsGroup('System Prompt', [
-        '<div class="settings-row settings-row-stack"><textarea id="settingsSystemPrompt" class="system-prompt-textarea" rows="8" placeholder="设定AI的人设...">' + escapeHtml(sp) + '</textarea></div>'
-    ]) + settingsGroup('正则表达式', [
-        '<div class="settings-row settings-row-stack">' + rh + '<div class="regex-add-row"><input type="text" id="regexNewInput" placeholder="输入正则表达式..."><button class="btn-secondary" onclick="addRegexDetail()">添加</button></div><div style="margin-top:8px;"><button class="btn-secondary" onclick="document.getElementById(\'regexFileInputDetail\').click()"><i data-lucide="upload" style="width:12px;height:12px;margin-right:4px;"></i>批量导入</button><input type="file" id="regexFileInputDetail" accept=".txt,.json" hidden></div></div>'
+
+// ===== 记忆设置 =====
+function renderMemorySettingsPage() {
+    const memEnabled = state.settings.memoryEnabled !== false;
+    const memMode = state.settings.memoryMode || 'auto';
+    const supabaseOk = typeof isSupabaseConfigured === 'function' && isSupabaseConfigured();
+    const memCount = state.memorySystem ? state.memorySystem.memories.length : 0;
+
+    const modeOpts = [['auto', '自动'], ['manual', '仅手动']].map(([v, l]) =>
+        '<option value="' + v + '"' + (memMode === v ? ' selected' : '') + '>' + l + '</option>'
+    ).join('');
+
+    return settingsGroup('基础', [
+        '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">启用AI记忆</div></div><label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="memoryEnabled"' + (memEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label></div>',
+        '<div class="settings-row"><span class="settings-row-label">记忆模式</span><select class="settings-inline-select" id="memoryModeSelect">' + modeOpts + '</select></div>'
+    ]) +
+    settingsGroup('记忆后端', [
+        '<div class="settings-row"><span class="settings-row-label">存储位置</span><span class="settings-row-value">' + (supabaseOk ? '云端（Supabase）' : '本地') + '</span></div>',
+        '<div class="settings-row"><span class="settings-row-label">连接状态</span><span class="settings-row-value">' + (supabaseOk ? '<span style="color:#27ae60;">● 已连接</span>' : '<span style="color:var(--text-light);">● 未配置</span>') + '</span></div>',
+        '<div class="settings-row"><span class="settings-row-label">记忆条数</span><span class="settings-row-value">' + memCount + '</span></div>'
+    ]) +
+    settingsGroup('外部服务', [
+        '<div class="settings-row settings-row-click" onclick="settingsComingSoon()"><span class="settings-row-label">Ombre Brain</span><span class="settings-row-value">未连接 <i data-lucide="chevron-right"></i></span></div>',
+        '<div class="settings-row settings-row-click" onclick="settingsComingSoon()"><span class="settings-row-label">自定义API</span><span class="settings-row-value">未配置 <i data-lucide="chevron-right"></i></span></div>'
     ]);
+}
+
+// ===== 正则表达式 =====
+function renderRegexSettingsPage() {
+    const rules = state.settings.regexRules || [];
+
+    let listHtml = '';
+    if (rules.length === 0) {
+        listHtml = '<div class="bedroom-empty" style="padding:20px 10px;">还没有正则规则</div>';
+    } else {
+        listHtml = '<div class="regex-list" id="regexList">' +
+            rules.map((rule, i) =>
+                '<div class="regex-item"><span class="regex-item-text">' + escapeHtml(rule) + '</span><button onclick="deleteRegexDetail(' + i + ')"><i data-lucide="x"></i></button></div>'
+            ).join('') +
+        '</div>';
+    }
+
+    return settingsGroup('规则列表（' + rules.length + ' 条）', [
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            listHtml +
+        '</div>'
+    ]) +
+    settingsGroup('添加规则', [
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div class="regex-add-row"><input type="text" id="regexNewInput" placeholder="输入正则表达式..."><button class="btn-secondary" onclick="addRegexDetail()">添加</button></div>' +
+        '</div>'
+    ]) +
+    settingsGroup('批量操作', [
+        '<div class="settings-row settings-row-click" onclick="document.getElementById(\'regexFileInputDetail\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>从文件导入</span><i data-lucide="chevron-right"></i></div>',
+        '<div class="settings-row settings-row-click" onclick="exportRegexRules()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>导出规则</span><i data-lucide="chevron-right"></i></div>',
+        '<div class="settings-row settings-row-click" onclick="clearAllRegex()"><span class="settings-row-label" style="color:#e74c3c;"><i data-lucide="trash-2" class="settings-row-icon" style="color:#e74c3c;"></i>清空所有规则</span></div>'
+    ]) +
+    '<input type="file" id="regexFileInputDetail" accept=".txt,.json" hidden>';
+}
+
+function exportRegexRules() {
+    const rules = state.settings.regexRules || [];
+    if (!rules.length) { showToast('没有规则可导出'); return; }
+    const blob = new Blob([JSON.stringify(rules, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'regex-rules.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('已导出 ' + rules.length + ' 条规则');
+}
+
+function clearAllRegex() {
+    if (!state.settings.regexRules || !state.settings.regexRules.length) return;
+    if (!confirm('确定清空所有正则规则？')) return;
+    state.settings.regexRules = [];
+    saveState();
+    renderSettingsView();
+    showToast('已清空');
 }
 function addRegexDetail() { const i = document.getElementById('regexNewInput'); const v = i.value.trim(); if (!v) return; if (!state.settings.regexRules) state.settings.regexRules = []; state.settings.regexRules.push(v); saveState(); renderSettingsView(); }
 function deleteRegexDetail(idx) { if (!state.settings.regexRules) return; state.settings.regexRules.splice(idx, 1); saveState(); renderSettingsView(); }
@@ -2393,8 +2526,31 @@ function saveEditTitle() {
 }
 function toggleMoreMenu(btn) { document.querySelectorAll('.msg-more-dropdown.show').forEach(el=>el.classList.remove('show')); const dd=btn.parentElement.querySelector('.msg-more-dropdown'); dd.classList.toggle('show'); setTimeout(()=>{document.addEventListener('click',function cl(e){if(!btn.parentElement.contains(e.target)){dd.classList.remove('show');document.removeEventListener('click',cl);}});},0); }
 function openFullscreenInput() { const i=document.getElementById('messageInput'); const fs=document.getElementById('fullscreenInput'); document.getElementById('fullscreenTextarea').value=i.value; fs.classList.add('active'); document.getElementById('fullscreenTextarea').focus(); }
-function closeFullscreenInput() { const i=document.getElementById('messageInput'); i.value=document.getElementById('fullscreenTextarea').value; document.getElementById('fullscreenInput').classList.remove('active'); autoResize(i); updateSendButton(); }
+function closeFullscreenInput() { const i=document.getElementById('messageInput'); i.value=document.getElementById('fullscreenTextarea').value; document.getElementById('fullscreenInput').classList.remove('active'); autoResize(i); updateSendButton(); const sendBtn=document.getElementById('fullscreenSend'); if (sendBtn) { sendBtn.textContent='发送'; sendBtn.onclick=sendFromFullscreen; } }
 function sendFromFullscreen() { document.getElementById('messageInput').value=document.getElementById('fullscreenTextarea').value; document.getElementById('fullscreenInput').classList.remove('active'); sendMessage(); }
+function openFullscreenPrompt() {
+    const fs = document.getElementById('fullscreenInput');
+    const ta = document.getElementById('fullscreenTextarea');
+    const sp = document.getElementById('settingsSystemPrompt');
+    if (!fs || !ta || !sp) return;
+    ta.value = sp.value;
+    fs.classList.add('active');
+    ta.focus();
+    // 覆盖发送按钮为保存
+    const sendBtn = document.getElementById('fullscreenSend');
+    if (sendBtn) {
+        sendBtn.textContent = '保存';
+        sendBtn.onclick = function() {
+            sp.value = ta.value;
+            state.settings.systemPrompt = ta.value;
+            saveState();
+            fs.classList.remove('active');
+            sendBtn.textContent = '发送';
+            sendBtn.onclick = sendFromFullscreen;
+            renderSettingsView();
+        };
+    }
+}
 
 function autoResize(ta) { if(!ta)return; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,120)+'px'; }
 function updateSendButton() {
