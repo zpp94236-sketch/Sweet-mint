@@ -2056,25 +2056,37 @@ body.has-sidebar-image[data-glass="on"] .sidebar {
     box-shadow: 0 6px 26px rgba(110,140,125,0.18), inset 0 1px 0 rgba(255,255,255,0.65);
 }
 [data-theme="dark"][data-glass="on"] .input-pill-row { background: rgba(45,63,56,0.42) !important; border-color: rgba(255,255,255,0.1); }
+/* 玻璃拟态：pill-bar 本身保持透明不加背景，每个 pill 独立磨砂 */
 [data-glass="on"] .input-pill-bar {
-    background: rgba(255,255,255,0.5);
-    backdrop-filter: blur(16px) saturate(140%);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    border-radius: 999px;
-    padding: 4px 8px;
-    border: 1px solid rgba(255,255,255,0.5);
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    padding: 2px 0 10px;
+    border: none;
 }
 [data-theme="dark"][data-glass="on"] .input-pill-bar {
-    background: rgba(45,63,56,0.4);
-    border-color: rgba(255,255,255,0.1);
+    background: transparent;
+    border: none;
 }
 [data-glass="on"] .input-pill {
-    background: rgba(255,255,255,0.4);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0.45);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid rgba(255,255,255,0.5);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+[data-glass="on"] .input-pill:active {
+    background: rgba(255,255,255,0.6);
 }
 [data-theme="dark"][data-glass="on"] .input-pill {
     background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-color: rgba(255,255,255,0.15);
+}
+[data-theme="dark"][data-glass="on"] .input-pill:active {
+    background: rgba(255,255,255,0.2);
 }
 
 /* 输入框模糊（外观设置联动） */
