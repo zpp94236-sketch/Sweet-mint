@@ -534,7 +534,7 @@ body {
 .home-settings-btn i, .home-settings-btn svg { width: 22px !important; height: 22px !important; color: var(--text) !important; }
 .home-page:not(.no-bg) .home-settings-btn i, .home-page:not(.no-bg) .home-settings-btn svg { color: #fff !important; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35)); }
 
-.home-content { position: relative; z-index: 1; flex: 1; overflow-y: auto; padding: 12px 16px 28px; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 44px); gap: 0; }
+.home-content { position: relative; z-index: 1; flex: 1; overflow-y: auto; padding: 8px 16px 28px; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 28px); gap: 0; }
 
 .glass-card {
     background: rgba(255,255,255,0.55);
@@ -544,7 +544,7 @@ body {
     box-shadow: 0 6px 22px rgba(120,150,135,0.14);
 }
 
-.home-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.home-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
 
 .cal-card { padding: 12px 12px 14px; }
 .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -1428,7 +1428,7 @@ body {
 
 /* ===== 底部留白：避免内容被 Tab 栏遮挡 ===== */
 .messages { padding-bottom: 28px; }
-.home-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 44px); }
+.home-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 28px); }
 #bedroomOverlay.has-tabbar .stats-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 30px); }
 #bedroomOverlay.has-tabbar .stats-header { display: none; }
 #bedroomOverlay.has-tabbar .stats-content { padding-top: 12px; }
@@ -1737,8 +1737,10 @@ body.has-bubble-image .message-bubble { background-image: linear-gradient(rgba(2
 body.has-general-bg .app::before { content: ''; position: fixed; inset: 0; z-index: 0; background: var(--general-bg) center/cover no-repeat; opacity: var(--general-bg-opacity, 1); pointer-events: none; }
 .home-page.general-bg-page { background: transparent !important; }
 .home-page.general-bg-page::before { background-image: var(--general-bg) !important; opacity: var(--general-bg-opacity, 1) !important; }
-#bedroomOverlay.general-bg-room { background: transparent !important; }
+#bedroomOverlay.general-bg-room { background: rgba(255,255,255,0.15) !important; backdrop-filter: blur(0.5px); -webkit-backdrop-filter: blur(0.5px); }
 #bedroomOverlay.general-bg-room .stats-panel { background: transparent !important; }
+#bedroomOverlay.general-bg-room .stats-content { position: relative; z-index: 1; }
+[data-theme="dark"] #bedroomOverlay.general-bg-room { background: rgba(0,0,0,0.25) !important; }
 body.has-general-bg .chat-main {
     background-color: transparent !important;
 }
