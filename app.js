@@ -2261,10 +2261,8 @@ function renderThemeSwatches() {
     return THEME_PRESETS.map(p => {
         const active = cur.toLowerCase() === p.seed.toLowerCase();
         return '<div class="theme-color-item' + (active ? ' active' : '') + '" onclick="setThemeSeed(\'' + p.seed + '\')">' +
-            '<div class="theme-color-dot" style="background:' + p.seed + '"></div>' +
+            '<div class="theme-color-dot" style="background:' + p.seed + '">' + (active ? '<span class="theme-color-check">✓</span>' : '') + '</div>' +
             '<span class="theme-color-name">' + p.name + '</span>' +
-            '<span class="theme-color-hex">' + p.seed + '</span>' +
-            (active ? '<span class="theme-color-check">✓</span>' : '') +
         '</div>';
     }).join('');
 }
@@ -2559,8 +2557,7 @@ const THEME_PRESETS = [
     { id: 'mint',    name: '汀草雾', seed: '#B5C9B5' },
     { id: 'blue',    name: '晴川霭', seed: '#C5D5DE' },
     { id: 'purple',  name: '晚云堇', seed: '#C3B1C8' },
-    { id: 'rose',    name: '绯云汐', seed: '#E8C4C4' },
-    { id: 'apricot', name: '晴檐杏', seed: '#FEE8C1' }
+    { id: 'rose',    name: '绯云汐', seed: '#E8C4C4' }
 ];
 
 function deriveTheme(seedHex) {
