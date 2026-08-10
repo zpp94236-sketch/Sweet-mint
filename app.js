@@ -525,7 +525,7 @@ function jumpToStarred(chatId, idx) {
     }, 300);
 }
 
-function showToast(text) {
+function showToast(text, anchor) {
     let el = document.getElementById('appToast');
     if (!el) {
         el = document.createElement('div');
@@ -534,6 +534,23 @@ function showToast(text) {
         document.body.appendChild(el);
     }
     el.textContent = text;
+    el.classList.remove('show');
+    if (anchor && anchor.getBoundingClientRect) {
+        const r = anchor.getBoundingClientRect();
+        const w = el.offsetWidth || 100;
+        let left = r.left + r.width / 2 - w / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+        el.style.left = left + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = (window.innerHeight - r.bottom + 10) + 'px';
+        el.style.transform = 'translateY(0)';
+    } else {
+        el.style.left = '50%';
+        el.style.right = 'auto';
+        el.style.bottom = '90px';
+        el.style.transform = 'translateX(-50%) translateY(10px)';
+    }
+    void el.offsetWidth;
     el.classList.add('show');
     clearTimeout(el._timer);
     el._timer = setTimeout(() => el.classList.remove('show'), 1800);
@@ -2069,7 +2086,7 @@ function renderMcpSheetBasic(s) {
         '<button class="mcp-sheet-add-header" onclick="addMcpHeader(\'' + s.id + '\')"><i data-lucide="plus"></i> 添加请求头</button>' +
     '</div>' +
     '<div class="mcp-sheet-actions">' +
-        '<button class="btn-primary mcp-sheet-test" onclick="testMcpServerSheet(\'' + s.id + '\')"><i data-lucide="wifi" style="width:14px;height:14px;margin-right:6px;"></i>测试连接</button>' +
+        '<button class="btn-primary mcp-sheet-test" id="mcpSheetTestBtn" onclick="testMcpServerSheet(\'' + s.id + '\')"><i data-lucide="wifi" style="width:14px;height:14px;margin-right:6px;"></i>测试连接</button>' +
         '<div class="mcp-sheet-test-result" id="mcpSheetResult"></div>' +
     '</div>' +
     '<button class="mcp-sheet-delete" onclick="deleteMcpServerSheet(\'' + s.id + '\')"><i data-lucide="trash-2" style="width:14px;height:14px;margin-right:6px;"></i>删除服务器</button>';
@@ -2094,8 +2111,9 @@ async function testMcpServerSheet(id) {
     const s = (state.settings.mcpServers || []).find(x => x.id === id);
     if (!s || !s.url) { showToast('请先填写 URL'); return; }
     const el = document.getElementById('mcpSheetResult');
+    const btn = document.getElementById('mcpSheetTestBtn');
     if (el) el.innerHTML = '<span style="color:var(--text-light);">连接中...</span>';
-    showToast('正在测试连接...');
+    showToast('正在测试连接...', btn);
     try {
         const result = await McpClient.testConnection(s);
         s.status = 'connected';
@@ -2105,7 +2123,7 @@ async function testMcpServerSheet(id) {
         registerMcpTools(s);
         saveState();
         if (el) el.innerHTML = '<span style="color:#27ae60;">✅ 连接成功 · ' + result.toolCount + ' 工具 · ' + result.elapsed + 'ms</span>';
-        showToast('连接成功 · ' + result.toolCount + ' 个工具');
+        showToast('连接成功 · ' + result.toolCount + ' 个工具', btn);
         renderMcpSheet();
     } catch (e) {
         s.status = 'error';
@@ -2114,7 +2132,7 @@ async function testMcpServerSheet(id) {
         s.toolCount = 0;
         saveState();
         if (el) el.innerHTML = '<span style="color:#e74c3c;">❌ ' + escapeHtml(e.message).slice(0, 80) + '</span>';
-        showToast('连接失败');
+        showToast('连接失败', btn);
     }
 }
 

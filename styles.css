@@ -259,6 +259,11 @@ body {
 .settings-save-btn:active {
     background: var(--primary-light);
 }
+.settings-header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
 .settings-refresh-btn {
     color: var(--primary-dark) !important;
 }
