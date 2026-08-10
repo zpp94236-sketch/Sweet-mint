@@ -1080,20 +1080,6 @@ function bindSettingsContentEvents() {
         const srv = (state.settings.mcpServers || []).find(s => s.id === t.dataset.mcp);
         if (srv) { srv.enabled = t.checked; saveState(); }
     }));
-    document.querySelectorAll('.general-bg-page-check').forEach(c => c.addEventListener('change', () => {
-        if (!state.settings.generalBgPages) state.settings.generalBgPages = [];
-        const arr = state.settings.generalBgPages;
-        const v = c.value;
-        if (c.checked && arr.indexOf(v) < 0) arr.push(v);
-        if (!c.checked && arr.indexOf(v) >= 0) arr.splice(arr.indexOf(v), 1);
-        saveState();
-        applyGeneralBg();
-    }));
-    const selAll = document.querySelector('.general-bg-select-all');
-    if (selAll) selAll.addEventListener('change', () => {
-        const checks = document.querySelectorAll('.general-bg-page-check');
-        checks.forEach(c => { c.checked = selAll.checked; c.dispatchEvent(new Event('change')); });
-    });
     document.querySelectorAll('.segmented-btn[data-chat-font]').forEach(b => b.addEventListener('click', () => {
         state.settings.chatFont = b.dataset.chatFont;
         saveState();
@@ -1249,38 +1235,14 @@ function renderDisplaySettingsPage() {
 
 // 外观设置
 function renderAppearancePage() {
-    const pages = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
-    const allPages = [
-        ['living', '客厅'], ['study', '书房'], ['bedroom', '卧室'],
-        ['garden', '花园'], ['kitchen', '厨房']
-    ];
-    const allChecked = allPages.every(([v]) => pages.indexOf(v) >= 0);
-    const bgCollapsed = state.settings.bgPagesCollapsed !== false;
-
-    const pagesGrid = allPages.map(([v, name]) =>
-        '<label class="appearance-page-chip"><input type="checkbox" class="general-bg-page-check" value="' + v + '"' + (pages.indexOf(v) >= 0 ? ' checked' : '') + '><span>' + name + '</span><span class="appearance-page-chip-check">✓</span></label>'
-    ).join('');
-
-    const pagesSection = '<div class="appearance-collapse-card' + (bgCollapsed ? ' collapsed' : '') + '" id="bgPagesCard">' +
-        '<div class="appearance-collapse-head" onclick="toggleBgPagesCard()">' +
-            '<span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--primary-dark);">✨ 应用此背景的页面</span>' +
-            '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--primary-dark);cursor:pointer;" onclick="event.stopPropagation()"><span>全选</span><input type="checkbox" class="general-bg-select-all"' + (allChecked ? ' checked' : '') + ' style="accent-color:var(--primary);"></label>' +
-                '<i data-lucide="chevron-down" class="appearance-collapse-chevron"></i>' +
-            '</div>' +
-        '</div>' +
-        '<div class="appearance-collapse-body"><div class="appearance-pages-grid">' + pagesGrid + '</div></div>' +
-    '</div>';
-
-    return settingsGroup('🎨 主题色', [
-        '<div class="theme-swatch-grid" style="border-bottom:none;">' + renderThemeSwatches() + '</div>'
+    return settingsGroup('主题色', [
+        '<div class="theme-color-list">' + renderThemeSwatches() + '</div>'
     ]) +
-    settingsGroup('🖼️ 壁纸与插图', [
+    settingsGroup('插图素材', [
         appearanceImageRow('wallpaper', '聊天壁纸插图', '背景图片仅在聊天页面显示'),
         appearanceImageRow('sidebarImage', '侧边栏插图', '侧边栏背景装饰图'),
         appearanceImageRow('inputImage', '输入栏插图', '输入区域背景图案'),
-        appearanceImageRow('generalBg', '通用背景插图', '应用整体背景图片'),
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;padding-top:4px;">' + pagesSection + '</div>'
+        appearanceImageRow('generalBg', '通用背景插图', '应用于客厅、书房、卧室、花园、厨房')
     ]);
 }
 
@@ -1296,21 +1258,6 @@ function appearanceImageRow(key, title, desc) {
     '</div>';
 }
 
-function toggleBgPagesCard() {
-    state.settings.bgPagesCollapsed = !state.settings.bgPagesCollapsed;
-    saveState();
-    const card = document.getElementById('bgPagesCard');
-    if (card) card.classList.toggle('collapsed');
-}
-function generalBgPagesRow() {
-    const cur = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
-    const opts = [['living', '客厅'], ['study', '书房'], ['bedroom', '卧室'], ['garden', '花园'], ['kitchen', '厨房']];
-    return settingsGroup('使用此背景的页面', [
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;"><div class="general-bg-checks">' +
-        opts.map(([v, l]) => '<label class="general-bg-check"><input type="checkbox" class="general-bg-page-check" value="' + v + '"' + (cur.indexOf(v) >= 0 ? ' checked' : '') + '><span>' + l + '</span></label>').join('') +
-        '</div></div>'
-    ]);
-}
 function imageSettingRow(key, label) {
     const value = state.settings[key];
     const meta = state.settings[key + 'Name'] || (value ? '已设置（本地图片）' : '未设置');
@@ -2310,15 +2257,14 @@ function rangeDisplayText(key, val) {
     return String(Math.round(val));
 }
 function renderThemeSwatches() {
-    const cur = state.settings.themeSeed || '#7BAF9E';
+    const cur = state.settings.themeSeed || '#F5F2ED';
     return THEME_PRESETS.map(p => {
-        const t = deriveTheme(p.seed);
         const active = cur.toLowerCase() === p.seed.toLowerCase();
-        return '<div class="theme-swatch' + (active ? ' active' : '') + '" onclick="setThemeSeed(\'' + p.seed + '\')">' +
-            '<div class="theme-swatch-ring" style="background:' + t.primaryLight + '">' +
-                '<div class="theme-swatch-dot" style="background:' + t.primaryDark + '">' + (active ? '✓' : '') + '</div>' +
-            '</div>' +
-            '<span class="theme-swatch-name" style="color:' + t.primaryDark + '">' + p.name + '</span>' +
+        return '<div class="theme-color-item' + (active ? ' active' : '') + '" onclick="setThemeSeed(\'' + p.seed + '\')">' +
+            '<div class="theme-color-dot" style="background:' + p.seed + '"></div>' +
+            '<span class="theme-color-name">' + p.name + '</span>' +
+            '<span class="theme-color-hex">' + p.seed + '</span>' +
+            (active ? '<span class="theme-color-check">✓</span>' : '') +
         '</div>';
     }).join('');
 }
@@ -2344,7 +2290,7 @@ function applyCustomImages() {
 function applyGeneralBg() {
     const root = document.documentElement.style;
     const bg = state.settings.generalBg;
-    const pages = state.settings.generalBgPages;
+    const pages = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
     const home = document.getElementById('homePage');
     const ov = document.getElementById('bedroomOverlay');
     if (bg && pages && pages.length) {
@@ -2609,14 +2555,12 @@ function applyCustomColors() {
 
 // ===== 主题色系统（HSL 推导，近似 HCT）=====
 const THEME_PRESETS = [
-    { id: 'mint',    name: '薄荷绿', seed: '#7BAF9E' },
-    { id: 'sakura',  name: '樱花粉', seed: '#D98A9A' },
-    { id: 'bay',     name: '海湾蓝', seed: '#5B8FB9' },
-    { id: 'pearl',   name: '珍珠潮汐', seed: '#7A93A8' },
-    { id: 'field',   name: '原野绿', seed: '#7A9B5B' },
-    { id: 'autumn',  name: '秋黄',   seed: '#C9A25B' },
-    { id: 'lilac',   name: '薰衣草', seed: '#9B8AC4' },
-    { id: 'clay',    name: '陶土橘', seed: '#C98B6B' }
+    { id: 'ivory',   name: '月凝脂', seed: '#F5F2ED' },
+    { id: 'mint',    name: '汀草雾', seed: '#B5C9B5' },
+    { id: 'blue',    name: '晴川霭', seed: '#C5D5DE' },
+    { id: 'purple',  name: '晚云堇', seed: '#C3B1C8' },
+    { id: 'rose',    name: '绯云汐', seed: '#E8C4C4' },
+    { id: 'apricot', name: '晴檐杏', seed: '#FEE8C1' }
 ];
 
 function deriveTheme(seedHex) {
@@ -2635,7 +2579,7 @@ function deriveTheme(seedHex) {
 }
 
 function applyThemeColor() {
-    const seed = state.settings.themeSeed || '#7BAF9E';
+    const seed = state.settings.themeSeed || '#F5F2ED';
     const t = deriveTheme(seed);
     const hsl = hexToHsl(seed);
     const r = document.documentElement.style;

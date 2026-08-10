@@ -961,15 +961,6 @@ body {
 .settings-input-inline { width: 130px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-white); font-size: 12px; color: var(--text); outline: none; font-family: inherit; }
 .settings-input-inline:focus { border-color: var(--primary); }
 
-/* ===== 主题色选择 ===== */
-.theme-swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 16px 14px; border-bottom: 1px solid rgba(184,201,193,0.25); }
-.theme-swatch { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
-.theme-swatch-ring { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all var(--transition); }
-.theme-swatch-dot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; transition: all var(--transition); }
-.theme-swatch.active .theme-swatch-ring { transform: scale(1.08); box-shadow: 0 0 0 2px rgba(0,0,0,0.06); }
-.theme-swatch.active .theme-swatch-dot { width: 26px; height: 26px; }
-.theme-swatch-name { font-size: 10px; font-weight: 600; }
-
 /* ===== 聊天页贯通背景 ===== */
 .chat-main { background: transparent; }
 .chat-main.has-wallpaper {
@@ -2225,131 +2216,6 @@ body.has-input-image[data-glass="on"] .input-pill-row {
     .input-pill-send { width: 34px; height: 34px; }
 }
 
-/* 外观设置 - 页面选择网格 */
-.appearance-pages-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-}
-.appearance-page-chip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1.5px solid var(--border);
-    background: var(--bg-white);
-    font-size: 13px;
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-}
-.appearance-page-chip input { display: none; }
-.appearance-page-chip-icon { font-size: 15px; }
-.appearance-page-chip-check {
-    margin-left: auto;
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    background: var(--border);
-    color: white;
-    font-size: 11px;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.2s;
-}
-.appearance-page-chip:has(input:checked) {
-    border-color: var(--primary);
-    background: var(--primary-lighter);
-}
-.appearance-page-chip:has(input:checked) .appearance-page-chip-check {
-    background: var(--primary);
-}
-@media (max-width: 360px) {
-    .appearance-pages-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-/* 外观设置 - 可折叠卡片 */
-.appearance-collapse-card {
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    background: var(--bg-white);
-}
-.appearance-collapse-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 14px;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-.appearance-collapse-chevron {
-    width: 16px; height: 16px;
-    color: var(--text-light);
-    transition: transform 0.2s ease;
-}
-.appearance-collapse-card.collapsed .appearance-collapse-chevron {
-    transform: rotate(-90deg);
-}
-.appearance-collapse-body {
-    padding: 0 14px 14px;
-    transition: all 0.2s ease;
-}
-.appearance-collapse-card.collapsed .appearance-collapse-body {
-    display: none;
-}
-
-/* 外观设置 - 页面选择网格 */
-.appearance-pages-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-}
-.appearance-page-chip {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px 8px;
-    border-radius: 12px;
-    border: 1.5px solid var(--border);
-    background: var(--bg-white);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.appearance-page-chip input { display: none; }
-.appearance-page-chip-check {
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    background: var(--border);
-    color: white;
-    font-size: 10px;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.2s;
-    flex-shrink: 0;
-}
-.appearance-page-chip:has(input:checked) {
-    border-color: var(--primary);
-    background: var(--primary-lighter);
-}
-.appearance-page-chip:has(input:checked) .appearance-page-chip-check {
-    background: var(--primary);
-}
-[data-theme="dark"] .appearance-collapse-card {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-}
-[data-theme="dark"] .appearance-page-chip {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-}
-@media (max-width: 340px) {
-    .appearance-pages-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
 /* ===== 正则表达式页面 ===== */
 .regex-tabs {
     display: flex;
@@ -2771,3 +2637,62 @@ body.has-input-image[data-glass="on"] .input-pill-row {
 [data-theme="dark"] .mcp-sheet-tool {
     background: rgba(255,255,255,0.06);
 }
+
+/* ===== 主题色：一列布局 ===== */
+.theme-color-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0;
+}
+.theme-color-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+.theme-color-item:hover { background: var(--primary-lighter); }
+.theme-color-item:active { transform: scale(0.985); }
+.theme-color-item.active {
+    background: var(--primary-lighter);
+    box-shadow: inset 0 0 0 1.5px var(--primary);
+}
+.theme-color-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(0,0,0,0.08);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.theme-color-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+.theme-color-hex {
+    font-size: 11px;
+    color: var(--text-light);
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+.theme-color-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .theme-color-item:hover { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] .theme-color-item.active { background: rgba(255,255,255,0.08); }
+[data-theme="dark"] .theme-color-dot { border-color: rgba(255,255,255,0.15); }
