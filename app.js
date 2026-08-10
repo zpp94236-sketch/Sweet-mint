@@ -2007,6 +2007,11 @@ function openMcpSheet(id) {
     if (backdrop) backdrop.classList.add('active');
 }
 
+function switchMcpSheetTab(tab) {
+    mcpSheetTab = tab;
+    renderMcpSheet();
+}
+
 function renderMcpSheet() {
     const s = (state.settings.mcpServers || []).find(x => x.id === mcpEditingId);
     if (!s) return;
@@ -2018,8 +2023,8 @@ function renderMcpSheet() {
     if (!content) return;
 
     const tabs = '<div class="mcp-sheet-tabs">' +
-        '<button class="mcp-sheet-tab' + (mcpSheetTab === 'basic' ? ' active' : '') + '" onclick="mcpSheetTab=\'basic\';renderMcpSheet()">基础设置</button>' +
-        '<button class="mcp-sheet-tab' + (mcpSheetTab === 'tools' ? ' active' : '') + '" onclick="mcpSheetTab=\'tools\';renderMcpSheet()">工具</button>' +
+        '<button class="mcp-sheet-tab' + (mcpSheetTab === 'basic' ? ' active' : '') + '" onclick="switchMcpSheetTab(\'basic\')">基础设置</button>' +
+        '<button class="mcp-sheet-tab' + (mcpSheetTab === 'tools' ? ' active' : '') + '" onclick="switchMcpSheetTab(\'tools\')">工具</button>' +
     '</div>';
 
     let body = '';
