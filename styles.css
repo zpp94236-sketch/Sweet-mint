@@ -2459,3 +2459,176 @@ body.has-input-image[data-glass="on"] .input-pill-row {
     vertical-align: middle;
     border-radius: 8px;
 }
+
+/* ===== MCP 服务页面 ===== */
+.mcp-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    text-align: center;
+}
+.mcp-stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    line-height: 1.2;
+}
+.mcp-stat-label {
+    font-size: 10px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+.mcp-server-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.mcp-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+}
+.mcp-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.mcp-card-body {
+    padding: 0 14px 14px;
+    border-top: 1px solid rgba(184,201,193,0.25);
+}
+.mcp-card-body .form-group { margin-top: 12px; }
+.mcp-card-body .form-group:first-child { margin-top: 14px; }
+
+.mcp-tool-list {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+}
+.mcp-tool-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(184,201,193,0.15);
+    font-size: 12px;
+}
+.mcp-tool-item:last-child { border-bottom: none; }
+.mcp-tool-name {
+    font-weight: 600;
+    color: var(--text);
+    font-family: monospace;
+}
+.mcp-tool-desc {
+    color: var(--text-light);
+    font-size: 11px;
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mcp-test-result {
+    margin-top: 8px;
+}
+
+[data-theme="dark"] .mcp-card {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+}
+[data-theme="dark"] .mcp-tool-list {
+    border-color: rgba(255,255,255,0.1);
+}
+
+/* MCP 请求头 */
+.mcp-headers-section {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.mcp-headers-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    -webkit-tap-highlight-color: transparent;
+}
+.mcp-headers-chevron {
+    width: 16px; height: 16px;
+    color: var(--text-light);
+    transition: transform 0.2s;
+}
+.mcp-headers-body {
+    padding: 0 14px 14px;
+    border-top: 1px solid rgba(184,201,193,0.25);
+}
+.mcp-headers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+.mcp-header-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mcp-header-key {
+    flex: 2;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--primary-lighter);
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+}
+.mcp-header-val {
+    flex: 3;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--primary-lighter);
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+}
+.mcp-header-key:focus, .mcp-header-val:focus {
+    border-color: var(--primary);
+}
+.mcp-header-del {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.mcp-header-del:hover { color: #e74c3c; }
+.mcp-header-del i, .mcp-header-del svg { width: 14px !important; height: 14px !important; }
+
+[data-theme="dark"] .mcp-headers-section {
+    border-color: rgba(255,255,255,0.1);
+}
+[data-theme="dark"] .mcp-header-key,
+[data-theme="dark"] .mcp-header-val {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.1);
+}

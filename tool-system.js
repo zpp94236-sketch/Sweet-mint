@@ -37,7 +37,13 @@ const ToolSystem = (() => {
       write_diary: '📔 写日记',
       read_diary: '📔 读日记'
     };
-    return map[name] || '🔧 ' + name;
+    if (map[name]) return map[name];
+    // MCP 工具：去掉前缀显示
+    if (name.startsWith('mcp_')) {
+        const parts = name.split('_');
+        return '⚡ ' + parts.slice(2).join('_');
+    }
+    return '🔧 ' + name;
   }
 
   return { register, getSchemas, execute, displayName };
