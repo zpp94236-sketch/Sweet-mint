@@ -170,6 +170,20 @@ function loadState() {
         if (!state.settings.mcpServers) state.settings.mcpServers = [];
         if (!state.settings.searchProvider) state.settings.searchProvider = 'tavily';
     }
+    // 迁移旧正则规则：字符串数组 → 对象数组
+    if (state.settings.regexRules && state.settings.regexRules.length && typeof state.settings.regexRules[0] === 'string') {
+        state.settings.regexRules = state.settings.regexRules.map((rule, i) => ({
+            id: 'r_' + Date.now().toString(36) + '_' + i,
+            name: '规则 ' + (i + 1),
+            find: rule,
+            replace: '',
+            scope: 'assistant',
+            visualOnly: true,
+            enabled: true
+        }));
+        saveState();
+    }
+    if (!state.settings.regexRules) state.settings.regexRules = [];
     ensureMemorySystem();
 }
 
@@ -291,7 +305,8 @@ function renderSingleMessage(msg, idx) {
     const time = msg.timestamp ? formatHM(msg.timestamp) : '';
     let mainContent = msg.content || '';
     if (!isUser) mainContent = extractThinking(msg.content).main;
-    const rendered = isUser ? escapeHtml(mainContent).replace(/\n/g, '<br>') : renderMarkdown(mainContent);
+    let rendered = isUser ? escapeHtml(mainContent).replace(/\n/g, '<br>') : renderMarkdown(mainContent);
+    rendered = applyRegexRules(rendered, isUser ? 'user' : 'assistant');
     const userAvatarHtml = state.settings.userAvatar ? '<img src="' + state.settings.userAvatar + '">' : '🌙';
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
     const nameText = isUser ? (state.settings.userName || '我') : (state.settings.aiName || '晏晏');
@@ -1441,36 +1456,104 @@ function renderMemorySettingsPage() {
 }
 
 // ===== 正则表达式 =====
+let regexTab = 'rules'; // 'rules' | 'stickers'
+
 function renderRegexSettingsPage() {
     const rules = state.settings.regexRules || [];
+    const stickerRules = rules.filter(r => r.find && r.find.indexOf('sticker:') >= 0);
+    const otherRules = rules.filter(r => !r.find || r.find.indexOf('sticker:') < 0);
 
+    const tabs = '<div class="regex-tabs">' +
+        '<button class="regex-tab' + (regexTab === 'rules' ? ' active' : '') + '" onclick="switchRegexTab(\'rules\')">规则</button>' +
+        '<button class="regex-tab' + (regexTab === 'stickers' ? ' active' : '') + '" onclick="switchRegexTab(\'stickers\')">表情包</button>' +
+    '</div>';
+
+    if (regexTab === 'stickers') {
+        return tabs + renderStickerTab(stickerRules);
+    }
+    return tabs + renderRulesTab(otherRules);
+}
+
+function switchRegexTab(tab) {
+    regexTab = tab;
+    renderSettingsView();
+}
+
+function renderRulesTab(rules) {
     let listHtml = '';
-    if (rules.length === 0) {
+    if (!rules.length) {
         listHtml = '<div class="bedroom-empty" style="padding:20px 10px;">还没有正则规则</div>';
     } else {
-        listHtml = '<div class="regex-list" id="regexList">' +
-            rules.map((rule, i) =>
-                '<div class="regex-item"><span class="regex-item-text">' + escapeHtml(rule) + '</span><button onclick="deleteRegexDetail(' + i + ')"><i data-lucide="x"></i></button></div>'
-            ).join('') +
-        '</div>';
+        listHtml = rules.map(r => renderRuleCard(r)).join('');
     }
 
-    return settingsGroup('规则列表（' + rules.length + ' 条）', [
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
-            listHtml +
-        '</div>'
-    ]) +
-    settingsGroup('添加规则', [
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
-            '<div class="regex-add-row"><input type="text" id="regexNewInput" placeholder="输入正则表达式..."><button class="btn-secondary" onclick="addRegexDetail()">添加</button></div>' +
-        '</div>'
-    ]) +
-    settingsGroup('批量操作', [
-        '<div class="settings-row settings-row-click" onclick="document.getElementById(\'regexFileInputDetail\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>从文件导入</span><i data-lucide="chevron-right"></i></div>',
-        '<div class="settings-row settings-row-click" onclick="exportRegexRules()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>导出规则</span><i data-lucide="chevron-right"></i></div>',
-        '<div class="settings-row settings-row-click" onclick="clearAllRegex()"><span class="settings-row-label" style="color:#e74c3c;"><i data-lucide="trash-2" class="settings-row-icon" style="color:#e74c3c;"></i>清空所有规则</span></div>'
-    ]) +
-    '<input type="file" id="regexFileInputDetail" accept=".txt,.json" hidden>';
+    return '<div class="regex-rule-list">' + listHtml + '</div>' +
+        '<button class="btn-secondary" style="width:100%;justify-content:center;margin-top:12px;" onclick="addNewRule()"><i data-lucide="plus" style="width:14px;height:14px;margin-right:6px;"></i>添加规则</button>' +
+        settingsGroup('批量操作', [
+            '<div class="settings-row settings-row-click" onclick="document.getElementById(\'regexFileInputDetail\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>从文件导入</span><i data-lucide="chevron-right"></i></div>',
+            '<div class="settings-row settings-row-click" onclick="exportRegexRules()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>导出规则</span><i data-lucide="chevron-right"></i></div>',
+            '<div class="settings-row settings-row-click" onclick="clearAllRegex()"><span class="settings-row-label" style="color:#e74c3c;"><i data-lucide="trash-2" class="settings-row-icon" style="color:#e74c3c;"></i>清空所有规则</span></div>'
+        ]) +
+        '<input type="file" id="regexFileInputDetail" accept=".txt,.json" hidden>';
+}
+
+function renderStickerTab(stickerRules) {
+    let listHtml = '';
+    if (!stickerRules.length) {
+        listHtml = '<div class="bedroom-empty" style="padding:20px 10px;">还没有表情包规则<br>点击下方扫描 Supabase 自动添加</div>';
+    } else {
+        listHtml = stickerRules.map(r => renderStickerCard(r)).join('');
+    }
+
+    return '<div class="regex-rule-list">' + listHtml + '</div>' +
+        '<div class="settings-list-card" style="margin-top:14px;">' +
+            '<div class="settings-row settings-row-click" onclick="scanSupabaseStickers()"><span class="settings-row-label"><i data-lucide="search" class="settings-row-icon"></i>扫描 Supabase Bucket</span><i data-lucide="chevron-right"></i></div>' +
+            '<div class="settings-row settings-row-click" onclick="openStickerBatchInput()"><span class="settings-row-label"><i data-lucide="list" class="settings-row-icon"></i>批量输入</span><i data-lucide="chevron-right"></i></div>' +
+            '<div class="settings-row settings-row-click" onclick="clearAllStickers()"><span class="settings-row-label" style="color:#e74c3c;"><i data-lucide="trash-2" class="settings-row-icon" style="color:#e74c3c;"></i>清空所有表情包</span></div>' +
+        '</div>';
+}
+
+function renderRuleCard(r) {
+    return '<div class="regex-card">' +
+        '<div class="regex-card-head" onclick="toggleRegexCard(\'' + r.id + '\')">' +
+            '<span class="regex-card-name">' + escapeHtml(r.name) + '</span>' +
+            '<div class="regex-card-right">' +
+                '<label class="switch" onclick="event.stopPropagation()"><input type="checkbox"' + (r.enabled ? ' checked' : '') + ' onchange="toggleRegexEnabled(\'' + r.id + '\',this.checked)"><span class="switch-slider"></span></label>' +
+                '<i data-lucide="chevron-down" class="regex-card-chevron"></i>' +
+            '</div>' +
+        '</div>' +
+        '<div class="regex-card-body" id="regexBody_' + r.id + '" style="display:none;">' +
+            '<div class="form-group"><label>名称</label><input type="text" value="' + escapeHtml(r.name) + '" onchange="updateRegexField(\'' + r.id + '\',\'name\',this.value)"></div>' +
+            '<div class="form-group"><label>查找正则表达式</label><input type="text" value="' + escapeHtml(r.find) + '" onchange="updateRegexField(\'' + r.id + '\',\'find\',this.value)"></div>' +
+            '<div class="form-group"><label>替换字符串</label><textarea rows="2" onchange="updateRegexField(\'' + r.id + '\',\'replace\',this.value)">' + escapeHtml(r.replace) + '</textarea></div>' +
+            '<div class="form-group"><label>影响范围</label><div class="segmented-control"><button class="segmented-btn' + (r.scope === 'assistant' ? ' active' : '') + '" onclick="updateRegexField(\'' + r.id + '\',\'scope\',\'assistant\');renderSettingsView()">Assistant</button><button class="segmented-btn' + (r.scope === 'user' ? ' active' : '') + '" onclick="updateRegexField(\'' + r.id + '\',\'scope\',\'user\');renderSettingsView()">User</button><button class="segmented-btn' + (r.scope === 'both' ? ' active' : '') + '" onclick="updateRegexField(\'' + r.id + '\',\'scope\',\'both\');renderSettingsView()">Both</button></div></div>' +
+            '<div class="settings-row" style="padding:8px 0;border-bottom:none;"><span class="settings-row-label">仅视觉（不影响实际消息）</span><label class="switch"><input type="checkbox"' + (r.visualOnly ? ' checked' : '') + ' onchange="updateRegexField(\'' + r.id + '\',\'visualOnly\',this.checked)"><span class="switch-slider"></span></label></div>' +
+            '<button class="btn-danger" style="width:100%;justify-content:center;margin-top:8px;" onclick="deleteRegexRule(\'' + r.id + '\')"><i data-lucide="trash-2" style="width:13px;height:13px;margin-right:6px;"></i>删除</button>' +
+        '</div>' +
+    '</div>';
+}
+
+function renderStickerCard(r) {
+    // 从 replace 里提取图片 URL 来预览
+    const urlMatch = (r.replace || '').match(/\((https?:\/\/[^)]+)\)/) || (r.replace || '').match(/src="(https?:\/\/[^"]+)"/);
+    const imgUrl = urlMatch ? urlMatch[1] : '';
+    const displayName = r.name.replace(/^表情包-/, '');
+
+    return '<div class="regex-card sticker-card">' +
+        '<div class="regex-card-head" onclick="toggleRegexCard(\'' + r.id + '\')">' +
+            (imgUrl ? '<img class="sticker-preview-img" src="' + imgUrl + '">' : '<span class="sticker-preview-placeholder">🖼️</span>') +
+            '<span class="regex-card-name">' + escapeHtml(displayName) + '</span>' +
+            '<div class="regex-card-right">' +
+                '<label class="switch" onclick="event.stopPropagation()"><input type="checkbox"' + (r.enabled ? ' checked' : '') + ' onchange="toggleRegexEnabled(\'' + r.id + '\',this.checked)"><span class="switch-slider"></span></label>' +
+                '<i data-lucide="chevron-down" class="regex-card-chevron"></i>' +
+            '</div>' +
+        '</div>' +
+        '<div class="regex-card-body" id="regexBody_' + r.id + '" style="display:none;">' +
+            '<div class="form-group"><label>表情包名称（修改后影响 [sticker:名称]）</label><input type="text" value="' + escapeHtml(displayName) + '" onchange="renameStickerRule(\'' + r.id + '\',this.value)"></div>' +
+            '<div class="form-group"><label>图片 URL</label><input type="text" value="' + escapeHtml(imgUrl) + '" readonly style="opacity:0.7;"></div>' +
+            '<button class="btn-danger" style="width:100%;justify-content:center;margin-top:8px;" onclick="deleteRegexRule(\'' + r.id + '\')"><i data-lucide="trash-2" style="width:13px;height:13px;margin-right:6px;"></i>删除</button>' +
+        '</div>' +
+    '</div>';
 }
 
 function exportRegexRules() {
@@ -1496,20 +1579,186 @@ function clearAllRegex() {
     renderSettingsView();
     showToast('已清空');
 }
-function addRegexDetail() { const i = document.getElementById('regexNewInput'); const v = i.value.trim(); if (!v) return; if (!state.settings.regexRules) state.settings.regexRules = []; state.settings.regexRules.push(v); saveState(); renderSettingsView(); }
-function deleteRegexDetail(idx) { if (!state.settings.regexRules) return; state.settings.regexRules.splice(idx, 1); saveState(); renderSettingsView(); }
+function toggleRegexCard(id) {
+    const body = document.getElementById('regexBody_' + id);
+    if (body) body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleRegexEnabled(id, checked) {
+    const r = (state.settings.regexRules || []).find(x => x.id === id);
+    if (r) { r.enabled = checked; saveState(); }
+}
+
+function updateRegexField(id, field, value) {
+    const r = (state.settings.regexRules || []).find(x => x.id === id);
+    if (r) { r[field] = value; saveState(); }
+}
+
+function deleteRegexRule(id) {
+    if (!confirm('删除这条规则？')) return;
+    state.settings.regexRules = (state.settings.regexRules || []).filter(x => x.id !== id);
+    saveState();
+    renderSettingsView();
+}
+
+function addNewRule() {
+    if (!state.settings.regexRules) state.settings.regexRules = [];
+    state.settings.regexRules.push({
+        id: 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        name: '新规则',
+        find: '',
+        replace: '',
+        scope: 'assistant',
+        visualOnly: true,
+        enabled: true
+    });
+    saveState();
+    renderSettingsView();
+}
+
+function renameStickerRule(id, newName) {
+    const r = (state.settings.regexRules || []).find(x => x.id === id);
+    if (!r) return;
+    r.name = '表情包-' + newName;
+    r.find = '\\[sticker:' + newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\]';
+    saveState();
+}
+
+function clearAllStickers() {
+    if (!confirm('清空所有表情包规则？')) return;
+    state.settings.regexRules = (state.settings.regexRules || []).filter(r => !r.find || r.find.indexOf('sticker:') < 0);
+    saveState();
+    renderSettingsView();
+    showToast('已清空');
+}
+
+// Supabase bucket 扫描
+async function scanSupabaseStickers() {
+    if (!isSupabaseConfigured()) { alert('请先配置 Supabase'); return; }
+    const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+    const h = getSupabaseHeaders();
+
+    showToast('正在扫描...');
+    try {
+        const res = await fetch(base + '/storage/v1/object/list/stickers', {
+            method: 'POST', headers: h,
+            body: JSON.stringify({ prefix: '', limit: 200, offset: 0, sortBy: { column: 'name', order: 'asc' } })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const files = await res.json();
+
+        if (!files || !files.length) { showToast('bucket 里没有文件'); return; }
+
+        let added = 0;
+        const existing = new Set((state.settings.regexRules || []).map(r => r.find));
+
+        files.forEach(f => {
+            if (!f.name || f.name.startsWith('.')) return;
+            const fileName = f.name; // e.g. "clawd-bixin.gif"
+            const nameNoExt = fileName.replace(/\.[^.]+$/, ''); // "clawd-bixin"
+            const stickerName = nameNoExt; // 直接用文件名当表情包名
+            const findPattern = '\\[sticker:' + stickerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\]';
+
+            if (existing.has(findPattern)) return; // 已存在，跳过
+
+            const imgUrl = base + '/storage/v1/object/public/stickers/' + encodeURIComponent(fileName);
+            state.settings.regexRules.push({
+                id: 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                name: '表情包-' + stickerName,
+                find: findPattern,
+                replace: '<img src="' + imgUrl + '" alt="' + stickerName + '" class="sticker-msg-img">',
+                scope: 'assistant',
+                visualOnly: true,
+                enabled: true
+            });
+            added++;
+        });
+
+        saveState();
+        renderSettingsView();
+        showToast('扫描完成，新增 ' + added + ' 个表情包');
+    } catch (e) {
+        alert('扫描失败：' + e.message);
+    }
+}
+
+function openStickerBatchInput() {
+    const text = prompt('批量输入表情包（每行格式：名称:URL）\n例如：\nclawd-bixin:https://xxx/clawd-bixin.gif\nclawd-hehe:https://xxx/clawd-hehe.gif');
+    if (!text) return;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let added = 0;
+    lines.forEach(line => {
+        const sep = line.indexOf(':http');
+        if (sep < 0) return;
+        const name = line.slice(0, sep).trim();
+        const url = line.slice(sep + 1).trim();
+        if (!name || !url) return;
+        const findPattern = '\\[sticker:' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\]';
+        state.settings.regexRules.push({
+            id: 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            name: '表情包-' + name,
+            find: findPattern,
+            replace: '<img src="' + url + '" alt="' + name + '" class="sticker-msg-img">',
+            scope: 'assistant',
+            visualOnly: true,
+            enabled: true
+        });
+        added++;
+    });
+    saveState();
+    renderSettingsView();
+    showToast('添加了 ' + added + ' 个表情包');
+}
+
 function handleRegexImportDetail(e) {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
     r.onload = ev => {
-        const txt = ev.target.result; let rules = [];
-        try { rules = JSON.parse(txt); if (!Array.isArray(rules)) rules = [rules]; } catch (_) { rules = txt.split('\n').map(l => l.trim()).filter(l => l); }
+        const txt = ev.target.result; let rawRules = [];
+        try { rawRules = JSON.parse(txt); if (!Array.isArray(rawRules)) rawRules = [rawRules]; } catch (_) { rawRules = txt.split('\n').map(l => l.trim()).filter(l => l); }
         if (!state.settings.regexRules) state.settings.regexRules = [];
-        state.settings.regexRules.push(...rules);
+        rawRules.forEach(item => {
+            if (typeof item === 'string') {
+                state.settings.regexRules.push({
+                    id: 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                    name: '导入规则',
+                    find: item,
+                    replace: '',
+                    scope: 'assistant',
+                    visualOnly: true,
+                    enabled: true
+                });
+            } else if (typeof item === 'object' && item.find) {
+                state.settings.regexRules.push({
+                    id: item.id || 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                    name: item.name || '导入规则',
+                    find: item.find,
+                    replace: item.replace || '',
+                    scope: item.scope || 'assistant',
+                    visualOnly: item.visualOnly !== false,
+                    enabled: item.enabled !== false
+                });
+            }
+        });
         saveState(); renderSettingsView();
+        showToast('导入了 ' + rawRules.length + ' 条规则');
     };
     r.readAsText(f);
     e.target.value = '';
+}
+
+function applyRegexRules(html, role) {
+    const rules = state.settings.regexRules || [];
+    rules.forEach(r => {
+        if (!r.enabled || !r.find || !r.replace) return;
+        if (r.scope === 'assistant' && role !== 'assistant') return;
+        if (r.scope === 'user' && role !== 'user') return;
+        try {
+            const regex = new RegExp(r.find, 'g');
+            html = html.replace(regex, r.replace);
+        } catch (e) { /* 无效正则，跳过 */ }
+    });
+    return html;
 }
 
 // ===== 聊天模型 =====
