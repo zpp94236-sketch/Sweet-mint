@@ -457,6 +457,7 @@ function openStarredList() {
         '<div class="star-item" onclick="jumpToStarred(\'' + it.chatId + '\',' + it.idx + ')">' +
             '<div class="star-item-head"><span class="star-item-role">' + (it.msg.role === 'user' ? (state.settings.userName || '我') : (state.settings.aiName || '晏晏')) + '</span><span class="star-item-chat">' + escapeHtml(it.chatTitle) + '</span></div>' +
             '<div class="star-item-text">' + escapeHtml((it.msg.content || '').replace(/\s+/g, ' ').slice(0, 80)) + '</div>' +
+            '<div class="star-item-delete" onclick="event.stopPropagation();removeStarred(\'' + it.chatId + '\',' + it.idx + ')">删除</div>' +
         '</div>'
     ).join('');
     const ov = document.getElementById('bedroomOverlay');
@@ -466,7 +467,25 @@ function openStarredList() {
     if (t) t.textContent = '收藏';
     c.innerHTML = '<div class="star-list">' + html + '</div>';
     ov.classList.add('active');
+    document.querySelectorAll('.star-item').forEach(el => {
+        let startX = 0, currentX = 0, swiped = false;
+        el.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+        el.addEventListener('touchmove', e => {
+            currentX = e.touches[0].clientX - startX;
+            if (currentX < -30 && !swiped) { el.classList.add('swiped'); swiped = true; }
+            if (currentX > 20 && swiped) { el.classList.remove('swiped'); swiped = false; }
+        }, { passive: true });
+    });
     bedroomView = 'starred';
+}
+
+function removeStarred(chatId, idx) {
+    const chat = state.chats.find(c => c.id === chatId);
+    if (chat && chat.messages[idx]) {
+        chat.messages[idx].starred = false;
+        saveState();
+        openStarredList(); // 重新渲染列表
+    }
 }
 
 function jumpToStarred(chatId, idx) {
@@ -885,12 +904,24 @@ function renderSettingsPlaceholder(icon, title) {
 }
 
 function renderDataBackupPage() {
-    return '<div class="settings-list-card">' +
-        '<div class="settings-row settings-row-click" onclick="exportData()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>数据导出</span><i data-lucide="chevron-right"></i></div>' +
-        '<div class="settings-row settings-row-click" onclick="document.getElementById(\'importFileInput\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>数据导入</span><i data-lucide="chevron-right"></i></div>' +
-        '<div class="settings-row settings-row-click" onclick="openCloudSyncSettings()"><span class="settings-row-label"><i data-lucide="cloud" class="settings-row-icon"></i>云端同步</span><i data-lucide="chevron-right"></i></div>' +
-        '<input type="file" id="importFileInput" accept=".json" hidden>' +
-    '</div>';
+    ensureMemorySystem();
+    const s = state.memorySystem.settings;
+    const status = s.supabaseUrl && s.supabaseKey ? (s.lastSyncAt ? '已连接' : '已配置，未同步') : '未配置';
+    return settingsGroup('数据导入导出', [
+        '<div class="settings-row settings-row-click" onclick="exportData()"><span class="settings-row-label"><i data-lucide="download" class="settings-row-icon"></i>数据导出</span><i data-lucide="chevron-right"></i></div>',
+        '<div class="settings-row settings-row-click" onclick="document.getElementById(\'importFileInput\').click()"><span class="settings-row-label"><i data-lucide="upload" class="settings-row-icon"></i>数据导入</span><i data-lucide="chevron-right"></i></div>'
+    ]) +
+    '<input type="file" id="importFileInput" accept=".json" hidden>' +
+    settingsGroup('云端同步', [
+        '<div class="settings-row"><span class="settings-row-label">连接状态</span><span class="settings-row-value" id="cloudStatus">' + status + '</span></div>',
+        '<div class="settings-row"><span class="settings-row-label">上次同步</span><span class="settings-row-value">' + (s.lastSyncAt ? formatMsgTime(s.lastSyncAt) : '从未同步') + '</span></div>',
+        '<div class="settings-row"><span class="settings-row-label">会话ID</span><span class="settings-row-value" style="font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(s.conversationId || '未生成') + '</span></div>'
+    ]) +
+    '<div class="form-group" style="margin-top:14px;"><label>Supabase URL</label><input type="text" id="csUrl" placeholder="https://xxx.supabase.co" value="' + escapeHtml(s.supabaseUrl || '') + '"></div>' +
+    '<div class="form-group"><label>Supabase Anon Key</label><input type="password" id="csKey" placeholder="eyJ..." value="' + escapeHtml(s.supabaseKey || '') + '"></div>' +
+    '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="saveCloudSyncConfig()">保存配置</button>' +
+    '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="testCloudConnection()">测试连接</button>' +
+    '<button class="btn-primary bedroom-save-btn" onclick="pullMemoriesFromCloud()">拉取云端记忆</button>';
 }
 
 function hexToHsl(hex) {
@@ -1895,8 +1926,7 @@ function openStats() {
         { icon: 'bar-chart-3', label: '总对话数', value: fmtNum(state.chats.length) },
         { icon: 'message-circle', label: '总消息数', value: fmtNum(totalMsg) },
         { icon: 'cpu', label: '输入 Token', value: fmtNum(totalIn) },
-        { icon: 'cpu', label: '输出 Token', value: fmtNum(totalOut) },
-        { icon: 'zap', label: '缓存节省 Token', value: fmtNum(totalCached), wide: true }
+        { icon: 'cpu', label: '输出 Token', value: fmtNum(totalOut) }
     ];
     const cardsHtml = '<div class="stats-grid">' + cards.map(c => '<div class="stat-card' + (c.wide ? ' wide' : '') + '"><div class="stat-icon"><i data-lucide="' + c.icon + '"></i></div><div class="stat-value">' + c.value + '</div><div class="stat-label">' + c.label + '</div></div>').join('') + '</div>';
 
@@ -2336,6 +2366,7 @@ function setupEventListeners() {
     on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) closeEditTitle(); });
     const eti = document.getElementById('editTitleInput');
     if (eti) eti.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveEditTitle(); } });
+    setupPillPhotoLongPress();
     if (window.innerWidth <= 768) closeSidebar();
 }
 
