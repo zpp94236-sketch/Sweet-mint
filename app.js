@@ -1206,39 +1206,56 @@ function renderDisplaySettingsPage() {
 function renderAppearancePage() {
     const pages = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
     const allPages = [
-        ['living', '🛋️', '客厅'], ['study', '📖', '书房'], ['bedroom', '🛏️', '卧室'],
-        ['garden', '🌿', '花园'], ['kitchen', '🍳', '厨房']
+        ['living', '客厅'], ['study', '书房'], ['bedroom', '卧室'],
+        ['garden', '花园'], ['kitchen', '厨房']
     ];
     const allChecked = allPages.every(([v]) => pages.indexOf(v) >= 0);
+    const bgCollapsed = state.settings.bgPagesCollapsed !== false;
 
-    const pagesGrid = allPages.map(([v, icon, name]) =>
-        '<label class="appearance-page-chip"><input type="checkbox" class="general-bg-page-check" value="' + v + '"' + (pages.indexOf(v) >= 0 ? ' checked' : '') + '><span class="appearance-page-chip-icon">' + icon + '</span><span>' + name + '</span><span class="appearance-page-chip-check">✓</span></label>'
+    const pagesGrid = allPages.map(([v, name]) =>
+        '<label class="appearance-page-chip"><input type="checkbox" class="general-bg-page-check" value="' + v + '"' + (pages.indexOf(v) >= 0 ? ' checked' : '') + '><span>' + name + '</span><span class="appearance-page-chip-check">✓</span></label>'
     ).join('');
 
-    return settingsGroup('🖼️ 壁纸与插图', [
-        appearanceImageRow('wallpaper', '🏞️', '聊天壁纸插图', '背景图片仅在聊天页面显示'),
-        appearanceImageRow('generalBg', '🌄', '通用背景插图', '应用整体背景图片'),
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;padding-top:14px;">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--primary-dark);">✨ 应用此背景的页面</span><label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--primary-dark);cursor:pointer;"><span>全选</span><input type="checkbox" class="general-bg-select-all"' + (allChecked ? ' checked' : '') + ' style="accent-color:var(--primary);"></label></div>' +
-            '<div class="appearance-pages-grid">' + pagesGrid + '</div>' +
-        '</div>'
-    ]) +
-    settingsGroup('', [
-        appearanceImageRow('sidebarImage', '📱', '侧边栏插图', '侧边栏背景装饰图'),
-    ]) +
-    settingsGroup('🎨 主题色', [
+    const pagesSection = '<div class="appearance-collapse-card' + (bgCollapsed ? ' collapsed' : '') + '" id="bgPagesCard">' +
+        '<div class="appearance-collapse-head" onclick="toggleBgPagesCard()">' +
+            '<span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--primary-dark);">✨ 应用此背景的页面</span>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--primary-dark);cursor:pointer;" onclick="event.stopPropagation()"><span>全选</span><input type="checkbox" class="general-bg-select-all"' + (allChecked ? ' checked' : '') + ' style="accent-color:var(--primary);"></label>' +
+                '<i data-lucide="chevron-down" class="appearance-collapse-chevron"></i>' +
+            '</div>' +
+        '</div>' +
+        '<div class="appearance-collapse-body"><div class="appearance-pages-grid">' + pagesGrid + '</div></div>' +
+    '</div>';
+
+    return settingsGroup('🎨 主题色', [
         '<div class="theme-swatch-grid" style="border-bottom:none;">' + renderThemeSwatches() + '</div>'
+    ]) +
+    settingsGroup('🖼️ 壁纸与插图', [
+        appearanceImageRow('wallpaper', '聊天壁纸插图', '背景图片仅在聊天页面显示'),
+        appearanceImageRow('sidebarImage', '侧边栏插图', '侧边栏背景装饰图'),
+        appearanceImageRow('inputImage', '输入栏插图', '输入区域背景图案'),
+        appearanceImageRow('generalBg', '通用背景插图', '应用整体背景图片'),
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;padding-top:4px;">' + pagesSection + '</div>'
     ]);
 }
 
-function appearanceImageRow(key, icon, title, desc) {
+function appearanceImageRow(key, title, desc) {
     const value = state.settings[key];
     return '<div class="settings-row" style="gap:12px;">' +
-        '<div style="width:40px;height:40px;border-radius:10px;background:var(--primary-lighter);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">' + icon + '</div>' +
         '<div class="settings-entry-info" style="flex:1;"><div class="settings-entry-title">' + title + '</div><div class="settings-entry-sub">' + desc + '</div></div>' +
-        '<label class="wp-btn wp-btn-pick" for="' + key + 'Input" style="display:flex;align-items:center;gap:4px;">选择图片 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i></label>' +
+        '<div class="wp-row-actions">' +
+            (value ? '<button class="wp-btn wp-btn-clear" onclick="clearImageSetting(\'' + key + '\')">清除</button>' : '') +
+            '<label class="wp-btn wp-btn-pick" for="' + key + 'Input" style="display:flex;align-items:center;gap:4px;">选择图片 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i></label>' +
+        '</div>' +
         '<input type="file" id="' + key + 'Input" class="wp-hidden-input" accept="image/*" data-wp-key="' + key + '">' +
     '</div>';
+}
+
+function toggleBgPagesCard() {
+    state.settings.bgPagesCollapsed = !state.settings.bgPagesCollapsed;
+    saveState();
+    const card = document.getElementById('bgPagesCard');
+    if (card) card.classList.toggle('collapsed');
 }
 function generalBgPagesRow() {
     const cur = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
@@ -1773,7 +1790,7 @@ function renderThemeSwatches() {
 // ===== 外观设置应用 =====
 function applyCustomImages() {
     const root = document.documentElement.style;
-    const keys = [['sidebarImage', '--sidebar-image']];
+    const keys = [['sidebarImage', '--sidebar-image'], ['inputImage', '--input-image']];
     keys.forEach(([key, cssVar]) => {
         const cls = 'has-' + key.replace(/([A-Z])/g, '-$1').toLowerCase();
         if (state.settings[key]) {

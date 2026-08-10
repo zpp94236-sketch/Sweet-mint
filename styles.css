@@ -1870,6 +1870,24 @@ body.has-sidebar-image[data-glass="on"] .sidebar {
     background-size: cover !important;
     background-position: center !important;
 }
+body.has-input-image .input-pill-row {
+    background-image: linear-gradient(
+        rgba(255,255,255, calc(1 - var(--input-image-opacity, 1))),
+        rgba(255,255,255, calc(1 - var(--input-image-opacity, 1)))
+    ), var(--input-image);
+    background-size: cover;
+    background-position: center;
+}
+/* 玻璃拟态开启时，输入栏插图不被 background 简写覆盖 */
+[data-glass="on"] body.has-input-image .input-pill-row,
+body.has-input-image[data-glass="on"] .input-pill-row {
+    background-image: linear-gradient(
+        rgba(255,255,255, calc(1 - var(--input-image-opacity, 1))),
+        rgba(255,255,255, calc(1 - var(--input-image-opacity, 1)))
+    ), var(--input-image) !important;
+    background-size: cover !important;
+    background-position: center !important;
+}
 
 /* 客厅首页用通用背景 */
 .home-page.general-bg-page { background: transparent !important; }
@@ -2237,5 +2255,87 @@ body.has-sidebar-image[data-glass="on"] .sidebar {
     background: var(--primary);
 }
 @media (max-width: 360px) {
+    .appearance-pages-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 外观设置 - 可折叠卡片 */
+.appearance-collapse-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--bg-white);
+}
+.appearance-collapse-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.appearance-collapse-chevron {
+    width: 16px; height: 16px;
+    color: var(--text-light);
+    transition: transform 0.2s ease;
+}
+.appearance-collapse-card.collapsed .appearance-collapse-chevron {
+    transform: rotate(-90deg);
+}
+.appearance-collapse-body {
+    padding: 0 14px 14px;
+    transition: all 0.2s ease;
+}
+.appearance-collapse-card.collapsed .appearance-collapse-body {
+    display: none;
+}
+
+/* 外观设置 - 页面选择网格 */
+.appearance-pages-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.appearance-page-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 8px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-white);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.appearance-page-chip input { display: none; }
+.appearance-page-chip-check {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--border);
+    color: white;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.appearance-page-chip:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-lighter);
+}
+.appearance-page-chip:has(input:checked) .appearance-page-chip-check {
+    background: var(--primary);
+}
+[data-theme="dark"] .appearance-collapse-card {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+}
+[data-theme="dark"] .appearance-page-chip {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+}
+@media (max-width: 340px) {
     .appearance-pages-grid { grid-template-columns: repeat(2, 1fr); }
 }
