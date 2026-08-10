@@ -1732,21 +1732,49 @@ body.has-sidebar-image .sidebar {
     background-size: cover !important;
     background-position: center !important;
 }
+/* 玻璃拟态开启时，侧边栏插图不被 background 简写覆盖 */
+[data-glass="on"] body.has-sidebar-image .sidebar,
+body.has-sidebar-image[data-glass="on"] .sidebar {
+    background-image: linear-gradient(
+        rgba(255,255,255, calc(1 - var(--sidebar-image-opacity, 1))),
+        rgba(255,255,255, calc(1 - var(--sidebar-image-opacity, 1)))
+    ), var(--sidebar-image) !important;
+    background-size: cover !important;
+    background-position: center !important;
+}
 body.has-input-image .input-pill-row { background-image: linear-gradient(rgba(255,255,255,calc(1 - var(--input-image-opacity, 1))), rgba(255,255,255,calc(1 - var(--input-image-opacity, 1)))), var(--input-image); background-size: cover; background-position: center; }
 body.has-bubble-image .message-bubble { background-image: linear-gradient(rgba(255,255,255,calc(1 - var(--bubble-image-opacity, 1))), rgba(255,255,255,calc(1 - var(--bubble-image-opacity, 1)))), var(--bubble-image); background-size: cover; background-position: center; }
-body.has-general-bg .app::before { content: ''; position: fixed; inset: 0; z-index: 0; background: var(--general-bg) center/cover no-repeat; opacity: var(--general-bg-opacity, 1); pointer-events: none; }
+
+/* 客厅首页用通用背景 */
 .home-page.general-bg-page { background: transparent !important; }
-.home-page.general-bg-page::before { background-image: var(--general-bg) !important; opacity: var(--general-bg-opacity, 1) !important; }
-#bedroomOverlay.general-bg-room { background: rgba(255,255,255,0.15) !important; backdrop-filter: blur(0.5px); -webkit-backdrop-filter: blur(0.5px); }
-#bedroomOverlay.general-bg-room .stats-panel { background: transparent !important; }
+.home-page.general-bg-page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: var(--general-bg) center/cover no-repeat;
+    opacity: var(--general-bg-opacity, 1);
+}
+
+/* 房间页(bedroomOverlay)用通用背景 */
+#bedroomOverlay.general-bg-room {
+    background: transparent !important;
+}
+#bedroomOverlay.general-bg-room::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: var(--general-bg) center/cover no-repeat;
+    opacity: var(--general-bg-opacity, 1);
+    pointer-events: none;
+}
+#bedroomOverlay.general-bg-room .stats-panel {
+    background: transparent !important;
+    position: relative;
+    z-index: 1;
+}
 #bedroomOverlay.general-bg-room .stats-content { position: relative; z-index: 1; }
-[data-theme="dark"] #bedroomOverlay.general-bg-room { background: rgba(0,0,0,0.25) !important; }
-body.has-general-bg .chat-main {
-    background-color: transparent !important;
-}
-body.has-general-bg .chat-main.default-gingham {
-    background-color: transparent !important;
-}
 
 /* 透明度变量应用 */
 .message-bubble { opacity: var(--bubble-opacity, 1); }

@@ -1514,13 +1514,11 @@ function applyGeneralBg() {
         root.setProperty('--general-bg', 'url(' + bg + ')');
         root.setProperty('--general-bg-opacity', ((state.settings.generalBgOpacity != null ? state.settings.generalBgOpacity : 100) / 100).toFixed(3));
         document.body.setAttribute('data-general-pages', pages.join(' '));
-        document.body.classList.add('has-general-bg');
         if (home) home.classList.toggle('general-bg-page', pages.indexOf('living') >= 0);
         if (ov) ov.classList.toggle('general-bg-room', pages.some(p => p !== 'living'));
     } else {
         root.removeProperty('--general-bg');
         root.removeProperty('--general-bg-opacity');
-        document.body.classList.remove('has-general-bg');
         document.body.removeAttribute('data-general-pages');
         if (home) home.classList.remove('general-bg-page');
         if (ov) ov.classList.remove('general-bg-room');
