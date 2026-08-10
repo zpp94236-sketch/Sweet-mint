@@ -1153,8 +1153,6 @@ function renderAppearancePage() {
     ]) + generalBgPagesRow() +
     settingsGroup('', [
         imageSettingRow('sidebarImage', '侧边栏插图'),
-        imageSettingRow('inputImage', '输入框插图'),
-        imageSettingRow('bubbleImage', '气泡插图')
     ]) +
     settingsGroup('主题色', [
         '<div class="theme-swatch-grid" style="border-bottom:none;">' + renderThemeSwatches() + '</div>'
@@ -1490,17 +1488,18 @@ function renderThemeSwatches() {
 // ===== 外观设置应用 =====
 function applyCustomImages() {
     const root = document.documentElement.style;
-    const keys = [['sidebarImage', '--sidebar-image'], ['inputImage', '--input-image'], ['bubbleImage', '--bubble-image']];
+    const keys = [['sidebarImage', '--sidebar-image']];
     keys.forEach(([key, cssVar]) => {
+        const cls = 'has-' + key.replace(/([A-Z])/g, '-$1').toLowerCase();
         if (state.settings[key]) {
             root.setProperty(cssVar, 'url(' + state.settings[key] + ')');
             const op = state.settings[key + 'Opacity'] != null ? state.settings[key + 'Opacity'] / 100 : 1;
             root.setProperty(cssVar + '-opacity', op.toFixed(3));
-            document.body.classList.add('has-' + key);
+            document.body.classList.add(cls);
         } else {
             root.removeProperty(cssVar);
             root.removeProperty(cssVar + '-opacity');
-            document.body.classList.remove('has-' + key);
+            document.body.classList.remove(cls);
         }
     });
 }
