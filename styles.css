@@ -1839,7 +1839,6 @@ input[type="range"].settings-range::-moz-range-thumb { width: 16px; height: 16px
 
 /* MCP 服务卡片 */
 .mcp-group-title { font-size: 12px; font-weight: 700; color: var(--primary); margin: 20px 4px 8px; }
-.mcp-card { background: var(--bg-white); border-radius: 16px; border: 1px solid var(--border); margin-bottom: 10px; }
 .mcp-icon { width: 34px; height: 34px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; color: var(--primary-dark); flex-shrink: 0; }
 .mcp-icon i { width: 16px; height: 16px; }
 .mcp-icon svg { width: 16px !important; height: 16px !important; }
@@ -2484,26 +2483,6 @@ body.has-input-image[data-glass="on"] .input-pill-row {
     flex-direction: column;
     gap: 10px;
 }
-.mcp-card {
-    background: var(--bg-white);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-}
-.mcp-card-head {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-.mcp-card-body {
-    padding: 0 14px 14px;
-    border-top: 1px solid rgba(184,201,193,0.25);
-}
-.mcp-card-body .form-group { margin-top: 12px; }
-.mcp-card-body .form-group:first-child { margin-top: 14px; }
 
 .mcp-tool-list {
     max-height: 160px;
@@ -2535,100 +2514,249 @@ body.has-input-image[data-glass="on"] .input-pill-row {
     white-space: nowrap;
 }
 
-.mcp-test-result {
-    margin-top: 8px;
-}
-
-[data-theme="dark"] .mcp-card {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-}
 [data-theme="dark"] .mcp-tool-list {
     border-color: rgba(255,255,255,0.1);
 }
 
-/* MCP 请求头 */
-.mcp-headers-section {
-    margin-top: 14px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-}
-.mcp-headers-toggle {
+/* ===== MCP 服务卡片（主页面列表） ===== */
+.mcp-server-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 16px;
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 10px;
     cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
+    transition: all 0.2s;
     -webkit-tap-highlight-color: transparent;
 }
-.mcp-headers-chevron {
-    width: 16px; height: 16px;
-    color: var(--text-light);
-    transition: transform 0.2s;
-}
-.mcp-headers-body {
-    padding: 0 14px 14px;
-    border-top: 1px solid rgba(184,201,193,0.25);
-}
-.mcp-headers-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 10px;
-}
-.mcp-header-row {
+.mcp-server-card:active { transform: scale(0.985); }
+.mcp-server-card-left {
     display: flex;
     align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+.mcp-server-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.mcp-dot-ok { background: #4CAF50; }
+.mcp-dot-err { background: #e74c3c; }
+.mcp-dot-off { background: var(--border); }
+.mcp-server-card-info { min-width: 0; }
+.mcp-server-card-name {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mcp-server-card-sub {
+    font-size: 11.5px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+/* ===== MCP 半屏抽屉内部 ===== */
+.mcp-sheet-tabs {
+    display: flex;
+    border-bottom: 1.5px solid var(--border);
+    margin: -2px -2px 16px;
+}
+.mcp-sheet-tab {
+    flex: 1;
+    padding: 10px 0;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-light);
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    font-family: inherit;
+    transition: color 0.2s;
+}
+.mcp-sheet-tab.active {
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+.mcp-sheet-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 20%;
+    right: 20%;
+    bottom: -1.5px;
+    height: 2.5px;
+    border-radius: 2px;
+    background: var(--primary);
+}
+
+.mcp-sheet-section {
+    margin-bottom: 18px;
+}
+.mcp-sheet-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 8px;
+}
+.mcp-sheet-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--primary-lighter);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.mcp-sheet-input:focus { border-color: var(--primary); }
+
+/* 请求头 */
+.mcp-sheet-header-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.mcp-sheet-header-count {
+    font-size: 11px;
+    color: var(--text-light);
+    background: var(--primary-lighter);
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.mcp-sheet-headers {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.mcp-sheet-header-item {
+    display: flex;
+    flex-direction: column;
     gap: 6px;
+    padding: 12px;
+    background: rgba(0,0,0,0.02);
+    border-radius: 12px;
+    position: relative;
 }
-.mcp-header-key {
-    flex: 2;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 13px;
-    background: var(--primary-lighter);
-    color: var(--text);
-    outline: none;
-    font-family: inherit;
+.mcp-sheet-header-item .mcp-sheet-input {
+    background: var(--bg-white);
 }
-.mcp-header-val {
-    flex: 3;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 13px;
-    background: var(--primary-lighter);
-    color: var(--text);
-    outline: none;
-    font-family: inherit;
-}
-.mcp-header-key:focus, .mcp-header-val:focus {
-    border-color: var(--primary);
-}
-.mcp-header-del {
+.mcp-sheet-header-del {
+    position: absolute;
+    top: 10px;
+    right: 10px;
     background: none;
     border: none;
     color: var(--text-light);
     cursor: pointer;
-    padding: 4px;
-    border-radius: 6px;
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+}
+.mcp-sheet-header-del:hover { color: #e74c3c; }
+.mcp-sheet-header-del i, .mcp-sheet-header-del svg { width: 14px !important; height: 14px !important; }
+.mcp-sheet-add-header {
     display: flex;
     align-items: center;
-    flex-shrink: 0;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border: 1px dashed var(--primary);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--primary-dark);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
 }
-.mcp-header-del:hover { color: #e74c3c; }
-.mcp-header-del i, .mcp-header-del svg { width: 14px !important; height: 14px !important; }
+.mcp-sheet-add-header:hover { background: var(--primary-lighter); }
+.mcp-sheet-add-header i, .mcp-sheet-add-header svg { width: 14px !important; height: 14px !important; }
 
-[data-theme="dark"] .mcp-headers-section {
+/* 操作按钮 */
+.mcp-sheet-actions {
+    margin-top: 20px;
+    margin-bottom: 12px;
+}
+.mcp-sheet-test {
+    width: 100%;
+    justify-content: center;
+}
+.mcp-sheet-test-result {
+    text-align: center;
+    font-size: 12px;
+    margin-top: 10px;
+    min-height: 18px;
+}
+.mcp-sheet-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    background: none;
+    border: none;
+    color: #e74c3c;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+.mcp-sheet-delete:hover { background: #fde8e8; }
+.mcp-sheet-delete i, .mcp-sheet-delete svg { width: 14px !important; height: 14px !important; }
+
+/* 工具列表 */
+.mcp-sheet-tool-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.mcp-sheet-tool {
+    padding: 10px 12px;
+    background: var(--primary-lighter);
+    border-radius: 10px;
+}
+.mcp-sheet-tool-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+.mcp-sheet-tool-desc {
+    font-size: 11.5px;
+    color: var(--text-light);
+    margin-top: 3px;
+    line-height: 1.4;
+}
+
+/* 暗色适配 */
+[data-theme="dark"] .mcp-server-card {
+    background: rgba(255,255,255,0.06);
     border-color: rgba(255,255,255,0.1);
 }
-[data-theme="dark"] .mcp-header-key,
-[data-theme="dark"] .mcp-header-val {
-    background: rgba(255,255,255,0.07);
-    border-color: rgba(255,255,255,0.1);
+[data-theme="dark"] .mcp-sheet-header-item {
+    background: rgba(255,255,255,0.04);
+}
+[data-theme="dark"] .mcp-sheet-header-item .mcp-sheet-input {
+    background: rgba(255,255,255,0.06);
+}
+[data-theme="dark"] .mcp-sheet-tool {
+    background: rgba(255,255,255,0.06);
 }
