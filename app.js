@@ -876,6 +876,8 @@ function renderSettingsView() {
             saveBtn.style.display = 'flex';
         }
     }
+    const refreshBtn = document.getElementById('refreshMcpBtn');
+    if (refreshBtn) refreshBtn.style.display = settingsView === 'mcpService' ? 'flex' : 'none';
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -2093,6 +2095,7 @@ async function testMcpServerSheet(id) {
     if (!s || !s.url) { showToast('请先填写 URL'); return; }
     const el = document.getElementById('mcpSheetResult');
     if (el) el.innerHTML = '<span style="color:var(--text-light);">连接中...</span>';
+    showToast('正在测试连接...');
     try {
         const result = await McpClient.testConnection(s);
         s.status = 'connected';
@@ -2102,6 +2105,7 @@ async function testMcpServerSheet(id) {
         registerMcpTools(s);
         saveState();
         if (el) el.innerHTML = '<span style="color:#27ae60;">✅ 连接成功 · ' + result.toolCount + ' 工具 · ' + result.elapsed + 'ms</span>';
+        showToast('连接成功 · ' + result.toolCount + ' 个工具');
         renderMcpSheet();
     } catch (e) {
         s.status = 'error';
@@ -2110,7 +2114,16 @@ async function testMcpServerSheet(id) {
         s.toolCount = 0;
         saveState();
         if (el) el.innerHTML = '<span style="color:#e74c3c;">❌ ' + escapeHtml(e.message).slice(0, 80) + '</span>';
+        showToast('连接失败');
     }
+}
+
+async function refreshMcpServers() {
+    showToast('正在刷新连接...');
+    await connectAllMcpServers();
+    renderSettingsView();
+    if (mcpEditingId) renderMcpSheet();
+    showToast('已刷新');
 }
 
 function deleteMcpServerSheet(id) {
@@ -3132,6 +3145,7 @@ function setupEventListeners() {
     on('closeFullscreen', 'click', closeFullscreenInput);
     on('fullscreenSend', 'click', sendFromFullscreen);
     on('closeSettings', 'click', closeSettingsPanel);
+    on('refreshMcpBtn', 'click', refreshMcpServers);
     on('settingsOverlay', 'click', e => { if(e.target===e.currentTarget) dismissSettingsPanel(); });
     on('settingsBackBtn', 'click', settingsBack);
     on('closeStats', 'click', closeStats);

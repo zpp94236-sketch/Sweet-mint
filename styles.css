@@ -259,6 +259,12 @@ body {
 .settings-save-btn:active {
     background: var(--primary-light);
 }
+.settings-refresh-btn {
+    color: var(--primary-dark) !important;
+}
+.settings-refresh-btn:active {
+    background: var(--primary-light);
+}
 
 
 /* ===== 设置页：两层导航 ===== */
@@ -1181,7 +1187,7 @@ body {
 .app-toast {
     position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(10px);
     background: rgba(30,40,36,0.9); color: #fff; padding: 9px 18px; border-radius: 999px;
-    font-size: 13px; z-index: 400; opacity: 0; pointer-events: none;
+    font-size: 13px; z-index: 9999; opacity: 0; pointer-events: none;
     transition: all .25s ease; backdrop-filter: blur(8px);
 }
 .app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
