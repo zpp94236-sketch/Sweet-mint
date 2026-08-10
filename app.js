@@ -795,22 +795,26 @@ let settingsView = 'main'; let editingProviderId = null; let settingsStack = ['m
 
 function openSettingsPanel() { settingsView = 'main'; settingsStack = ['main']; editingProviderId = null; renderSettingsView(); document.getElementById('settingsOverlay').classList.add('active'); }
 function closeSettingsPanel() {
-    // 保存当前页面可能的修改
     const spEl = document.getElementById('settingsSystemPrompt');
     if (spEl) state.settings.systemPrompt = spEl.value;
     saveState();
-    document.getElementById('settingsOverlay').classList.remove('active');
-    closeProfileSheet();
     renderMessages();
     updateHeader();
     applyAiIdentity();
+    showToast('已保存');
+}
+function dismissSettingsPanel() {
+    document.getElementById('settingsOverlay').classList.remove('active');
+    closeProfileSheet();
 }
 
 function renderSettingsView() {
     const content = document.getElementById('settingsContent'); const footer = document.getElementById('settingsFooter');
     const title = document.getElementById('settingsTitle'); const backBtn = document.getElementById('settingsBackBtn');
     if (settingsView === 'main') {
-        title.textContent = '设置'; backBtn.style.display = 'none';
+        title.textContent = '设置'; backBtn.style.display = 'flex';
+        const saveBtn = document.getElementById('closeSettings');
+        if (saveBtn) saveBtn.style.display = 'none';
         content.innerHTML = renderMainSettings();
         footer.innerHTML = ''; footer.style.display = 'none';
         content.classList.remove('settings-slide-in');
@@ -838,6 +842,14 @@ function renderSettingsView() {
         }
     }
     bindSettingsContentEvents();
+    const saveBtn = document.getElementById('closeSettings');
+    if (saveBtn) {
+        if (settingsView === 'main' || settingsView === 'displaySettings') {
+            saveBtn.style.display = 'none';
+        } else {
+            saveBtn.style.display = 'flex';
+        }
+    }
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -846,7 +858,15 @@ function settingsSlideIn(el) {
 }
 
 function settingsGo(v) { settingsStack.push(v); settingsView = v; renderSettingsView(); }
-function settingsBack() { if (settingsStack.length > 1) settingsStack.pop(); settingsView = settingsStack[settingsStack.length - 1] || 'main'; renderSettingsView(); }
+function settingsBack() {
+    if (settingsStack.length > 1) {
+        settingsStack.pop();
+        settingsView = settingsStack[settingsStack.length - 1] || 'main';
+        renderSettingsView();
+    } else {
+        dismissSettingsPanel();
+    }
+}
 
 const PLUGIN_DEFS = [
     { id: 'webSearchPlugin', name: '联网搜索', desc: '让助手可以搜索实时信息' },
@@ -1024,6 +1044,11 @@ function bindSettingsContentEvents() {
         saveState();
         applyGeneralBg();
     }));
+    const selAll = document.querySelector('.general-bg-select-all');
+    if (selAll) selAll.addEventListener('change', () => {
+        const checks = document.querySelectorAll('.general-bg-page-check');
+        checks.forEach(c => { c.checked = selAll.checked; c.dispatchEvent(new Event('change')); });
+    });
     document.querySelectorAll('.segmented-btn[data-chat-font]').forEach(b => b.addEventListener('click', () => {
         state.settings.chatFont = b.dataset.chatFont;
         saveState();
@@ -1037,7 +1062,25 @@ function bindSettingsContentEvents() {
     const pKey = document.getElementById('providerKeyEdit');
     if (pKey) pKey.addEventListener('change', saveChatModelProvider);
     const cModel = document.getElementById('chatModelInput');
-    if (cModel) cModel.addEventListener('change', () => { state.settings.model = cModel.value.trim(); saveState(); updateHeader(); });
+    if (cModel) {
+        cModel.addEventListener('focus', async () => {
+            const ml = document.getElementById('modelList');
+            if (!ml) return;
+            if (!state.settings.cachedModels || !state.settings.cachedModels.length) {
+                await fetchChatModels();
+            } else {
+                renderModelListFromCache(cModel.value);
+            }
+        });
+        cModel.addEventListener('input', () => {
+            renderModelListFromCache(cModel.value);
+        });
+        cModel.addEventListener('change', () => {
+            state.settings.model = cModel.value.trim();
+            saveState();
+            updateHeader();
+        });
+    }
     const fb = document.getElementById('chatFetchModelsBtn');
     if (fb) fb.addEventListener('click', fetchChatModels);
     const spEl = document.getElementById('settingsSystemPrompt');
@@ -1161,16 +1204,41 @@ function renderDisplaySettingsPage() {
 
 // 外观设置
 function renderAppearancePage() {
-    return settingsGroup('壁纸与插图', [
-        imageSettingRow('wallpaper', '聊天壁纸插图'),
-        imageSettingRow('generalBg', '通用背景插图')
-    ]) + generalBgPagesRow() +
-    settingsGroup('', [
-        imageSettingRow('sidebarImage', '侧边栏插图'),
+    const pages = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
+    const allPages = [
+        ['living', '🛋️', '客厅'], ['study', '📖', '书房'], ['bedroom', '🛏️', '卧室'],
+        ['garden', '🌿', '花园'], ['kitchen', '🍳', '厨房']
+    ];
+    const allChecked = allPages.every(([v]) => pages.indexOf(v) >= 0);
+
+    const pagesGrid = allPages.map(([v, icon, name]) =>
+        '<label class="appearance-page-chip"><input type="checkbox" class="general-bg-page-check" value="' + v + '"' + (pages.indexOf(v) >= 0 ? ' checked' : '') + '><span class="appearance-page-chip-icon">' + icon + '</span><span>' + name + '</span><span class="appearance-page-chip-check">✓</span></label>'
+    ).join('');
+
+    return settingsGroup('🖼️ 壁纸与插图', [
+        appearanceImageRow('wallpaper', '🏞️', '聊天壁纸插图', '背景图片仅在聊天页面显示'),
+        appearanceImageRow('generalBg', '🌄', '通用背景插图', '应用整体背景图片'),
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;padding-top:14px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--primary-dark);">✨ 应用此背景的页面</span><label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--primary-dark);cursor:pointer;"><span>全选</span><input type="checkbox" class="general-bg-select-all"' + (allChecked ? ' checked' : '') + ' style="accent-color:var(--primary);"></label></div>' +
+            '<div class="appearance-pages-grid">' + pagesGrid + '</div>' +
+        '</div>'
     ]) +
-    settingsGroup('主题色', [
+    settingsGroup('', [
+        appearanceImageRow('sidebarImage', '📱', '侧边栏插图', '侧边栏背景装饰图'),
+    ]) +
+    settingsGroup('🎨 主题色', [
         '<div class="theme-swatch-grid" style="border-bottom:none;">' + renderThemeSwatches() + '</div>'
     ]);
+}
+
+function appearanceImageRow(key, icon, title, desc) {
+    const value = state.settings[key];
+    return '<div class="settings-row" style="gap:12px;">' +
+        '<div style="width:40px;height:40px;border-radius:10px;background:var(--primary-lighter);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">' + icon + '</div>' +
+        '<div class="settings-entry-info" style="flex:1;"><div class="settings-entry-title">' + title + '</div><div class="settings-entry-sub">' + desc + '</div></div>' +
+        '<label class="wp-btn wp-btn-pick" for="' + key + 'Input" style="display:flex;align-items:center;gap:4px;">选择图片 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i></label>' +
+        '<input type="file" id="' + key + 'Input" class="wp-hidden-input" accept="image/*" data-wp-key="' + key + '">' +
+    '</div>';
 }
 function generalBgPagesRow() {
     const cur = state.settings.generalBgPages || ['living', 'study', 'bedroom', 'garden', 'kitchen'];
@@ -1450,8 +1518,8 @@ function renderChatModelPage() {
     return '<div class="settings-group-title">模型提供商</div>' +
     '<div class="provider-preset-list" style="margin-bottom:14px;">' +
         presetsHtml +
-        '<div class="provider-preset-card provider-preset-add" onclick="addNewProvider()">' +
-            '<span style="display:flex;align-items:center;gap:6px;color:var(--primary-dark);font-size:13px;font-weight:600;"><i data-lucide="plus" style="width:15px;height:15px;"></i>添加新供应商</span>' +
+        '<div class="provider-preset-card provider-preset-add" style="opacity:0.5;pointer-events:none;">' +
+            '<span style="display:flex;align-items:center;gap:6px;color:var(--text-light);font-size:13px;">等待开发</span>' +
         '</div>' +
     '</div>' +
 
@@ -1463,7 +1531,7 @@ function renderChatModelPage() {
         '</div>' +
         '<div class="settings-row settings-row-stack">' +
             '<div class="settings-entry-title">API 密钥</div>' +
-            '<div class="input-with-btn"><input type="password" id="providerKeyEdit" placeholder="sk-..." value="' + escapeHtml(providerKey) + '"><button class="btn-small" onclick="toggleProviderKeyVisibilityId(\'providerKeyEdit\')"><i data-lucide="eye"></i></button></div>' +
+            '<input type="password" id="providerKeyEdit" class="settings-text-input" placeholder="sk-..." value="' + escapeHtml(providerKey) + '">' +
         '</div>' +
         '<div class="settings-row" style="border-bottom:none;">' +
             '<div class="settings-entry-info"><div class="settings-entry-title">测试连接</div><div class="settings-entry-sub">验证API密钥和URL是否可用</div></div>' +
@@ -1476,11 +1544,23 @@ function renderChatModelPage() {
     '<div class="settings-list-card">' +
         '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
             '<div style="display:flex;gap:8px;align-items:center;">' +
-                '<input type="text" id="chatModelInput" class="settings-text-input" style="flex:1;" placeholder="搜索模型名称" value="' + escapeHtml(currentModel) + '">' +
-                '<button class="btn-secondary" id="chatFetchModelsBtn" style="white-space:nowrap;flex-shrink:0;gap:4px;"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i>刷新</button>' +
+                '<input type="text" id="chatModelInput" class="settings-text-input" style="flex:1;" placeholder="🔍 搜索模型名称" value="' + escapeHtml(currentModel) + '">' +
             '</div>' +
             '<div class="model-list" id="modelList" style="display:none;margin-top:8px;"></div>' +
         '</div>' +
+    '</div>' +
+    '<div class="settings-group-title">模型预设</div>' +
+    '<div class="settings-list-card">' +
+        state.providers.map(function(p) {
+            return '<div class="settings-row settings-row-stack" style="gap:10px;">' +
+                '<div class="settings-entry-title">' + escapeHtml(p.name) + '</div>' +
+                '<div class="settings-row" style="padding:0;border-bottom:none;gap:8px;flex-direction:column;align-items:stretch;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-light);min-width:50px;">模型</span><span style="font-size:13px;color:var(--text);">' + escapeHtml(state.settings.model || '未配置') + '</span></div>' +
+                    '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-light);min-width:50px;">密钥</span><span style="font-size:13px;color:var(--text);">···</span></div>' +
+                    '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-light);min-width:50px;">URL</span><input type="text" class="settings-text-input" style="font-size:12px;" value="' + escapeHtml(p.apiBase || '') + '" onchange="updatePresetUrl(\'' + p.id + '\',this.value)"></div>' +
+                '</div>' +
+            '</div>';
+        }).join('') +
     '</div>';
 }
 
@@ -1489,6 +1569,10 @@ function switchProviderPreset(id) {
     saveState();
     renderSettingsView();
     updateHeader();
+}
+function updatePresetUrl(id, val) {
+    const p = state.providers.find(x => x.id === id);
+    if (p) { p.apiBase = val.trim(); saveState(); }
 }
 function toggleProviderKeyVisibilityId(id) {
     const i = document.getElementById(id); if (!i) return;
@@ -1508,26 +1592,47 @@ async function testChatModelConnection() {
     if (s) { s.textContent = '测试中...'; s.style.color = '#f39c12'; }
     try { const r = await fetch(base + '/models', { headers: { 'Authorization': 'Bearer ' + key } }); if (s) { s.textContent = r.ok ? '连接成功' : '错误 ' + r.status; s.style.color = r.ok ? '#27ae60' : '#e74c3c'; } } catch (e) { if (s) { s.textContent = '无法连接'; s.style.color = '#e74c3c'; } }
 }
+function renderModelListFromCache(filter) {
+    const ml = document.getElementById('modelList');
+    if (!ml) return;
+    const models = state.settings.cachedModels || [];
+    if (!models.length) { ml.style.display = 'none'; return; }
+    const f = (filter || '').toLowerCase();
+    const filtered = f ? models.filter(m => m.toLowerCase().includes(f)) : models;
+    if (!filtered.length) {
+        ml.innerHTML = '<div class="model-list-item" style="color:var(--text-light);">无匹配模型</div>';
+    } else {
+        ml.innerHTML = filtered.slice(0, 30).map(id =>
+            '<div class="model-list-item' + (id === state.settings.model ? ' active' : '') + '" data-model="' + escapeHtml(id) + '">' + escapeHtml(id) + '</div>'
+        ).join('');
+        ml.querySelectorAll('.model-list-item[data-model]').forEach(el => {
+            el.addEventListener('click', () => {
+                const inp = document.getElementById('chatModelInput');
+                if (inp) inp.value = el.dataset.model;
+                state.settings.model = el.dataset.model;
+                saveState();
+                updateHeader();
+                ml.style.display = 'none';
+            });
+        });
+    }
+    ml.style.display = 'block';
+}
 async function fetchChatModels() {
-    const provider = getActiveProvider(); if (!provider || !provider.apiBase || !provider.apiKey) { alert('请先配置供应商的端点与密钥'); return; }
+    const provider = getActiveProvider();
+    if (!provider || !provider.apiBase || !provider.apiKey) return;
     try {
         const r = await fetch(provider.apiBase + '/models', { headers: { 'Authorization': 'Bearer ' + provider.apiKey } });
-        const d = await r.json(); const models = d.data || [];
-        const ml = document.getElementById('modelList'); const si = document.getElementById('modelSearchInput');
+        const d = await r.json();
+        const models = d.data || [];
         const ids = models.map(m => m.id).sort((a, b) => a.localeCompare(b));
-        state.settings.cachedModels = ids; saveState();
-        if (!ml) return;
-        if (!ids.length) ml.innerHTML = '<div class="model-list-item">没有找到可用模型</div>';
-        else {
-            ml.innerHTML = ids.map(id => '<div class="model-list-item" data-model="' + escapeHtml(id) + '">' + escapeHtml(id) + '</div>').join('');
-            ml.querySelectorAll('.model-list-item').forEach(el => el.addEventListener('click', () => {
-                const inp = document.getElementById('chatModelInput');
-                if (inp) { inp.value = el.dataset.model; state.settings.model = el.dataset.model; saveState(); updateHeader(); }
-                ml.style.display = 'none'; if (si) si.style.display = 'none';
-            }));
-        }
-        ml.style.display = 'block'; showModelSearch();
-    } catch (e) { alert('获取模型列表失败: ' + e.message); }
+        state.settings.cachedModels = ids;
+        saveState();
+        const cModel = document.getElementById('chatModelInput');
+        renderModelListFromCache(cModel ? cModel.value : '');
+    } catch (e) {
+        console.warn('获取模型列表失败：', e);
+    }
 }
 
 // ===== 功能模型 =====
@@ -2505,7 +2610,7 @@ function setupEventListeners() {
     on('closeFullscreen', 'click', closeFullscreenInput);
     on('fullscreenSend', 'click', sendFromFullscreen);
     on('closeSettings', 'click', closeSettingsPanel);
-    on('settingsOverlay', 'click', e => { if(e.target===e.currentTarget) closeSettingsPanel(); });
+    on('settingsOverlay', 'click', e => { if(e.target===e.currentTarget) dismissSettingsPanel(); });
     on('settingsBackBtn', 'click', settingsBack);
     on('closeStats', 'click', closeStats);
     on('statsOverlay', 'click', e => { if(e.target===e.currentTarget) closeStats(); });

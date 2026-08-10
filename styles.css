@@ -2196,3 +2196,46 @@ body.has-sidebar-image[data-glass="on"] .sidebar {
     .input-pill-btn { width: 32px; height: 32px; }
     .input-pill-send { width: 34px; height: 34px; }
 }
+
+/* 外观设置 - 页面选择网格 */
+.appearance-pages-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.appearance-page-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-white);
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+.appearance-page-chip input { display: none; }
+.appearance-page-chip-icon { font-size: 15px; }
+.appearance-page-chip-check {
+    margin-left: auto;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--border);
+    color: white;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+}
+.appearance-page-chip:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-lighter);
+}
+.appearance-page-chip:has(input:checked) .appearance-page-chip-check {
+    background: var(--primary);
+}
+@media (max-width: 360px) {
+    .appearance-pages-grid { grid-template-columns: repeat(2, 1fr); }
+}
