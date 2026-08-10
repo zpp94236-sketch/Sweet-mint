@@ -339,6 +339,90 @@ body {
 .add-provider-btn:hover { background: var(--primary-lighter); }
 .add-provider-btn i { width: 14px; height: 14px; }
 
+/* ===== 供应商预设卡片 ===== */
+.provider-preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.provider-preset-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.provider-preset-card:active {
+    transform: scale(0.98);
+}
+.provider-preset-card.active {
+    border-color: var(--primary);
+    background: var(--primary-lighter);
+}
+.provider-preset-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.provider-preset-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+.provider-preset-badge {
+    font-size: 10px;
+    color: var(--primary-dark);
+    background: var(--primary-light);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+.provider-preset-del {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    padding: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+.provider-preset-del i, .provider-preset-del svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+.provider-preset-del:hover {
+    color: #e74c3c;
+}
+.provider-preset-meta {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.provider-preset-add {
+    border-style: dashed;
+    border-color: var(--primary);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.provider-preset-add:hover {
+    background: var(--primary-lighter);
+}
+[data-theme="dark"] .provider-preset-card {
+    background: rgba(255,255,255,0.06);
+}
+[data-theme="dark"] .provider-preset-card.active {
+    background: rgba(255,255,255,0.1);
+}
+
 .settings-text-input, input.settings-number-input:not(.settings-input-right) {
     width: 100%;
     padding: 10px 12px;
@@ -512,6 +596,16 @@ body {
     .message-time { font-size: 10px; }
     .message-tokens { font-size: 10px; }
     .input-area { padding: 6px 10px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+    .input-pill-bar {
+        margin-left: -10px;
+        margin-right: -10px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    [data-glass="on"] .input-pill-bar {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
     .input-wrapper { padding: 4px 6px; border-radius: 18px; }
     .input-wrapper textarea { font-size: 15px; padding: 6px 4px; }
     .input-popup { left: 10px; right: 10px; padding: 6px; }
@@ -1943,6 +2037,10 @@ body.has-sidebar-image[data-glass="on"] .sidebar {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     padding: 2px 0 10px;
+    margin-left: -14px;
+    margin-right: -14px;
+    padding-left: 14px;
+    padding-right: 14px;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -2062,7 +2160,7 @@ body.has-sidebar-image[data-glass="on"] .sidebar {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     border-radius: 0;
-    padding: 2px 0 10px;
+    padding: 2px 14px 10px;
     border: none;
 }
 [data-theme="dark"][data-glass="on"] .input-pill-bar {

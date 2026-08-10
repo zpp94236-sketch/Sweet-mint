@@ -1430,18 +1430,65 @@ function handleRegexImportDetail(e) {
 // ===== 聊天模型 =====
 function renderChatModelPage() {
     const provider = getActiveProvider();
-    const opts = state.providers.map(p => '<option value="' + p.id + '"' + (p.id === state.activeProviderId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>').join('');
-    return settingsGroup('模型与参数配置', [
-        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">API提供商</div><select id="providerSelect" class="settings-inline-select">' + opts + '</select></div>',
-        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">API端点</div><input type="text" id="providerBaseEdit" class="settings-input-right" placeholder="https://api.example.com/v1" value="' + escapeHtml(provider ? provider.apiBase : '') + '"></div>',
-        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">API密钥</div><div class="input-with-btn"><input type="password" id="providerKeyEdit" class="settings-input-right" placeholder="sk-..." value="' + escapeHtml(provider ? provider.apiKey : '') + '"><button class="btn-small" onclick="toggleProviderKeyVisibilityId(\'providerKeyEdit\')"><i data-lucide="eye"></i></button></div></div>',
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;"><div class="settings-entry-title">模型名称</div><div style="display:flex;gap:8px;align-items:center;flex:1;min-width:0;"><input type="text" id="chatModelInput" class="settings-input-right" style="width:100%;" placeholder="输入或选择模型" value="' + escapeHtml(state.settings.model || '') + '"><button class="btn-small" id="chatFetchModelsBtn">获取列表</button></div></div>'
-    ]) +
-    '<div style="padding:0 4px;"><input type="text" class="model-search-input" id="modelSearchInput" placeholder="搜索模型..." style="display:none;"><div class="model-list" id="modelList" style="display:none;"></div></div>' +
-    settingsGroup('', [
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;"><span class="settings-entry-title" style="cursor:pointer;" onclick="testChatModelConnection()"><i data-lucide="plug" class="settings-row-icon"></i>测试连接</span><span class="connection-status" id="chatModelStatus"></span></div>',
-        '<div class="settings-row settings-row-click" style="border-bottom:none;" onclick="addNewProvider()"><span class="settings-row-label"><i data-lucide="plus" class="settings-row-icon"></i>添加新供应商</span><i data-lucide="chevron-right"></i></div>'
-    ]);
+    const providerBase = provider ? provider.apiBase : '';
+    const providerKey = provider ? provider.apiKey : '';
+    const currentModel = state.settings.model || '';
+
+    // 供应商预设列表
+    let presetsHtml = state.providers.map(p => {
+        const isActive = p.id === state.activeProviderId;
+        return '<div class="provider-preset-card' + (isActive ? ' active' : '') + '" onclick="switchProviderPreset(\'' + p.id + '\')">' +
+            '<div class="provider-preset-head">' +
+                '<span class="provider-preset-name">' + escapeHtml(p.name) + '</span>' +
+                (isActive ? '<span class="provider-preset-badge">当前</span>' : '') +
+                '<button class="provider-preset-del" onclick="event.stopPropagation();deleteProvider(\'' + p.id + '\')" title="删除"><i data-lucide="x"></i></button>' +
+            '</div>' +
+            '<div class="provider-preset-meta">' + escapeHtml((p.apiBase || '').replace(/^https?:\/\//, '').slice(0, 40)) + '</div>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="settings-group-title">模型提供商</div>' +
+    '<div class="provider-preset-list" style="margin-bottom:14px;">' +
+        presetsHtml +
+        '<div class="provider-preset-card provider-preset-add" onclick="addNewProvider()">' +
+            '<span style="display:flex;align-items:center;gap:6px;color:var(--primary-dark);font-size:13px;font-weight:600;"><i data-lucide="plus" style="width:15px;height:15px;"></i>添加新供应商</span>' +
+        '</div>' +
+    '</div>' +
+
+    '<div class="settings-group-title">连接配置</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack">' +
+            '<div class="settings-entry-title">API 端点</div>' +
+            '<input type="text" id="providerBaseEdit" class="settings-text-input" data-key="_providerBase" placeholder="https://api.example.com/v1" value="' + escapeHtml(providerBase) + '">' +
+        '</div>' +
+        '<div class="settings-row settings-row-stack">' +
+            '<div class="settings-entry-title">API 密钥</div>' +
+            '<div class="input-with-btn"><input type="password" id="providerKeyEdit" placeholder="sk-..." value="' + escapeHtml(providerKey) + '"><button class="btn-small" onclick="toggleProviderKeyVisibilityId(\'providerKeyEdit\')"><i data-lucide="eye"></i></button></div>' +
+        '</div>' +
+        '<div class="settings-row" style="border-bottom:none;">' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">测试连接</div><div class="settings-entry-sub">验证API密钥和URL是否可用</div></div>' +
+            '<button class="btn-secondary" style="gap:6px;" onclick="testChatModelConnection()"><i data-lucide="send" style="width:13px;height:13px;"></i>测试</button>' +
+        '</div>' +
+        '<span class="connection-status" id="chatModelStatus" style="padding:0 16px 10px;font-size:12px;display:block;"></span>' +
+    '</div>' +
+
+    '<div class="settings-group-title">选择模型</div>' +
+    '<div class="settings-list-card">' +
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;gap:8px;align-items:center;">' +
+                '<input type="text" id="chatModelInput" class="settings-text-input" style="flex:1;" placeholder="搜索模型名称" value="' + escapeHtml(currentModel) + '">' +
+                '<button class="btn-secondary" id="chatFetchModelsBtn" style="white-space:nowrap;flex-shrink:0;gap:4px;"><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i>刷新</button>' +
+            '</div>' +
+            '<div class="model-list" id="modelList" style="display:none;margin-top:8px;"></div>' +
+        '</div>' +
+    '</div>';
+}
+
+function switchProviderPreset(id) {
+    state.activeProviderId = id;
+    saveState();
+    renderSettingsView();
+    updateHeader();
 }
 function toggleProviderKeyVisibilityId(id) {
     const i = document.getElementById(id); if (!i) return;
