@@ -1115,8 +1115,6 @@ function renderProviderSettingsPage() {
 
 function renderProviderDetailPage() {
     const provider = state.providers.find(p => p.id === 'openai') || { keys: [], activeKeyId: null };
-    const activeKey = (provider.keys || []).find(k => k.id === provider.activeKeyId);
-    const currentUrl = activeKey ? activeKey.url : '';
 
     // 密钥列表
     let keysHtml = (provider.keys || []).map(k => {
@@ -1129,14 +1127,7 @@ function renderProviderDetailPage() {
         '</div>';
     }).join('');
 
-    return '<div class="settings-group-title">基础 URL</div>' +
-        '<div class="settings-list-card">' +
-            '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
-                '<div style="display:flex;align-items:center;gap:10px;"><i data-lucide="link" class="settings-row-icon"></i><span class="settings-entry-title">基础 URL</span></div>' +
-                '<input type="text" id="providerUrlInput" class="settings-text-input" placeholder="https://api.example.com/v1" value="' + escapeHtml(currentUrl) + '" onchange="updateProviderUrl(this.value)">' +
-            '</div>' +
-        '</div>' +
-        '<div class="settings-group-title">测试连接</div>' +
+    return '<div class="settings-group-title">测试连接</div>' +
         '<div class="settings-list-card">' +
             '<div class="settings-entry-row settings-entry-click" onclick="testProviderFromDetail()">' +
                 '<div class="settings-entry-icon"><i data-lucide="refresh-cw"></i></div>' +
@@ -1154,21 +1145,8 @@ function selectApiKey(keyId) {
     const provider = state.providers.find(p => p.id === 'openai');
     if (!provider) return;
     provider.activeKeyId = keyId;
-    // 同步URL到输入框
-    const key = provider.keys.find(k => k.id === keyId);
-    if (key) {
-        const urlInput = document.getElementById('providerUrlInput');
-        if (urlInput) urlInput.value = key.url || '';
-    }
     saveState();
     renderSettingsView();
-}
-
-function updateProviderUrl(url) {
-    const provider = state.providers.find(p => p.id === 'openai');
-    if (!provider) return;
-    const key = provider.keys.find(k => k.id === provider.activeKeyId);
-    if (key) { key.url = url.trim(); saveState(); }
 }
 
 async function testProviderFromDetail() {
@@ -1182,35 +1160,13 @@ async function testProviderFromDetail() {
 }
 
 function openAddKeyDialog() {
-    const html = '<div class="add-key-dialog-content">' +
-        '<h3 style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px;">添加 API 密钥</h3>' +
-        '<div class="form-group"><input type="text" id="newKeyName" placeholder="名称（例如：工作区）"></div>' +
-        '<div class="form-group"><input type="text" id="newKeyValue" placeholder="API Key"></div>' +
-        '<div class="form-group"><input type="text" id="newKeyUrl" placeholder="API URL（例如：https://api.example.com/v1）"></div>' +
-        '<div style="display:flex;justify-content:flex-end;gap:12px;margin-top:8px;">' +
-            '<button class="btn-cancel" onclick="closeAddKeyDialog()">取消</button>' +
-            '<button class="btn-primary" onclick="saveNewKey()">添加</button>' +
-        '</div></div>';
-    // 复用 editTitleOverlay 的模式
-    const ov = document.getElementById('editTitleOverlay');
-    const panel = ov.querySelector('.edit-title-panel');
-    panel.innerHTML = html;
-    ov.classList.add('active');
+    const ov = document.getElementById('addKeyOverlay');
+    if (ov) ov.classList.add('active');
 }
 
 function closeAddKeyDialog() {
-    const ov = document.getElementById('editTitleOverlay');
-    ov.classList.remove('active');
-    // 恢复原始 editTitle 内容
-    const panel = ov.querySelector('.edit-title-panel');
-    panel.innerHTML = '<h3>编辑对话标题</h3><input type="text" id="editTitleInput" placeholder="输入对话标题"><div class="edit-title-actions"><button class="btn-cancel" id="editTitleCancel">取消</button><button class="btn-primary" id="editTitleSave">保存</button></div>';
-    // 重新绑定编辑标题弹窗的事件（元素被重建了）
-    const cancelBtn = document.getElementById('editTitleCancel');
-    if (cancelBtn) cancelBtn.addEventListener('click', closeEditTitle);
-    const saveBtn = document.getElementById('editTitleSave');
-    if (saveBtn) saveBtn.addEventListener('click', saveEditTitle);
-    const eti = document.getElementById('editTitleInput');
-    if (eti) eti.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveEditTitle(); } });
+    const ov = document.getElementById('addKeyOverlay');
+    if (ov) ov.classList.remove('active');
 }
 
 function saveNewKey() {
@@ -1225,6 +1181,9 @@ function saveNewKey() {
     if (!provider.activeKeyId) provider.activeKeyId = newId;
     saveState();
     closeAddKeyDialog();
+    document.getElementById('newKeyName').value = '';
+    document.getElementById('newKeyValue').value = '';
+    document.getElementById('newKeyUrl').value = '';
     renderSettingsView();
     showToast('密钥已添加');
 }
@@ -1261,6 +1220,7 @@ function bindSettingsContentEvents() {
     }));
     document.querySelectorAll('.settings-range').forEach(r => r.addEventListener('input', () => {
         const key = r.dataset.key;
+        if (!key) return;
         const raw = parseFloat(r.value);
         const scale = parseFloat(r.dataset.scale || '1');
         const val = raw / scale;
@@ -1319,6 +1279,7 @@ function bindSettingsContentEvents() {
         updateFill();
         r.addEventListener('input', () => {
             const key = r.dataset.key;
+            if (!key) return;
             const v = parseInt(r.value, 10);
             state.settings[key] = v;
             saveState();
@@ -1326,6 +1287,34 @@ function bindSettingsContentEvents() {
             updateFill();
             const valEl = document.getElementById(key === 'chatFontScale' ? 'fontScaleValue' : 'thinkingScaleValue');
             if (valEl) valEl.textContent = v;
+        });
+    });
+    const thinkRange = document.querySelector('.thinking-level-range');
+    if (thinkRange) {
+        function updateThinkFill() {
+            const pct = (thinkRange.value - thinkRange.min) / (thinkRange.max - thinkRange.min) * 100;
+            thinkRange.style.background = 'linear-gradient(to right, var(--primary-light) ' + pct + '%, rgba(220,218,214,0.45) ' + pct + '%)';
+        }
+        updateThinkFill();
+        thinkRange.addEventListener('input', () => {
+            const levels = ['verylow', 'low', 'medium', 'high', 'veryhigh', 'auto'];
+            state.settings.thinkingLevel = levels[parseInt(thinkRange.value)] || 'verylow';
+            saveState();
+            updateThinkFill();
+            renderSettingsView();
+        });
+    }
+
+    // thinkingEnabled toggle 特殊处理
+    document.querySelectorAll('.msg-display-toggle[data-key="thinkingEnabled"]').forEach(t => {
+        t.addEventListener('change', () => {
+            if (t.checked) {
+                state.settings.thinkingLevel = state.settings.thinkingLevel === 'off' ? 'verylow' : state.settings.thinkingLevel;
+            } else {
+                state.settings.thinkingLevel = 'off';
+            }
+            saveState();
+            renderSettingsView();
         });
     });
     const rf = document.getElementById('regexFileInputDetail');
@@ -1592,54 +1581,86 @@ function renderAssistantSettingsPage() {
     ]);
 }
 function renderAssistantBasicPage() {
-    const temp = state.settings.temperature || 0.7;
-    const ctx = state.settings.contextCount || 50;
+    const temp = state.settings.temperature != null ? state.settings.temperature : 0.7;
+    const ctx = state.settings.contextCount || 20;
     const mt = state.settings.maxTokens || '';
     const streaming = state.settings.streaming !== false;
+    const thinking = state.settings.thinkingLevel || 'off';
+    const thinkingLabels = { off: '关闭', verylow: '极低', low: '低', medium: '中', high: '高', veryhigh: '极高', auto: '自动' };
+    const thinkingEnabled = thinking !== 'off';
 
-    return '<div class="settings-list-card" style="margin-bottom:14px;">' +
+    // 温度：连续滑杆 0-2.0
+    const tempDefault = 0.7;
+    const tempChanged = temp !== tempDefault;
+
+    // maxTokens：有刻度的滑杆
+    const mtDefault = 4096;
+    const mtChanged = mt && mt !== mtDefault;
+
+    return '<div class="settings-group-title">默认思考</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row">' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">思考</div><div class="settings-entry-sub">' + escapeHtml(thinkingLabels[thinking] || '关闭') + '</div></div>' +
+            '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="thinkingEnabled"' + (thinkingEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+        '</div>' +
+        (thinkingEnabled ? '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;"><span class="settings-entry-title">思考深度</span><span class="settings-range-value">' + escapeHtml(thinkingLabels[thinking]) + '</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:8px;">控制模型回答前推理的彻底程度</div>' +
+            thinkingSliderHtml(thinking) +
+        '</div>' : '') +
+    '</div>' +
+
+    '<div class="settings-group-title">默认生成参数</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
-            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="thermometer" class="settings-row-icon"></i><span class="settings-entry-title">模型温度</span></div>' +
-            '<div class="settings-entry-sub" style="margin-bottom:10px;">控制回复的随机性和创造性</div>' +
-            '<div class="settings-range-head"><span style="font-size:12px;color:var(--text-light);">更保守</span><span class="settings-range-value" id="rangeVal-temperature">' + temp.toFixed(2) + '</span><span style="font-size:12px;color:var(--text-light);">更有创造性</span></div>' +
-            '<input type="range" class="settings-range" data-key="temperature" data-scale="100" min="0" max="200" step="5" value="' + Math.round(temp * 100) + '">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                '<div style="display:flex;align-items:center;gap:8px;"><i data-lucide="sliders-horizontal" class="settings-row-icon"></i><span class="settings-entry-title">温度</span></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' + (tempChanged ? '<button class="param-reset-btn" onclick="resetParam(\'temperature\',0.7)">重置</button>' : '') + '<span class="settings-range-value" id="rangeVal-temperature">' + temp.toFixed(2) + '</span></div>' +
+            '</div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">控制随机性（0.0 = 确定性，2.0 = 创造性）</div>' +
+            '<input type="range" class="settings-range font-page-range" data-key="temperature" data-scale="100" min="0" max="200" step="5" value="' + Math.round(temp * 100) + '">' +
         '</div>' +
     '</div>' +
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                '<div style="display:flex;align-items:center;gap:8px;"><i data-lucide="sliders-horizontal" class="settings-row-icon"></i><span class="settings-entry-title">最大输出 Token</span></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' + (mtChanged ? '<button class="param-reset-btn" onclick="resetParam(\'maxTokens\',4096)">重置</button>' : '') + '<span class="settings-range-value" id="rangeVal-maxTokens">' + (mt || '未指定') + '</span></div>' +
+            '</div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">响应中的最大 token 数</div>' +
+            '<input type="range" class="settings-range font-page-range" data-key="maxTokens" data-scale="1" min="0" max="32000" step="1000" value="' + (mt || 4096) + '">' +
+        '</div>' +
+    '</div>' +
+
+    '<div class="settings-group-title">其他</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="layers" class="settings-row-icon"></i><span class="settings-entry-title">上下文消息数量</span></div>' +
             '<div class="settings-entry-sub" style="margin-bottom:10px;">控制模型接收的历史消息数量</div>' +
-            '<div class="settings-range-head"><span style="font-size:12px;color:var(--text-light);">1</span><span class="settings-range-value" id="rangeVal-contextCount">' + (ctx >= 50 ? '无限制' : ctx) + '</span><span style="font-size:12px;color:var(--text-light);">无限制</span></div>' +
-            '<input type="range" class="settings-range" data-key="contextCount" data-scale="1" min="1" max="50" step="1" value="' + ctx + '">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;color:var(--text-light);">1</span><span class="settings-range-value" id="rangeVal-contextCount">' + (ctx >= 50 ? '无限制' : ctx) + '</span><span style="font-size:12px;color:var(--text-light);">无限制</span></div>' +
+            '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="1" max="50" step="1" value="' + ctx + '">' +
         '</div>' +
-    '</div>' +
-    '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row" style="border-bottom:none;">' +
             '<div class="settings-entry-info"><div style="display:flex;align-items:center;gap:8px;"><i data-lucide="zap" class="settings-row-icon"></i><span class="settings-entry-title">流式输出</span></div><div class="settings-entry-sub">开启后，模型回复将以流式方式实时显示</div></div>' +
             '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="streaming"' + (streaming ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
         '</div>' +
     '</div>' +
-    '<div class="settings-list-card" style="margin-bottom:14px;">' +
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
-            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="brain" class="settings-row-icon"></i><span class="settings-entry-title">模型思考</span></div>' +
-            '<div class="settings-entry-sub" style="margin-bottom:10px;">思考深度越深，推理能力越强，但Token消耗更快</div>' +
-            '<div class="segmented-control">' +
-                '<button class="segmented-btn' + ((state.settings.thinkingLevel || 'off') === 'off' ? ' active' : '') + '" onclick="setThinkingLevel(\'off\')">关闭</button>' +
-                '<button class="segmented-btn' + (state.settings.thinkingLevel === 'basic' ? ' active' : '') + '" onclick="setThinkingLevel(\'basic\')">基础</button>' +
-                '<button class="segmented-btn' + (state.settings.thinkingLevel === 'deep' ? ' active' : '') + '" onclick="setThinkingLevel(\'deep\')">深度</button>' +
-            '</div>' +
-        '</div>' +
-    '</div>' +
-    '<div class="settings-list-card" style="margin-bottom:14px;">' +
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
-            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="gauge" class="settings-row-icon"></i><span class="settings-entry-title">最大 Token 数</span></div>' +
-            '<div class="settings-entry-sub" style="margin-bottom:8px;">限制模型回复的最大 Token 数量，留空为无限制</div>' +
-            '<input type="number" class="settings-number-input" data-key="maxTokens" placeholder="无限制" value="' + (mt || '') + '">' +
-        '</div>' +
-    '</div>' +
     settingsGroup('', [
         settingsSwitch('splitLines', '按行拆分气泡', '将助手的回复按换行拆分成多个独立气泡发送', !!state.settings.splitLines)
     ]);
+}
+
+function thinkingSliderHtml(current) {
+    const levels = ['verylow', 'low', 'medium', 'high', 'veryhigh', 'auto'];
+    const idx = levels.indexOf(current);
+    const val = idx >= 0 ? idx : 0;
+    return '<input type="range" class="settings-range font-page-range thinking-level-range" min="0" max="5" step="1" value="' + val + '">';
+}
+
+function resetParam(key, defaultVal) {
+    state.settings[key] = defaultVal;
+    saveState();
+    renderSettingsView();
 }
 
 // ===== 记忆设置 =====
@@ -2507,6 +2528,7 @@ function rangeRow(key, label, min, max, step, opts) {
 }
 function rangeDisplayText(key, val) {
     if (key === 'temperature') return Number(val).toFixed(2);
+    if (key === 'maxTokens') return val ? String(Math.round(val)) : '未指定';
     if (key === 'contextCount') return val >= 50 ? '无限制' : String(Math.round(val));
     if (key.indexOf('Opacity') >= 0 || key.indexOf('Scale') >= 0) return Math.round(val) + '%';
     return String(Math.round(val));
@@ -3420,7 +3442,10 @@ function setupEventListeners() {
     });
     on('editTitleCancel', 'click', closeEditTitle);
     on('editTitleSave', 'click', saveEditTitle);
-    on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) { if (document.getElementById('newKeyName')) closeAddKeyDialog(); else closeEditTitle(); } });
+    on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) closeEditTitle(); });
+    on('addKeyCancelBtn', 'click', closeAddKeyDialog);
+    on('addKeySaveBtn', 'click', saveNewKey);
+    on('addKeyOverlay', 'click', e => { if (e.target === e.currentTarget) closeAddKeyDialog(); });
     on('chatMoreRename', 'click', () => { closeChatMore(); openEditTitle(); });
     on('chatMorePin', 'click', togglePinChat);
     on('chatMoreDelete', 'click', () => { const c = getCurrentChat(); if (c) deleteChat(c.id); });
