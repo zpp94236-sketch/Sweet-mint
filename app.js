@@ -702,7 +702,17 @@ async function sendMessage() {
     scrollToBottom();
 
     const apiMessages = [];
-    if (state.settings.systemPrompt) apiMessages.push({ role: 'system', content: state.settings.systemPrompt });
+    const aiName = state.settings.aiName || '晏晏';
+    const userName = state.settings.userName || '用户';
+    let systemContent = state.settings.systemPrompt || '';
+    // 自动追加身份信息
+    const identityLine = '\n[系统信息] 你的名字是' + aiName + '，用户的名字是' + userName + '。';
+    if (systemContent) {
+        systemContent += identityLine;
+    } else {
+        systemContent = '你是' + aiName + '。用户的名字是' + userName + '。';
+    }
+    apiMessages.push({ role: 'system', content: systemContent });
     const ctxCount = state.settings.contextCount >= 50 ? chat.messages.length : state.settings.contextCount;
     apiMessages.push(...chat.messages.slice(-ctxCount).map(m => ({ role: m.role, content: m.content })));
 
@@ -1311,18 +1321,6 @@ function bindSettingsContentEvents() {
         });
     }
 
-    // thinkingEnabled toggle 特殊处理
-    document.querySelectorAll('.msg-display-toggle[data-key="thinkingEnabled"]').forEach(t => {
-        t.addEventListener('change', () => {
-            if (t.checked) {
-                state.settings.thinkingLevel = state.settings.thinkingLevel === 'off' ? 'verylow' : state.settings.thinkingLevel;
-            } else {
-                state.settings.thinkingLevel = 'off';
-            }
-            saveState();
-            renderSettingsView();
-        });
-    });
     document.querySelectorAll('.msg-display-toggle[data-key="unlimitedContext"]').forEach(t => {
         t.addEventListener('change', () => {
             state.settings.contextCount = t.checked ? 50 : 20;
@@ -1613,7 +1611,7 @@ function renderAssistantBasicPage() {
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row">' +
             '<div class="settings-entry-info"><div class="settings-entry-title">思考</div><div class="settings-entry-sub">' + escapeHtml(thinkingLabels[thinking] || '关闭') + '</div></div>' +
-            '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="thinkingEnabled"' + (thinkingEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+            '<label class="switch"><input type="checkbox" onchange="toggleThinkingEnabled(this.checked)"' + (thinkingEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
         '</div>' +
         (thinkingEnabled ? '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;"><span class="settings-entry-title">思考深度</span><span class="settings-range-value">' + escapeHtml(thinkingLabels[thinking]) + '</span></div>' +
@@ -1664,6 +1662,16 @@ function thinkingSliderHtml(current) {
     const idx = levels.indexOf(current);
     const val = idx >= 0 ? idx : 0;
     return '<input type="range" class="settings-range font-page-range thinking-level-range" min="0" max="5" step="1" value="' + val + '">';
+}
+
+function toggleThinkingEnabled(checked) {
+    if (checked) {
+        state.settings.thinkingLevel = state.settings.thinkingLevel === 'off' ? 'verylow' : state.settings.thinkingLevel;
+    } else {
+        state.settings.thinkingLevel = 'off';
+    }
+    saveState();
+    renderSettingsView();
 }
 
 function resetParam(key, defaultVal) {
@@ -2514,7 +2522,7 @@ function renderContextSummaryPage() {
         '<div class="settings-row settings-row-stack">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="cpu" class="settings-row-icon"></i><span class="settings-entry-title">上下文窗口</span></div>' +
             '<div class="settings-entry-sub" style="margin-bottom:10px;">保留最近 ' + (unlimited ? '全部' : ctx) + ' 条消息</div>' +
-            '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="1" max="50" step="1" value="' + ctx + '">' +
+            '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="0" max="100" step="5" value="' + ctx + '">' +
         '</div>' +
         '<div class="settings-row" style="border-bottom:none;">' +
             '<div class="settings-entry-info"><div style="display:flex;align-items:center;gap:8px;"><i data-lucide="cpu" class="settings-row-icon"></i><span class="settings-entry-title">无限上下文窗口</span></div><div class="settings-entry-sub">保留完整对话历史，而不是只保留最近的消息</div></div>' +

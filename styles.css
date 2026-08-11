@@ -2124,6 +2124,10 @@ input[type="range"].settings-range {
     outline: none;
     margin: 6px 0 2px;
 }
+input[type="range"].settings-range,
+.font-page-range {
+    touch-action: none;
+}
 input[type="range"].settings-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
