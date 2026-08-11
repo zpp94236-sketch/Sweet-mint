@@ -197,6 +197,27 @@ function loadState() {
             if (s.status === undefined) s.status = 'disconnected';
         });
     }
+    // 迁移旧 providers 数组到新结构
+    if (state.providers && state.providers.length && !state.providers[0].keys) {
+        const oldProviders = state.providers;
+        const keys = oldProviders.map(p => ({
+            id: p.id,
+            name: p.name,
+            key: p.apiKey,
+            url: p.apiBase
+        }));
+        state.providers = [{
+            id: 'openai',
+            name: 'OpenAI',
+            type: 'builtin',
+            keys: keys,
+            activeKeyId: state.activeProviderId || (keys[0] && keys[0].id) || null,
+            cachedModels: state.settings.cachedModels || [],
+            enabledModels: state.settings.cachedModels || []
+        }];
+        state.activeProviderId = 'openai';
+        saveState();
+    }
     ensureMemorySystem();
 }
 
@@ -216,7 +237,13 @@ function ensureMemorySystem() {
   }
 }
 
-function getActiveProvider() { return state.providers.find(p => p.id === state.activeProviderId) || null; }
+function getActiveProvider() {
+    const provider = state.providers.find(p => p.id === 'openai');
+    if (!provider) return null;
+    const activeKey = (provider.keys || []).find(k => k.id === provider.activeKeyId);
+    if (!activeKey) return null;
+    return { id: provider.id, name: activeKey.name, apiBase: activeKey.url, apiKey: activeKey.key };
+}
 
 function createNewChat() {
     const chat = { id: Date.now().toString(), title: '新对话', messages: [], createdAt: new Date().toISOString(), mcpEnabled: {} };
@@ -974,8 +1001,8 @@ function renderMainSettings() {
             settingsEntry('bot', '助手设置', 'AI人设与参数', settingsChevron(), "settingsGo('assistantSettings')")
         ]) +
         settingsGroup('模型与服务', [
-            settingsEntry('cpu', '聊天模型', '供应商与模型配置', settingsChevron(), "settingsGo('chatModel')"),
-            settingsEntry('layers', '功能模型', '对话、总结、识别', settingsChevron(), "settingsGo('functionModel')"),
+            settingsEntry('cloud', '供应商设置', '管理API连接与密钥', settingsChevron(), "settingsGo('providerSettings')"),
+            settingsEntry('layers', '模型配置', '默认模型、可用模型、功能模型', settingsChevron(), "settingsGo('modelConfig')"),
             settingsEntry('mic', '语音服务', '敬请期待', settingsChevron(), 'settingsComingSoon()'),
             settingsEntry('globe', '搜索服务', '敬请期待', settingsChevron(), 'settingsComingSoon()'),
             settingsEntry('blocks', 'MCP服务', '和风天气、Supabase', settingsChevron(), "settingsGo('mcpService')"),
@@ -1072,6 +1099,154 @@ function renderProviderDetail(provider) {
     return '<div class="form-group"><label>供应商名称</label><input type="text" id="providerNameInput" placeholder="例如：聚梦AI" value="' + escapeHtml(name) + '"></div><div class="form-group"><label>API Base URL</label><input type="text" id="providerBaseInput" placeholder="https://api.example.com/v1" value="' + escapeHtml(apiBase) + '"></div><div class="form-group"><label>API Key</label><div class="input-with-btn"><input type="password" id="providerKeyInput" placeholder="sk-..." value="' + escapeHtml(apiKey) + '"><button class="btn-small" onclick="toggleProviderKeyVisibility()"><i data-lucide="eye"></i></button></div></div><button class="btn-primary" onclick="testProviderConnection()"><i data-lucide="plug" style="width:14px;height:14px;margin-right:6px;"></i>测试连接</button><span class="connection-status" id="providerConnectionStatus"></span>';
 }
 
+// ===== 供应商设置（新结构：openai 内置供应商 + 多 API 密钥）=====
+function renderProviderSettingsPage() {
+    const provider = state.providers.find(p => p.id === 'openai');
+    const keyCount = provider ? provider.keys.length : 0;
+    const keyDesc = keyCount > 0 ? keyCount + ' 个 API 密钥' : '未配置';
+
+    return settingsGroup('内置供应商', [
+        '<div class="settings-entry-row settings-entry-click" onclick="settingsGo(\'providerDetail\')">' +
+            '<div class="settings-entry-icon"><i data-lucide="bot"></i></div>' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">OpenAI</div><div class="settings-entry-sub">' + keyDesc + '</div></div>' +
+            '<div class="settings-entry-right">' + settingsChevron() + '</div></div>'
+    ]);
+}
+
+function renderProviderDetailPage() {
+    const provider = state.providers.find(p => p.id === 'openai') || { keys: [], activeKeyId: null };
+    const activeKey = (provider.keys || []).find(k => k.id === provider.activeKeyId);
+    const currentUrl = activeKey ? activeKey.url : '';
+
+    // 密钥列表
+    let keysHtml = (provider.keys || []).map(k => {
+        const isActive = k.id === provider.activeKeyId;
+        const masked = k.key ? k.key.slice(0, 4) + '········' + k.key.slice(-4) : '';
+        return '<div class="api-key-item' + (isActive ? ' active' : '') + '" onclick="selectApiKey(\'' + k.id + '\')">' +
+            '<div class="api-key-radio">' + (isActive ? '<div class="api-key-radio-dot"></div>' : '') + '</div>' +
+            '<div class="api-key-info"><div class="api-key-name">' + escapeHtml(k.name) + '</div><div class="api-key-masked">' + escapeHtml(masked) + '</div></div>' +
+            '<button class="api-key-more" onclick="event.stopPropagation();openKeyMenu(\'' + k.id + '\',event)"><i data-lucide="more-vertical"></i></button>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="settings-group-title">基础 URL</div>' +
+        '<div class="settings-list-card">' +
+            '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+                '<div style="display:flex;align-items:center;gap:10px;"><i data-lucide="link" class="settings-row-icon"></i><span class="settings-entry-title">基础 URL</span></div>' +
+                '<input type="text" id="providerUrlInput" class="settings-text-input" placeholder="https://api.example.com/v1" value="' + escapeHtml(currentUrl) + '" onchange="updateProviderUrl(this.value)">' +
+            '</div>' +
+        '</div>' +
+        '<div class="settings-group-title">测试连接</div>' +
+        '<div class="settings-list-card">' +
+            '<div class="settings-entry-row settings-entry-click" onclick="testProviderFromDetail()">' +
+                '<div class="settings-entry-icon"><i data-lucide="refresh-cw"></i></div>' +
+                '<div class="settings-entry-info"><div class="settings-entry-title">测试连接</div><div class="settings-entry-sub">验证 Base URL 和 API Key 能否访问 API</div></div>' +
+            '</div>' +
+        '</div>' +
+        '<div class="settings-group-title">API 密钥</div>' +
+        '<div class="settings-list-card">' +
+            keysHtml +
+            '<div class="settings-entry-row settings-entry-click" onclick="openAddKeyDialog()" style="justify-content:center;gap:6px;color:var(--primary-dark);"><i data-lucide="plus" style="width:16px;height:16px;"></i> 添加新密钥</div>' +
+        '</div>';
+}
+
+function selectApiKey(keyId) {
+    const provider = state.providers.find(p => p.id === 'openai');
+    if (!provider) return;
+    provider.activeKeyId = keyId;
+    // 同步URL到输入框
+    const key = provider.keys.find(k => k.id === keyId);
+    if (key) {
+        const urlInput = document.getElementById('providerUrlInput');
+        if (urlInput) urlInput.value = key.url || '';
+    }
+    saveState();
+    renderSettingsView();
+}
+
+function updateProviderUrl(url) {
+    const provider = state.providers.find(p => p.id === 'openai');
+    if (!provider) return;
+    const key = provider.keys.find(k => k.id === provider.activeKeyId);
+    if (key) { key.url = url.trim(); saveState(); }
+}
+
+async function testProviderFromDetail() {
+    const p = getActiveProvider();
+    if (!p || !p.apiBase || !p.apiKey) { showToast('请先配置URL和选择密钥'); return; }
+    showToast('测试中...');
+    try {
+        const r = await fetch(p.apiBase.replace(/\/$/, '') + '/models', { headers: { 'Authorization': 'Bearer ' + p.apiKey } });
+        showToast(r.ok ? '连接成功' : '错误 ' + r.status);
+    } catch (e) { showToast('无法连接'); }
+}
+
+function openAddKeyDialog() {
+    const html = '<div class="add-key-dialog-content">' +
+        '<h3 style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px;">添加 API 密钥</h3>' +
+        '<div class="form-group"><input type="text" id="newKeyName" placeholder="名称（例如：工作区）"></div>' +
+        '<div class="form-group"><input type="text" id="newKeyValue" placeholder="API Key"></div>' +
+        '<div class="form-group"><input type="text" id="newKeyUrl" placeholder="API URL（例如：https://api.example.com/v1）"></div>' +
+        '<div style="display:flex;justify-content:flex-end;gap:12px;margin-top:8px;">' +
+            '<button class="btn-cancel" onclick="closeAddKeyDialog()">取消</button>' +
+            '<button class="btn-primary" onclick="saveNewKey()">添加</button>' +
+        '</div></div>';
+    // 复用 editTitleOverlay 的模式
+    const ov = document.getElementById('editTitleOverlay');
+    const panel = ov.querySelector('.edit-title-panel');
+    panel.innerHTML = html;
+    ov.classList.add('active');
+}
+
+function closeAddKeyDialog() {
+    const ov = document.getElementById('editTitleOverlay');
+    ov.classList.remove('active');
+    // 恢复原始 editTitle 内容
+    const panel = ov.querySelector('.edit-title-panel');
+    panel.innerHTML = '<h3>编辑对话标题</h3><input type="text" id="editTitleInput" placeholder="输入对话标题"><div class="edit-title-actions"><button class="btn-cancel" id="editTitleCancel">取消</button><button class="btn-primary" id="editTitleSave">保存</button></div>';
+    // 重新绑定编辑标题弹窗的事件（元素被重建了）
+    const cancelBtn = document.getElementById('editTitleCancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeEditTitle);
+    const saveBtn = document.getElementById('editTitleSave');
+    if (saveBtn) saveBtn.addEventListener('click', saveEditTitle);
+    const eti = document.getElementById('editTitleInput');
+    if (eti) eti.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveEditTitle(); } });
+}
+
+function saveNewKey() {
+    const name = document.getElementById('newKeyName').value.trim();
+    const key = document.getElementById('newKeyValue').value.trim();
+    const url = document.getElementById('newKeyUrl').value.trim();
+    if (!name || !key) { alert('请填写名称和密钥'); return; }
+    const provider = state.providers.find(p => p.id === 'openai');
+    if (!provider) return;
+    const newId = 'k_' + Date.now().toString(36);
+    provider.keys.push({ id: newId, name: name, key: key, url: url });
+    if (!provider.activeKeyId) provider.activeKeyId = newId;
+    saveState();
+    closeAddKeyDialog();
+    renderSettingsView();
+    showToast('密钥已添加');
+}
+
+function openKeyMenu(keyId, e) {
+    // 简单用 confirm 实现编辑/删除
+    const provider = state.providers.find(p => p.id === 'openai');
+    if (!provider) return;
+    const key = provider.keys.find(k => k.id === keyId);
+    if (!key) return;
+    const action = prompt('操作：输入 "删除" 删除此密钥，或输入新名称来重命名', key.name);
+    if (action === null) return;
+    if (action === '删除') {
+        provider.keys = provider.keys.filter(k => k.id !== keyId);
+        if (provider.activeKeyId === keyId) provider.activeKeyId = provider.keys.length ? provider.keys[0].id : null;
+        saveState(); renderSettingsView(); showToast('已删除');
+    } else if (action.trim()) {
+        key.name = action.trim();
+        saveState(); renderSettingsView();
+    }
+}
+
 function bindSettingsContentEvents() {
     const tms = document.getElementById('themeModeSelect');
     if (tms) tms.addEventListener('change', () => { state.settings.theme = tms.value; saveState(); applyTheme(); renderSettingsView(); });
@@ -1104,6 +1279,7 @@ function bindSettingsContentEvents() {
         r.addEventListener('input', updateFill);
     });
     document.querySelectorAll('.settings-text-input').forEach(inp => inp.addEventListener('change', () => {
+        if (!inp.dataset.key) return;
         state.settings[inp.dataset.key] = inp.value.trim();
         saveState();
         applySettingChange(inp.dataset.key);
@@ -1115,19 +1291,6 @@ function bindSettingsContentEvents() {
         saveState();
         applySettingChange(inp.dataset.key);
     }));
-    document.querySelectorAll('[data-fm-model]').forEach(inp => inp.addEventListener('change', () => {
-        if (!state.settings.functionModels) state.settings.functionModels = {};
-        if (!state.settings.functionModels[inp.dataset.fmModel]) state.settings.functionModels[inp.dataset.fmModel] = {};
-        state.settings.functionModels[inp.dataset.fmModel].model = inp.value.trim();
-        saveState();
-    }));
-    document.querySelectorAll('.fm-default-toggle').forEach(t => t.addEventListener('change', () => {
-        if (!state.settings.functionModels) state.settings.functionModels = {};
-        if (!state.settings.functionModels[t.dataset.fm]) state.settings.functionModels[t.dataset.fm] = {};
-        state.settings.functionModels[t.dataset.fm].useDefault = t.checked;
-        saveState();
-        renderSettingsView();
-    }));
     document.querySelectorAll('.mcp-toggle').forEach(t => t.addEventListener('change', () => {
         const srv = (state.settings.mcpServers || []).find(s => s.id === t.dataset.mcp);
         if (srv) { srv.enabled = t.checked; saveState(); }
@@ -1138,34 +1301,6 @@ function bindSettingsContentEvents() {
         applyChatFont();
         renderSettingsView();
     }));
-    const sel = document.getElementById('providerSelect');
-    if (sel) sel.addEventListener('change', () => { state.activeProviderId = sel.value; saveState(); renderSettingsView(); });
-    const pBase = document.getElementById('providerBaseEdit');
-    if (pBase) pBase.addEventListener('change', saveChatModelProvider);
-    const pKey = document.getElementById('providerKeyEdit');
-    if (pKey) pKey.addEventListener('change', saveChatModelProvider);
-    const cModel = document.getElementById('chatModelInput');
-    if (cModel) {
-        cModel.addEventListener('focus', async () => {
-            const ml = document.getElementById('modelList');
-            if (!ml) return;
-            if (!state.settings.cachedModels || !state.settings.cachedModels.length) {
-                await fetchChatModels();
-            } else {
-                renderModelListFromCache(cModel.value);
-            }
-        });
-        cModel.addEventListener('input', () => {
-            renderModelListFromCache(cModel.value);
-        });
-        cModel.addEventListener('change', () => {
-            state.settings.model = cModel.value.trim();
-            saveState();
-            updateHeader();
-        });
-    }
-    const fb = document.getElementById('chatFetchModelsBtn');
-    if (fb) fb.addEventListener('click', fetchChatModels);
     const spEl = document.getElementById('settingsSystemPrompt');
     if (spEl) spEl.addEventListener('change', () => { state.settings.systemPrompt = spEl.value; saveState(); });
     const cfi = document.getElementById('customFontInput');
@@ -1281,8 +1416,13 @@ function initProfileSheet() {
 const SETTINGS_PAGES = {
     'displaySettings': ['显示设置', 'layout', renderDisplaySettingsPage],
     'assistantSettings': ['助手设置', 'bot', renderAssistantSettingsPage],
-    'chatModel': ['聊天模型', 'cpu', renderChatModelPage],
-    'functionModel': ['功能模型', 'layers', renderFunctionModelPage],
+    'modelConfig': ['模型配置', 'cpu', renderModelConfigPage],
+    'availableModels': ['可用模型', 'cpu', renderAvailableModelsPage],
+    'modelSelect': ['OpenAI', 'cpu', renderModelSelectPage],
+    'functionModels': ['功能模型', 'layers', renderFunctionModelsPage],
+    'fmDetail': ['功能模型详情', 'layers', renderFmDetailPage],
+    'providerSettings': ['供应商设置', 'cloud', renderProviderSettingsPage],
+    'providerDetail': ['OpenAI', 'cloud', renderProviderDetailPage],
     'mcpService': ['MCP服务', 'blocks', renderMcpServicePage],
     'contextSummary': ['上下文总结', 'file-text', renderContextSummaryPage],
     'dataBackup': ['数据备份与恢复', 'database', renderDataBackupPage],
@@ -1477,6 +1617,17 @@ function renderAssistantBasicPage() {
         '<div class="settings-row" style="border-bottom:none;">' +
             '<div class="settings-entry-info"><div style="display:flex;align-items:center;gap:8px;"><i data-lucide="zap" class="settings-row-icon"></i><span class="settings-entry-title">流式输出</span></div><div class="settings-entry-sub">开启后，模型回复将以流式方式实时显示</div></div>' +
             '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="streaming"' + (streaming ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+        '</div>' +
+    '</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="brain" class="settings-row-icon"></i><span class="settings-entry-title">模型思考</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">思考深度越深，推理能力越强，但Token消耗更快</div>' +
+            '<div class="segmented-control">' +
+                '<button class="segmented-btn' + ((state.settings.thinkingLevel || 'off') === 'off' ? ' active' : '') + '" onclick="setThinkingLevel(\'off\')">关闭</button>' +
+                '<button class="segmented-btn' + (state.settings.thinkingLevel === 'basic' ? ' active' : '') + '" onclick="setThinkingLevel(\'basic\')">基础</button>' +
+                '<button class="segmented-btn' + (state.settings.thinkingLevel === 'deep' ? ' active' : '') + '" onclick="setThinkingLevel(\'deep\')">深度</button>' +
+            '</div>' +
         '</div>' +
     '</div>' +
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
@@ -1823,189 +1974,217 @@ function applyRegexRules(html, role) {
     return html;
 }
 
-// ===== 聊天模型 =====
-function renderChatModelPage() {
-    const provider = getActiveProvider();
-    const providerBase = provider ? provider.apiBase : '';
-    const providerKey = provider ? provider.apiKey : '';
-    const currentModel = state.settings.model || '';
+// ===== 模型配置 =====
+function renderModelConfigPage() {
+    const provider = state.providers.find(p => p.id === 'openai');
+    const currentModel = state.settings.model || '未配置';
+    const enabledCount = provider && provider.enabledModels ? provider.enabledModels.length : 0;
 
-    // 供应商预设列表
-    let presetsHtml = state.providers.map(p => {
-        const isActive = p.id === state.activeProviderId;
-        return '<div class="provider-preset-card' + (isActive ? ' active' : '') + '" onclick="switchProviderPreset(\'' + p.id + '\')">' +
-            '<div class="provider-preset-head">' +
-                '<span class="provider-preset-name">' + escapeHtml(p.name) + '</span>' +
-                (isActive ? '<span class="provider-preset-badge">当前</span>' : '') +
-                '<button class="provider-preset-del" onclick="event.stopPropagation();deleteProvider(\'' + p.id + '\')" title="删除"><i data-lucide="x"></i></button>' +
+    return '<div class="settings-group-title">默认模型</div>' +
+        '<div class="settings-list-card">' +
+            '<div class="settings-entry-row settings-entry-click" onclick="openDefaultModelPicker()">' +
+                '<div class="settings-entry-icon"><i data-lucide="bot"></i></div>' +
+                '<div class="settings-entry-info"><div class="settings-entry-title">' + escapeHtml(currentModel) + '</div><div class="settings-entry-sub">OpenAI</div></div>' +
             '</div>' +
-            '<div class="provider-preset-meta">' + escapeHtml((p.apiBase || '').replace(/^https?:\/\//, '').slice(0, 40)) + '</div>' +
+        '</div>' +
+
+        '<div class="settings-list-card" style="margin-top:16px;">' +
+            '<div class="settings-entry-row settings-entry-click" onclick="settingsGo(\'availableModels\')">' +
+                '<div class="settings-entry-icon"><i data-lucide="search"></i></div>' +
+                '<div class="settings-entry-info"><div class="settings-entry-title">可用模型</div><div class="settings-entry-sub">按供应商浏览，进入后精准搜索</div></div>' +
+                '<div class="settings-entry-right"><span style="font-size:12px;color:var(--primary-dark);background:var(--primary-lighter);padding:2px 8px;border-radius:999px;">' + enabledCount + '</span></div>' +
+            '</div>' +
+            '<div class="settings-entry-row settings-entry-click" onclick="settingsGo(\'functionModels\')">' +
+                '<div class="settings-entry-icon"><i data-lucide="layers"></i></div>' +
+                '<div class="settings-entry-info"><div class="settings-entry-title">功能模型</div><div class="settings-entry-sub">图像转述、图像生成、嵌入向量模型</div></div>' +
+            '</div>' +
         '</div>';
-    }).join('');
+}
 
-    return '<div class="settings-group-title">模型提供商</div>' +
-    '<div class="provider-preset-list" style="margin-bottom:14px;">' +
-        presetsHtml +
-        '<div class="provider-preset-card provider-preset-add" style="opacity:0.5;pointer-events:none;">' +
-            '<span style="display:flex;align-items:center;gap:6px;color:var(--text-light);font-size:13px;">等待开发</span>' +
-        '</div>' +
-    '</div>' +
+// ===== 默认模型选择器（从已勾选的模型中选）=====
+function openDefaultModelPicker() {
+    const provider = state.providers.find(p => p.id === 'openai');
+    const enabled = (provider && provider.enabledModels) || [];
+    if (!enabled.length) { showToast('请先在"可用模型"中勾选模型'); return; }
+    const current = state.settings.model || '';
+    let html = '<div class="model-picker-list">' +
+        enabled.map(m =>
+            '<div class="model-picker-item' + (m === current ? ' active' : '') + '" onclick="pickDefaultModel(\'' + escapeHtml(m) + '\')">' +
+                '<span>' + escapeHtml(m) + '</span>' +
+                (m === current ? '<i data-lucide="check" style="width:16px;height:16px;color:var(--primary-dark);"></i>' : '') +
+            '</div>'
+        ).join('') +
+    '</div>';
+    openInfoSheet('选择默认模型', html);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
 
-    '<div class="settings-group-title">连接配置</div>' +
-    '<div class="settings-list-card" style="margin-bottom:14px;">' +
-        '<div class="settings-row settings-row-stack">' +
-            '<div class="settings-entry-title">API 端点</div>' +
-            '<input type="text" id="providerBaseEdit" class="settings-text-input" data-key="_providerBase" placeholder="https://api.example.com/v1" value="' + escapeHtml(providerBase) + '">' +
-        '</div>' +
-        '<div class="settings-row settings-row-stack">' +
-            '<div class="settings-entry-title">API 密钥</div>' +
-            '<input type="password" id="providerKeyEdit" class="settings-text-input" placeholder="sk-..." value="' + escapeHtml(providerKey) + '">' +
-        '</div>' +
-        '<div class="settings-row" style="border-bottom:none;">' +
-            '<div class="settings-entry-info"><div class="settings-entry-title">测试连接</div><div class="settings-entry-sub">验证API密钥和URL是否可用</div></div>' +
-            '<button class="btn-secondary" style="gap:6px;" onclick="testChatModelConnection()"><i data-lucide="send" style="width:13px;height:13px;"></i>测试</button>' +
-        '</div>' +
-        '<span class="connection-status" id="chatModelStatus" style="padding:0 16px 10px;font-size:12px;display:block;"></span>' +
-    '</div>' +
+function pickDefaultModel(model) {
+    state.settings.model = model;
+    saveState();
+    updateHeader();
+    closeInfoSheet();
+    renderSettingsView();
+}
 
-    '<div class="settings-group-title">选择模型</div>' +
-    '<div class="settings-list-card">' +
-        '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
-            '<div style="display:flex;gap:8px;align-items:center;">' +
-                '<input type="text" id="chatModelInput" class="settings-text-input" style="flex:1;" placeholder="🔍 搜索模型名称" value="' + escapeHtml(currentModel) + '">' +
-            '</div>' +
-            '<div class="model-list" id="modelList" style="display:none;margin-top:8px;"></div>' +
+// ===== 可用模型页面 =====
+function renderAvailableModelsPage() {
+    const provider = state.providers.find(p => p.id === 'openai');
+    const modelCount = provider && provider.cachedModels ? provider.cachedModels.length : 0;
+    const enabledCount = provider && provider.enabledModels ? provider.enabledModels.length : 0;
+
+    return '<div class="settings-list-card">' +
+        '<div class="settings-entry-row settings-entry-click" onclick="syncAllModels()">' +
+            '<div class="settings-entry-icon"><i data-lucide="refresh-cw"></i></div>' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">从所有供应商同步</div><div class="settings-entry-sub">获取所有已配置 API 的最新模型列表</div></div>' +
         '</div>' +
-    '</div>' +
-    '<div class="settings-group-title">模型预设</div>' +
-    '<div class="settings-list-card">' +
-        state.providers.map(function(p) {
-            return '<div class="settings-row settings-row-stack" style="gap:10px;">' +
-                '<div class="settings-entry-title">' + escapeHtml(p.name) + '</div>' +
-                '<div class="settings-row" style="padding:0;border-bottom:none;gap:8px;flex-direction:column;align-items:stretch;">' +
-                    '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-light);min-width:50px;">模型</span><span style="font-size:13px;color:var(--text);">' + escapeHtml(state.settings.model || '未配置') + '</span></div>' +
-                    '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-light);min-width:50px;">密钥</span><span style="font-size:13px;color:var(--text);">···</span></div>' +
-                    '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-light);min-width:50px;">URL</span><input type="text" class="settings-text-input" style="font-size:12px;" value="' + escapeHtml(p.apiBase || '') + '" onchange="updatePresetUrl(\'' + p.id + '\',this.value)"></div>' +
-                '</div>' +
-            '</div>';
-        }).join('') +
+        '<div class="settings-entry-row settings-entry-click" onclick="settingsGo(\'modelSelect\')">' +
+            '<div class="settings-entry-icon"><i data-lucide="bot"></i></div>' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">OpenAI</div><div class="settings-entry-sub">' + (modelCount > 0 ? enabledCount + ' / ' + modelCount + ' 个模型已启用' : '未获取模型列表') + '</div></div>' +
+            '<div class="settings-entry-right">' + settingsChevron() + '</div>' +
+        '</div>' +
     '</div>';
 }
 
-function switchProviderPreset(id) {
-    state.activeProviderId = id;
-    saveState();
-    renderSettingsView();
-    updateHeader();
-}
-function updatePresetUrl(id, val) {
-    const p = state.providers.find(x => x.id === id);
-    if (p) { p.apiBase = val.trim(); saveState(); }
-}
-function toggleProviderKeyVisibilityId(id) {
-    const i = document.getElementById(id); if (!i) return;
-    i.type = i.type === 'password' ? 'text' : 'password';
-}
-function saveChatModelProvider() {
-    const p = getActiveProvider(); if (!p) return;
-    const b = document.getElementById('providerBaseEdit'); if (b) p.apiBase = b.value.trim();
-    const k = document.getElementById('providerKeyEdit'); if (k) p.apiKey = k.value.trim();
-    saveState();
-}
-async function testChatModelConnection() {
-    const s = document.getElementById('chatModelStatus');
-    const base = document.getElementById('providerBaseEdit').value.trim().replace(/\/$/, '');
-    const key = document.getElementById('providerKeyEdit').value.trim();
-    if (!base || !key) { if (s) { s.textContent = '请先填写端点与密钥'; s.style.color = '#e74c3c'; } return; }
-    if (s) { s.textContent = '测试中...'; s.style.color = '#f39c12'; }
-    try { const r = await fetch(base + '/models', { headers: { 'Authorization': 'Bearer ' + key } }); if (s) { s.textContent = r.ok ? '连接成功' : '错误 ' + r.status; s.style.color = r.ok ? '#27ae60' : '#e74c3c'; } } catch (e) { if (s) { s.textContent = '无法连接'; s.style.color = '#e74c3c'; } }
-}
-function renderModelListFromCache(filter) {
-    const ml = document.getElementById('modelList');
-    if (!ml) return;
-    const models = state.settings.cachedModels || [];
-    if (!models.length) { ml.style.display = 'none'; return; }
-    const f = (filter || '').toLowerCase();
-    const filtered = f ? models.filter(m => m.toLowerCase().includes(f)) : models;
-    if (!filtered.length) {
-        ml.innerHTML = '<div class="model-list-item" style="color:var(--text-light);">无匹配模型</div>';
-    } else {
-        ml.innerHTML = filtered.slice(0, 30).map(id =>
-            '<div class="model-list-item' + (id === state.settings.model ? ' active' : '') + '" data-model="' + escapeHtml(id) + '">' + escapeHtml(id) + '</div>'
-        ).join('');
-        ml.querySelectorAll('.model-list-item[data-model]').forEach(el => {
-            el.addEventListener('click', () => {
-                const inp = document.getElementById('chatModelInput');
-                if (inp) inp.value = el.dataset.model;
-                state.settings.model = el.dataset.model;
-                saveState();
-                updateHeader();
-                ml.style.display = 'none';
-            });
-        });
-    }
-    ml.style.display = 'block';
-}
-async function fetchChatModels() {
-    const provider = getActiveProvider();
-    if (!provider || !provider.apiBase || !provider.apiKey) return;
+async function syncAllModels() {
+    const p = getActiveProvider();
+    if (!p || !p.apiBase || !p.apiKey) { showToast('请先配置供应商'); return; }
+    showToast('正在获取模型列表...');
     try {
-        const r = await fetch(provider.apiBase + '/models', { headers: { 'Authorization': 'Bearer ' + provider.apiKey } });
+        const r = await fetch(p.apiBase.replace(/\/$/, '') + '/models', { headers: { 'Authorization': 'Bearer ' + p.apiKey } });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
-        const models = d.data || [];
-        const ids = models.map(m => m.id).sort((a, b) => a.localeCompare(b));
-        state.settings.cachedModels = ids;
-        saveState();
-        const cModel = document.getElementById('chatModelInput');
-        renderModelListFromCache(cModel ? cModel.value : '');
-    } catch (e) {
-        console.warn('获取模型列表失败：', e);
-    }
+        const models = (d.data || []).map(m => m.id).sort((a, b) => a.localeCompare(b));
+        const provider = state.providers.find(x => x.id === 'openai');
+        if (provider) {
+            provider.cachedModels = models;
+            if (!provider.enabledModels) provider.enabledModels = [];
+            saveState();
+        }
+        showToast('获取到 ' + models.length + ' 个模型');
+        renderSettingsView();
+    } catch (e) { showToast('获取失败：' + e.message); }
 }
 
-// ===== 功能模型 =====
-const FUNCTION_MODEL_DEFS = [
-    { id: 'chat', icon: 'message-circle', name: '对话功能', desc: '主要对话' },
-    { id: 'summary', icon: 'file-text', name: '上下文总结', desc: '压缩上下文生成摘要' },
-    { id: 'image', icon: 'image', name: '图像识别', desc: '处理图片内容' },
-    { id: 'audio', icon: 'mic', name: '音频识别', desc: '处理音频内容' },
-    { id: 'video', icon: 'video', name: '视频识别', desc: '处理视频内容' }
-];
-function renderFunctionModelPage() {
-    const cards = FUNCTION_MODEL_DEFS.map(f => {
-        const cfg = (state.settings.functionModels && state.settings.functionModels[f.id]) || {};
-        const useDefault = cfg.useDefault !== false;
-        const modelName = cfg.model || state.settings.model || '未配置';
-        return '<div class="fm-card">' +
-            '<div class="settings-row fm-card-head" onclick="toggleFmCard(this)">' +
-                '<div class="fm-card-icon"><i data-lucide="' + f.icon + '"></i></div>' +
-                '<div class="settings-entry-info"><div class="settings-entry-title">' + f.name + '</div><div class="settings-entry-sub">' + f.desc + '，当前配置：' + (useDefault ? '默认配置' : '自定义') + '，模型：' + escapeHtml(modelName) + '</div></div>' +
-                '<button class="btn-small" onclick="event.stopPropagation();testFmModel(\'' + f.id + '\')">测试</button>' +
-                '<i data-lucide="chevron-down" class="fm-chevron"></i>' +
-            '</div>' +
-            '<div class="fm-card-body" style="display:none;">' +
-                '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">使用默认模型</div><div class="settings-entry-sub">默认使用当前聊天模型：' + escapeHtml(state.settings.model || '未配置') + '</div></div><label class="switch"><input type="checkbox" class="fm-default-toggle" data-fm="' + f.id + '"' + (useDefault ? ' checked' : '') + '><span class="switch-slider"></span></label></div>' +
-                '<div class="settings-row settings-row-stack" style="border-bottom:none;"><div class="settings-entry-title">模型</div><input type="text" class="fm-model-input" data-fm-model="' + f.id + '" placeholder="输入模型名称" value="' + escapeHtml(cfg.model || '') + '"></div>' +
-            '</div>' +
+// ===== 模型勾选列表页 =====
+function renderModelSelectPage() {
+    const provider = state.providers.find(p => p.id === 'openai');
+    const models = (provider && provider.cachedModels) || [];
+    const enabled = new Set((provider && provider.enabledModels) || []);
+
+    if (!models.length) {
+        return '<div class="bedroom-empty">还没有模型列表<br>请先返回上一页点"从所有供应商同步"</div>';
+    }
+
+    return '<div class="model-select-search"><i data-lucide="search"></i><input type="text" id="modelSelectSearch" placeholder="在此供应商内搜索模型" oninput="filterModelSelect()"></div>' +
+        '<div class="settings-list-card" id="modelSelectList">' +
+            models.map(m =>
+                '<div class="model-select-item" data-model="' + escapeHtml(m) + '" onclick="toggleModelEnabled(\'' + escapeHtml(m) + '\')">' +
+                    '<span class="model-select-name">' + escapeHtml(m) + '</span>' +
+                    '<div class="model-select-check' + (enabled.has(m) ? ' checked' : '') + '"><i data-lucide="check"></i></div>' +
+                '</div>'
+            ).join('') +
         '</div>';
-    }).join('');
-    return '<div class="fm-list">' + cards + '</div>';
 }
-function toggleFmCard(head) {
-    const body = head.nextElementSibling;
-    const ch = head.querySelector('.fm-chevron');
-    if (!body) return;
-    const open = body.style.display === 'none';
-    body.style.display = open ? 'block' : 'none';
-    if (ch) ch.style.transform = open ? 'rotate(180deg)' : '';
+
+function toggleModelEnabled(model) {
+    const provider = state.providers.find(p => p.id === 'openai');
+    if (!provider) return;
+    if (!provider.enabledModels) provider.enabledModels = [];
+    const idx = provider.enabledModels.indexOf(model);
+    if (idx >= 0) provider.enabledModels.splice(idx, 1);
+    else provider.enabledModels.push(model);
+    saveState();
+    renderSettingsView();
 }
-async function testFmModel(id) {
+
+function filterModelSelect() {
+    const q = (document.getElementById('modelSelectSearch').value || '').toLowerCase();
+    document.querySelectorAll('#modelSelectList .model-select-item').forEach(el => {
+        el.style.display = el.dataset.model.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+// ===== 功能模型页面 =====
+function renderFunctionModelsPage() {
+    const items = [
+        { id: 'chat', icon: 'message-circle', name: '对话功能', desc: '主要对话模型' },
+        { id: 'summary', icon: 'file-text', name: '上下文总结', desc: '压缩上下文生成摘要' },
+        { id: 'image', icon: 'image', name: '图像转述', desc: '图片内容识别' },
+        { id: 'audio', icon: 'mic', name: '音频识别', desc: '音频内容处理' },
+        { id: 'video', icon: 'video', name: '视频转述', desc: '视频内容处理' }
+    ];
+
+    return '<div class="settings-group-title">功能模型</div>' +
+        '<div class="settings-list-card">' +
+        items.map(f => {
+            const cfg = (state.settings.functionModels && state.settings.functionModels[f.id]) || {};
+            const modelName = cfg.model || '未选择';
+            return '<div class="settings-entry-row settings-entry-click" onclick="openFmDetail(\'' + f.id + '\')">' +
+                '<div class="settings-entry-icon"><i data-lucide="' + f.icon + '"></i></div>' +
+                '<div class="settings-entry-info"><div class="settings-entry-title">' + f.name + '</div><div class="settings-entry-sub">' + escapeHtml(modelName) + '</div></div>' +
+                '<div class="settings-entry-right">' + settingsChevron() + '</div>' +
+            '</div>';
+        }).join('') +
+        '</div>';
+}
+
+let currentFmId = '';
+function openFmDetail(id) { currentFmId = id; settingsGo('fmDetail'); }
+
+function renderFmDetailPage() {
+    const id = currentFmId;
+    const names = { chat: '对话功能', summary: '上下文总结', image: '图像转述', audio: '音频识别', video: '视频转述' };
     const cfg = (state.settings.functionModels && state.settings.functionModels[id]) || {};
-    const model = cfg.useDefault === false && cfg.model ? cfg.model : state.settings.model;
-    const provider = getActiveProvider();
-    if (!provider || !provider.apiBase || !provider.apiKey) { showToast('请先配置供应商'); return; }
-    showToast('测试中...');
-    try { const r = await fetch(provider.apiBase + '/models', { headers: { 'Authorization': 'Bearer ' + provider.apiKey } }); showToast(r.ok ? '模型服务正常' : '错误 ' + r.status); } catch (e) { showToast('无法连接'); }
+    const currentModel = cfg.model || '未选择';
+
+    return '<div class="settings-group-title">转述模型</div>' +
+        '<div class="settings-list-card">' +
+            '<div class="settings-entry-row settings-entry-click" onclick="pickFmModel(\'' + id + '\')">' +
+                '<div class="settings-entry-icon"><i data-lucide="message-square"></i></div>' +
+                '<div class="settings-entry-info"><div class="settings-entry-title">' + escapeHtml(currentModel) + '</div></div>' +
+            '</div>' +
+        '</div>' +
+        '<div class="settings-group-title">已启用模型</div>' +
+        '<div class="settings-list-card">' +
+            (cfg.model
+                ? '<div class="settings-row"><span class="settings-row-label">' + escapeHtml(cfg.model) + '</span></div>'
+                : '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">未启用任何模型</div><div class="settings-entry-sub">请在上方添加模型以启用' + escapeHtml(names[id] || '') + '</div></div></div>') +
+            '<div class="settings-entry-row settings-entry-click" onclick="pickFmModel(\'' + id + '\')" style="justify-content:center;gap:6px;color:var(--primary-dark);"><i data-lucide="plus" style="width:16px;height:16px;"></i> 添加模型</div>' +
+        '</div>';
+}
+
+function pickFmModel(id) {
+    const provider = state.providers.find(p => p.id === 'openai');
+    const enabled = (provider && provider.enabledModels) || [];
+    if (!enabled.length) { showToast('请先在"可用模型"中勾选模型'); return; }
+    const cfg = (state.settings.functionModels && state.settings.functionModels[id]) || {};
+    const current = cfg.model || '';
+    let html = '<div class="model-picker-list">' +
+        enabled.map(m =>
+            '<div class="model-picker-item' + (m === current ? ' active' : '') + '" onclick="saveFmModel(\'' + id + '\',\'' + escapeHtml(m) + '\')">' +
+                '<span>' + escapeHtml(m) + '</span>' +
+                (m === current ? '<i data-lucide="check" style="width:16px;height:16px;color:var(--primary-dark);"></i>' : '') +
+            '</div>'
+        ).join('') +
+    '</div>';
+    openInfoSheet('选择模型', html);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function saveFmModel(fmId, model) {
+    if (!state.settings.functionModels) state.settings.functionModels = {};
+    if (!state.settings.functionModels[fmId]) state.settings.functionModels[fmId] = {};
+    state.settings.functionModels[fmId].model = model;
+    saveState();
+    closeInfoSheet();
+    renderSettingsView();
+}
+
+function setThinkingLevel(level) {
+    state.settings.thinkingLevel = level;
+    saveState();
+    renderSettingsView();
 }
 
 // ===== MCP服务 =====
@@ -3241,7 +3420,7 @@ function setupEventListeners() {
     });
     on('editTitleCancel', 'click', closeEditTitle);
     on('editTitleSave', 'click', saveEditTitle);
-    on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) closeEditTitle(); });
+    on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) { if (document.getElementById('newKeyName')) closeAddKeyDialog(); else closeEditTitle(); } });
     on('chatMoreRename', 'click', () => { closeChatMore(); openEditTitle(); });
     on('chatMorePin', 'click', togglePinChat);
     on('chatMoreDelete', 'click', () => { const c = getCurrentChat(); if (c) deleteChat(c.id); });

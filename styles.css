@@ -350,6 +350,77 @@ body {
 .provider-active-tag { font-size: 10px; color: var(--primary-dark); background: var(--primary-light); padding: 1px 7px; border-radius: 999px; margin-left: 4px; font-weight: 500; }
 .provider-list-card { background: transparent; border: none; }
 .provider-list-card .provider-card { background: var(--bg-cream); }
+
+/* API密钥列表项 */
+.api-key-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(184,201,193,0.25);
+    cursor: pointer; transition: background 0.15s;
+}
+.api-key-item:last-of-type { border-bottom: none; }
+.api-key-item:hover { background: var(--primary-lighter); }
+.api-key-item.active { background: var(--primary-lighter); }
+.api-key-radio {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--border); display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+}
+.api-key-item.active .api-key-radio { border-color: var(--primary-dark); }
+.api-key-radio-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--primary-dark); }
+.api-key-info { flex: 1; min-width: 0; }
+.api-key-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.api-key-masked { font-size: 12px; color: var(--text-light); margin-top: 2px; font-family: monospace; }
+.api-key-more { background: none; border: none; color: var(--text-light); padding: 4px; border-radius: 4px; cursor: pointer; display: flex; }
+.api-key-more i, .api-key-more svg { width: 16px !important; height: 16px !important; }
+.api-key-more:hover { color: var(--text); background: var(--primary-light); }
+
+/* 模型选择搜索框 */
+.model-select-search {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: 14px;
+    background: var(--bg-white);
+}
+.model-select-search i, .model-select-search svg { width: 18px !important; height: 18px !important; color: var(--text-light); flex-shrink: 0; }
+.model-select-search input { flex: 1; border: none; background: none; outline: none; font-size: 14px; font-family: inherit; color: var(--text); }
+.model-select-search input::placeholder { color: var(--text-light); }
+
+/* 模型勾选列表 */
+.model-select-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(184,201,193,0.25);
+    cursor: pointer; transition: background 0.15s;
+}
+.model-select-item:last-child { border-bottom: none; }
+.model-select-item:hover { background: var(--primary-lighter); }
+.model-select-name { font-size: 14px; color: var(--text); }
+.model-select-check {
+    width: 22px; height: 22px; border-radius: 4px;
+    border: 2px solid var(--border); display: flex;
+    align-items: center; justify-content: center;
+    transition: all 0.15s;
+}
+.model-select-check i, .model-select-check svg { width: 14px !important; height: 14px !important; display: none; color: #fff; }
+.model-select-check.checked {
+    background: var(--primary-dark); border-color: var(--primary-dark);
+}
+.model-select-check.checked i, .model-select-check.checked svg { display: block; }
+
+/* 模型选择器（info-sheet内） */
+.model-picker-list { display: flex; flex-direction: column; }
+.model-picker-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 4px;
+    border-bottom: 1px solid rgba(184,201,193,0.2);
+    cursor: pointer; font-size: 14px; color: var(--text);
+    transition: background 0.15s;
+}
+.model-picker-item:last-child { border-bottom: none; }
+.model-picker-item:hover { background: var(--primary-lighter); border-radius: 8px; }
+.model-picker-item.active { color: var(--primary-dark); font-weight: 600; }
+
 .form-group { margin-bottom: 14px; }
 .form-group label { display: block; font-size: 13px; color: var(--text-light); margin-bottom: 6px; }
 .form-group input[type="text"], .form-group input[type="password"], .form-group input[type="number"], .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-small); font-size: 14px; font-family: inherit; background: var(--primary-lighter); color: var(--text); outline: none; transition: border-color var(--transition); }
