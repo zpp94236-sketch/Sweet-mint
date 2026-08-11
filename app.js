@@ -713,7 +713,7 @@ async function sendMessage() {
         systemContent = '你是' + aiName + '。用户的名字是' + userName + '。';
     }
     apiMessages.push({ role: 'system', content: systemContent });
-    const ctxCount = state.settings.contextCount >= 50 ? chat.messages.length : state.settings.contextCount;
+    const ctxCount = state.settings.contextCount >= 100 ? chat.messages.length : state.settings.contextCount;
     apiMessages.push(...chat.messages.slice(-ctxCount).map(m => ({ role: m.role, content: m.content })));
 
     chat.isStreaming = true;
@@ -1244,6 +1244,10 @@ function bindSettingsContentEvents() {
         saveState();
         const d = document.getElementById('rangeVal-' + key);
         if (d) d.textContent = rangeDisplayText(key, val);
+        const ctxDisplay = document.getElementById('contextCountDisplay');
+        if (ctxDisplay && key === 'contextCount') {
+            ctxDisplay.textContent = val >= 100 ? '无限' : Math.round(val);
+        }
         applySettingChange(key);
     }));
     document.querySelectorAll('.settings-range').forEach(r => {
@@ -1323,7 +1327,7 @@ function bindSettingsContentEvents() {
 
     document.querySelectorAll('.msg-display-toggle[data-key="unlimitedContext"]').forEach(t => {
         t.addEventListener('change', () => {
-            state.settings.contextCount = t.checked ? 50 : 20;
+            state.settings.contextCount = t.checked ? 100 : 20;
             saveState();
             renderSettingsView();
         });
@@ -1611,7 +1615,7 @@ function renderAssistantBasicPage() {
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row">' +
             '<div class="settings-entry-info"><div class="settings-entry-title">思考</div><div class="settings-entry-sub">' + escapeHtml(thinkingLabels[thinking] || '关闭') + '</div></div>' +
-            '<label class="switch"><input type="checkbox" onchange="toggleThinkingEnabled(this.checked)"' + (thinkingEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+            '<label class="switch"><input type="checkbox" onchange="toggleThinkingEnabled(event.target.checked)"' + (thinkingEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
         '</div>' +
         (thinkingEnabled ? '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;"><span class="settings-entry-title">思考深度</span><span class="settings-range-value">' + escapeHtml(thinkingLabels[thinking]) + '</span></div>' +
@@ -1638,7 +1642,7 @@ function renderAssistantBasicPage() {
                 '<div style="display:flex;align-items:center;gap:8px;">' + (mtChanged ? '<button class="param-reset-btn" onclick="resetParam(\'maxTokens\',4096)">重置</button>' : '') + '<span class="settings-range-value" id="rangeVal-maxTokens">' + (mt || '未指定') + '</span></div>' +
             '</div>' +
             '<div class="settings-entry-sub" style="margin-bottom:10px;">响应中的最大 token 数</div>' +
-            '<input type="range" class="settings-range font-page-range" data-key="maxTokens" data-scale="1" min="0" max="32000" step="1000" value="' + (mt || 4096) + '">' +
+            '<input type="range" class="settings-range font-page-range" data-key="maxTokens" data-scale="1" min="0" max="32000" step="1000" value="' + (mt || 0) + '">' +
         '</div>' +
     '</div>' +
 
@@ -2515,13 +2519,13 @@ function openAddMcpServer() {
 // ===== 上下文总结 =====
 function renderContextSummaryPage() {
     const ctx = state.settings.contextCount || 20;
-    const unlimited = ctx >= 50;
+    const unlimited = ctx >= 100;
 
     return '<div class="settings-group-title">默认上下文窗口</div>' +
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row settings-row-stack">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="cpu" class="settings-row-icon"></i><span class="settings-entry-title">上下文窗口</span></div>' +
-            '<div class="settings-entry-sub" style="margin-bottom:10px;">保留最近 ' + (unlimited ? '全部' : ctx) + ' 条消息</div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">保留最近 <span id="contextCountDisplay">' + (unlimited ? '无限' : ctx) + '</span> 条消息</div>' +
             '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="0" max="100" step="5" value="' + ctx + '">' +
         '</div>' +
         '<div class="settings-row" style="border-bottom:none;">' +
@@ -2561,7 +2565,7 @@ function rangeRow(key, label, min, max, step, opts) {
 function rangeDisplayText(key, val) {
     if (key === 'temperature') return Number(val).toFixed(2);
     if (key === 'maxTokens') return val ? String(Math.round(val)) : '未指定';
-    if (key === 'contextCount') return val >= 50 ? '无限制' : String(Math.round(val));
+    if (key === 'contextCount') return val >= 100 ? '无限制' : String(Math.round(val));
     if (key.indexOf('Opacity') >= 0 || key.indexOf('Scale') >= 0) return Math.round(val) + '%';
     return String(Math.round(val));
 }
@@ -3110,22 +3114,31 @@ function renderModelSheet() {
 }
 function openModelSheet() {
     closeInputPopups();
-    openInfoSheet('选择模型', renderModelSheet());
-    const si = document.getElementById('sheetModelSearch');
-    if (si) si.oninput = function () {
-        const f = this.value.toLowerCase();
-        document.querySelectorAll('#infoSheetContent .model-list-item').forEach(item => {
-            item.style.display = item.textContent.toLowerCase().includes(f) ? '' : 'none';
-        });
-    };
-    document.querySelectorAll('#infoSheetContent .model-list-item').forEach(item => {
-        item.addEventListener('click', () => {
-            state.settings.model = item.dataset.model;
-            saveState();
-            updateHeader();
-            closeInfoSheet();
-        });
-    });
+    const provider = state.providers.find(p => p.id === 'openai');
+    const enabled = (provider && provider.enabledModels) || [];
+    if (!enabled.length) {
+        // 如果没有勾选模型，还是用 cachedModels fallback
+        const models = state.settings.cachedModels || [];
+        if (!models.length) { showToast('请先在设置 → 模型配置中获取并勾选模型'); return; }
+        // fallback 用全部模型
+        const current = state.settings.model || '';
+        let html = '<div class="model-picker-list">' +
+            models.map(m => '<div class="model-picker-item' + (m === current ? ' active' : '') + '" onclick="pickDefaultModel(\'' + escapeHtml(m) + '\')">' + escapeHtml(m) + '</div>').join('') +
+        '</div>';
+        openInfoSheet('选择模型', html);
+        return;
+    }
+    const current = state.settings.model || '';
+    let html = '<div class="model-picker-list">' +
+        enabled.map(m =>
+            '<div class="model-picker-item' + (m === current ? ' active' : '') + '" onclick="pickDefaultModel(\'' + escapeHtml(m) + '\')">' +
+                '<span>' + escapeHtml(m) + '</span>' +
+                (m === current ? '<i data-lucide="check" style="width:16px;height:16px;color:var(--primary-dark);"></i>' : '') +
+            '</div>'
+        ).join('') +
+    '</div>';
+    openInfoSheet('选择模型', html);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // 照片按钮：短按打开相册，长按触发拍摄
