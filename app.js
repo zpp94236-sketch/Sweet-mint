@@ -15,7 +15,7 @@ let state = {
         model: '',
         systemPrompt: '',
         contextCount: 20,
-        temperature: 0.7,
+        temperature: 1.0,
         maxTokens: 4096,
         theme: 'system',
         fontSize: 15,
@@ -1008,8 +1008,8 @@ function renderMainSettings() {
             settingsEntry('blocks', 'MCP服务', '和风天气、Supabase', settingsChevron(), "settingsGo('mcpService')"),
             settingsEntry('wrench', '系统工具', '敬请期待', settingsChevron(), 'settingsComingSoon()')
         ]) +
-        settingsGroup('上下文总结', [
-            settingsEntry('file-text', '上下文总结', '上下文设置与自动总结', settingsChevron(), "settingsGo('contextSummary')")
+        settingsGroup('上下文配置', [
+            settingsEntry('file-text', '上下文配置', '上下文窗口与自动总结', settingsChevron(), "settingsGo('contextSummary')")
         ]) +
         settingsGroup('数据设置', [
             settingsEntry('bar-chart', 'token使用统计', '对话用量与token统计', settingsChevron(), 'openStats()'),
@@ -1174,8 +1174,13 @@ function saveNewKey() {
     const key = document.getElementById('newKeyValue').value.trim();
     const url = document.getElementById('newKeyUrl').value.trim();
     if (!name || !key) { alert('请填写名称和密钥'); return; }
-    const provider = state.providers.find(p => p.id === 'openai');
-    if (!provider) return;
+    let provider = state.providers.find(p => p.id === 'openai');
+    if (!provider) {
+        // 首次使用，初始化openai provider
+        provider = { id: 'openai', name: 'OpenAI', type: 'builtin', keys: [], activeKeyId: null, cachedModels: [], enabledModels: [] };
+        state.providers.push(provider);
+        state.activeProviderId = 'openai';
+    }
     const newId = 'k_' + Date.now().toString(36);
     provider.keys.push({ id: newId, name: name, key: key, url: url });
     if (!provider.activeKeyId) provider.activeKeyId = newId;
@@ -1213,6 +1218,7 @@ function bindSettingsContentEvents() {
     if (imp) imp.addEventListener('change', handleImportData);
     document.querySelectorAll('.wp-hidden-input').forEach(inp => inp.addEventListener('change', handleWallpaperPick));
     document.querySelectorAll('.msg-display-toggle').forEach(t => t.addEventListener('change', () => {
+        if (t.dataset.key === 'thinkingEnabled') return; // 由专用handler处理
         state.settings[t.dataset.key] = t.checked;
         saveState();
         applySettingChange(t.dataset.key);
@@ -1317,6 +1323,13 @@ function bindSettingsContentEvents() {
             renderSettingsView();
         });
     });
+    document.querySelectorAll('.msg-display-toggle[data-key="unlimitedContext"]').forEach(t => {
+        t.addEventListener('change', () => {
+            state.settings.contextCount = t.checked ? 50 : 20;
+            saveState();
+            renderSettingsView();
+        });
+    });
     const rf = document.getElementById('regexFileInputDetail');
     if (rf) rf.addEventListener('change', handleRegexImportDetail);
     const mms = document.getElementById('memoryModeSelect');
@@ -1413,7 +1426,7 @@ const SETTINGS_PAGES = {
     'providerSettings': ['供应商设置', 'cloud', renderProviderSettingsPage],
     'providerDetail': ['OpenAI', 'cloud', renderProviderDetailPage],
     'mcpService': ['MCP服务', 'blocks', renderMcpServicePage],
-    'contextSummary': ['上下文总结', 'file-text', renderContextSummaryPage],
+    'contextSummary': ['上下文配置', 'file-text', renderContextSummaryPage],
     'dataBackup': ['数据备份与恢复', 'database', renderDataBackupPage],
     'appearance': ['外观设置', 'palette', renderAppearancePage],
     'fontSettings': ['字体样式和大小', 'type', renderFontSettingsPage],
@@ -1581,8 +1594,7 @@ function renderAssistantSettingsPage() {
     ]);
 }
 function renderAssistantBasicPage() {
-    const temp = state.settings.temperature != null ? state.settings.temperature : 0.7;
-    const ctx = state.settings.contextCount || 20;
+    const temp = state.settings.temperature != null ? state.settings.temperature : 1.0;
     const mt = state.settings.maxTokens || '';
     const streaming = state.settings.streaming !== false;
     const thinking = state.settings.thinkingLevel || 'off';
@@ -1590,7 +1602,7 @@ function renderAssistantBasicPage() {
     const thinkingEnabled = thinking !== 'off';
 
     // 温度：连续滑杆 0-2.0
-    const tempDefault = 0.7;
+    const tempDefault = 1.0;
     const tempChanged = temp !== tempDefault;
 
     // maxTokens：有刻度的滑杆
@@ -1615,7 +1627,7 @@ function renderAssistantBasicPage() {
         '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
                 '<div style="display:flex;align-items:center;gap:8px;"><i data-lucide="sliders-horizontal" class="settings-row-icon"></i><span class="settings-entry-title">温度</span></div>' +
-                '<div style="display:flex;align-items:center;gap:8px;">' + (tempChanged ? '<button class="param-reset-btn" onclick="resetParam(\'temperature\',0.7)">重置</button>' : '') + '<span class="settings-range-value" id="rangeVal-temperature">' + temp.toFixed(2) + '</span></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' + (tempChanged ? '<button class="param-reset-btn" onclick="resetParam(\'temperature\',1.0)">重置</button>' : '') + '<span class="settings-range-value" id="rangeVal-temperature">' + temp.toFixed(2) + '</span></div>' +
             '</div>' +
             '<div class="settings-entry-sub" style="margin-bottom:10px;">控制随机性（0.0 = 确定性，2.0 = 创造性）</div>' +
             '<input type="range" class="settings-range font-page-range" data-key="temperature" data-scale="100" min="0" max="200" step="5" value="' + Math.round(temp * 100) + '">' +
@@ -1634,20 +1646,17 @@ function renderAssistantBasicPage() {
 
     '<div class="settings-group-title">其他</div>' +
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
-        '<div class="settings-row settings-row-stack">' +
-            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="layers" class="settings-row-icon"></i><span class="settings-entry-title">上下文消息数量</span></div>' +
-            '<div class="settings-entry-sub" style="margin-bottom:10px;">控制模型接收的历史消息数量</div>' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;color:var(--text-light);">1</span><span class="settings-range-value" id="rangeVal-contextCount">' + (ctx >= 50 ? '无限制' : ctx) + '</span><span style="font-size:12px;color:var(--text-light);">无限制</span></div>' +
-            '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="1" max="50" step="1" value="' + ctx + '">' +
-        '</div>' +
         '<div class="settings-row" style="border-bottom:none;">' +
             '<div class="settings-entry-info"><div style="display:flex;align-items:center;gap:8px;"><i data-lucide="zap" class="settings-row-icon"></i><span class="settings-entry-title">流式输出</span></div><div class="settings-entry-sub">开启后，模型回复将以流式方式实时显示</div></div>' +
             '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="streaming"' + (streaming ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
         '</div>' +
     '</div>' +
-    settingsGroup('', [
-        settingsSwitch('splitLines', '按行拆分气泡', '将助手的回复按换行拆分成多个独立气泡发送', !!state.settings.splitLines)
-    ]);
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row" style="border-bottom:none;">' +
+            '<div class="settings-entry-info"><div class="settings-entry-title">按行拆分气泡</div><div class="settings-entry-sub">将助手的回复按换行拆分成多个独立气泡发送</div></div>' +
+            '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="splitLines"' + (!!state.settings.splitLines ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+        '</div>' +
+    '</div>';
 }
 
 function thinkingSliderHtml(current) {
@@ -2497,7 +2506,22 @@ function openAddMcpServer() {
 
 // ===== 上下文总结 =====
 function renderContextSummaryPage() {
-    return settingsGroup('上下文设置', [
+    const ctx = state.settings.contextCount || 20;
+    const unlimited = ctx >= 50;
+
+    return '<div class="settings-group-title">默认上下文窗口</div>' +
+    '<div class="settings-list-card" style="margin-bottom:14px;">' +
+        '<div class="settings-row settings-row-stack">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="cpu" class="settings-row-icon"></i><span class="settings-entry-title">上下文窗口</span></div>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">保留最近 ' + (unlimited ? '全部' : ctx) + ' 条消息</div>' +
+            '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="1" max="50" step="1" value="' + ctx + '">' +
+        '</div>' +
+        '<div class="settings-row" style="border-bottom:none;">' +
+            '<div class="settings-entry-info"><div style="display:flex;align-items:center;gap:8px;"><i data-lucide="cpu" class="settings-row-icon"></i><span class="settings-entry-title">无限上下文窗口</span></div><div class="settings-entry-sub">保留完整对话历史，而不是只保留最近的消息</div></div>' +
+            '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="unlimitedContext"' + (unlimited ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+        '</div>' +
+    '</div>' +
+    settingsGroup('上下文设置', [
         '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:4px;border-bottom:none;"><div class="settings-entry-sub" style="font-size:12px;line-height:1.7;">上下文长度建议设为您日常使用的最大值。超过该长度后，更早的对话将被压缩成摘要。</div></div>',
         inputWithSuffixRow('contextLengthK', '上下文长度', 'K', state.settings.contextLengthK || 64),
         inputWithSuffixRow('maxContextLengthK', '最大上下文长度', 'K', state.settings.maxContextLengthK || 200)
