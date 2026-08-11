@@ -1168,7 +1168,7 @@ function bindSettingsContentEvents() {
         applyChatFont();
         document.querySelectorAll('.font-choice-card').forEach(x => x.classList.toggle('active', x === c));
     }));
-    document.querySelectorAll('.font-slider-range').forEach(r => r.addEventListener('input', () => {
+    document.querySelectorAll('.font-page-range').forEach(r => r.addEventListener('input', () => {
         const key = r.dataset.key;
         const v = parseInt(r.value, 10);
         state.settings[key] = v;
@@ -1356,41 +1356,24 @@ function renderFontSettingsPage() {
     const chatScale = state.settings.chatFontScale != null ? state.settings.chatFontScale : 40;
     const thinkScale = state.settings.thinkingFontScale != null ? state.settings.thinkingFontScale : 40;
 
-    return settingsGroup('', [
-        '<div class="font-settings-preview" id="fontSettingsPreview">梦后楼台高锁，酒醒帘幕低垂。\n去年春恨却来时，落花人独立，微雨燕双飞。\n记得小蘋初见，两重心字罗衣。\n琵琶弦上说相思，当时明月在，曾照彩云归。</div>'
-    ]) +
-    settingsGroup('字体选择', [
-        '<div class="font-choice-scroll">' + cards + '</div>'
-    ]) +
-    settingsGroup('字体大小', [
-        '<div class="settings-row"><span class="settings-entry-title">字体大小</span><span class="settings-range-value" id="fontScaleValue">' + chatScale + '</span></div>',
-        fontDotScaleHtml('chatFontScale', chatScale)
-    ]) +
-    settingsGroup('思维链字体大小', [
-        '<div class="settings-row"><span class="settings-entry-title">思维链字体大小</span><span class="settings-range-value" id="thinkingScaleValue">' + thinkScale + '</span></div>',
-        fontDotScaleHtml('thinkingFontScale', thinkScale)
-    ]) +
-    settingsGroup('自定义字体', [
-        '<button class="btn-secondary font-import-btn" id="fontImportBtn" onclick="document.getElementById(\'customFontInput\').click()"><i data-lucide="upload" style="width:14px;height:14px;margin-right:6px;"></i>导入自定义字体</button>' +
-        (state.settings.customFontName ? '<div class="font-import-name">' + escapeHtml(state.settings.customFontName) + '</div>' : '') +
-        '<div class="settings-entry-sub font-import-hint">支持 .ttf / .otf</div>' +
-        '<input type="file" id="customFontInput" accept=".ttf,.otf,font/ttf,font/otf" hidden>'
-    ]);
+    return '<div class="font-page">' +
+        '<div class="font-page-preview" id="fontSettingsPreview">梦后楼台高锁，酒醒帘幕低垂。\n去年春恨却来时，落花人独立，微雨燕双飞。\n记得小蘋初见，两重心字罗衣。\n琵琶弦上说相思，当时明月在，曾照彩云归。</div>' +
+        '<div class="font-page-section-title">字体选择</div>' +
+        '<div class="font-choice-scroll">' + cards + '</div>' +
+        '<div class="font-page-section-title">字体大小</div>' +
+        '<div class="font-page-slider-head"><span>字体大小</span><span class="font-page-slider-val" id="fontScaleValue">' + chatScale + '</span></div>' +
+        fontSliderHtml('chatFontScale', chatScale) +
+        '<div class="font-page-section-title">思维链字体大小</div>' +
+        '<div class="font-page-slider-head"><span>思维链字体大小</span><span class="font-page-slider-val" id="thinkingScaleValue">' + thinkScale + '</span></div>' +
+        fontSliderHtml('thinkingFontScale', thinkScale) +
+        '<button class="btn-secondary font-page-import-btn" onclick="document.getElementById(\'customFontInput\').click()"><i data-lucide="upload" style="width:14px;height:14px;margin-right:6px;"></i>导入自定义字体</button>' +
+        '<div class="font-page-import-hint">支持 .ttf / .otf</div>' +
+        '<input type="file" id="customFontInput" accept=".ttf,.otf,font/ttf,font/otf" hidden>' +
+    '</div>';
 }
 
-function fontDotScaleHtml(key, current) {
-    const values = [0, 20, 40, 60, 80, 100];
-    const idx = values.indexOf(Number(current));
-    const snapIdx = idx >= 0 ? idx : 2;
-    // 使用原生 range，step=20，配合自定义样式
-    return '<div class="font-slider-wrap">' +
-        '<span class="font-scale-a">A</span>' +
-        '<div class="font-slider-track">' +
-            '<input type="range" class="font-slider-range" data-key="' + key + '" min="0" max="100" step="20" value="' + (snapIdx * 20) + '">' +
-            '<div class="font-slider-dots">' + values.map(function() { return '<span class="font-slider-dot"></span>'; }).join('') + '</div>' +
-        '</div>' +
-        '<span class="font-scale-a font-scale-a-big">A</span>' +
-    '</div>';
+function fontSliderHtml(key, current) {
+    return '<div class="font-page-slider"><span class="font-page-slider-a">A</span><div class="font-page-slider-track"><input type="range" class="font-page-range" data-key="' + key + '" min="0" max="100" step="20" value="' + current + '"><div class="font-page-slider-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><span class="font-page-slider-a font-page-slider-a-big">A</span></div>';
 }
 
 // 透明度设置
