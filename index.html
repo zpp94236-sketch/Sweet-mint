@@ -24,22 +24,22 @@
         <aside class="sidebar hidden" id="sidebar">
             <div class="sidebar-header">
                 <button class="btn-icon" id="closeSidebar"><i data-lucide="x"></i></button>
+                <button class="btn-icon" id="sidebarOpenSettings" title="设置" onclick="closeSidebar();openSettingsPanel()"><i data-lucide="settings"></i></button>
                 <input type="file" id="userAvatarInput" accept="image/*" hidden>
-            </div>
-            <div class="sidebar-search">
-                <i data-lucide="search" class="sidebar-search-icon"></i>
-                <input type="text" id="chatSearchInput" class="sidebar-search-input" placeholder="搜索对话...">
-                <button class="sidebar-search-clear" id="chatSearchClear" title="清除" style="display:none;"><i data-lucide="x"></i></button>
             </div>
             <button class="btn-new-folder" id="newFolderBtn">
                 <i data-lucide="folder-plus"></i>
                 <span>新建文件夹</span>
             </button>
-            
+
             <div class="chat-list" id="chatList"></div>
             <div class="sidebar-footer">
-                <button class="nav-icon-btn nav-icon-btn-home" id="sidebarBackToHome"><i data-lucide="home"></i><span>小家</span></button>
-                <button class="nav-icon-btn" id="sidebarOpenSettings" onclick="closeSidebar();openSettingsPanel()"><i data-lucide="settings"></i><span>设置</span></button>
+                <div class="sidebar-search">
+                    <i data-lucide="search" class="sidebar-search-icon"></i>
+                    <input type="text" id="chatSearchInput" class="sidebar-search-input" placeholder="搜索对话...">
+                    <button class="sidebar-search-clear" id="chatSearchClear" title="清除" style="display:none;"><i data-lucide="x"></i></button>
+                </div>
+                <button class="nav-icon-btn nav-icon-btn-home" id="sidebarBackToHome" title="客厅"><i data-lucide="home"></i><span>客厅</span></button>
             </div>
         </aside>
 
@@ -98,11 +98,11 @@
                         <header class="chat-header">
                 <div class="chat-header-capsule chat-header-capsule-left">
                     <button class="chat-header-menu" id="openSidebar" title="侧边栏"><i data-lucide="menu"></i></button>
-                    <div class="chat-header-titles">
-                        <span id="currentChatTitle">新对话</span>
-                    </div>
                 </div>
-                <button class="chat-header-capsule chat-header-capsule-right" id="headerNewChat" title="新建对话"><i data-lucide="plus"></i></button>
+                <div class="chat-header-capsule chat-header-capsule-right">
+                    <button class="chat-header-btn" id="headerNewChat" title="新建对话"><i data-lucide="message-circle-plus"></i></button>
+                    <button class="chat-header-btn" id="headerMoreBtn" title="更多"><i data-lucide="more-vertical"></i></button>
+                </div>
             </header>
 
             <div class="messages" id="messages"></div>
@@ -113,14 +113,13 @@
                     <input type="file" id="imageInputHidden" accept="image/*" hidden>
 
                 <div class="input-pill-bar" id="inputPillBar">
-                    <button class="input-pill" id="pillPhoto" title="照片（长按拍摄）">📷 照片</button>
-                    <button class="input-pill" id="pillFile" title="文件">📁 文件</button>
-                    <button class="input-pill" id="pillCompress" title="压缩历史">🗜️ 压缩</button>
-                    <button class="input-pill" id="pillModel" title="模型选择">🤖 模型</button>
-                    <button class="input-pill" id="pillSearch" title="搜索配置">🌐 搜索</button>
-                    <button class="input-pill" id="pillMcp" title="MCP 配置">🧩 MCP</button>
-                    <button class="input-pill" id="pillStar" title="收藏">⭐ 收藏</button>
-                    <button class="input-pill" id="pillAdd" title="更多">➕ 添加</button>
+                    <button class="input-pill" id="pillPhoto" title="照片（长按拍摄）">照片</button>
+                    <button class="input-pill" id="pillFile" title="文件">文件</button>
+                    <button class="input-pill" id="pillCompress" title="压缩历史">压缩</button>
+                    <button class="input-pill" id="pillModel" title="模型选择">模型</button>
+                    <button class="input-pill" id="pillSearch" title="搜索配置">搜索</button>
+                    <button class="input-pill" id="pillMcp" title="MCP 配置">MCP</button>
+                    <button class="input-pill" id="pillStar" title="收藏">收藏</button>
                 </div>
 
                 <div class="input-pill-wrap">
@@ -178,6 +177,14 @@
                     <button class="btn-cancel" id="editTitleCancel">取消</button>
                     <button class="btn-primary" id="editTitleSave">保存</button>
                 </div>
+            </div>
+        </div>
+
+        <div class="chat-more-overlay" id="chatMoreOverlay">
+            <div class="chat-more-panel">
+                <button class="chat-more-option" id="chatMoreRename"><i data-lucide="pencil"></i><span>重命名</span></button>
+                <button class="chat-more-option" id="chatMorePin"><i data-lucide="arrow-up-from-line"></i><span>置顶</span></button>
+                <button class="chat-more-option chat-more-option-danger" id="chatMoreDelete"><i data-lucide="trash-2"></i><span>删除</span></button>
             </div>
         </div>
 

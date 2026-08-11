@@ -117,10 +117,12 @@ function changeBedroomHeatmapMonth(delta) {
 
 function init() {
     loadState();
+    migrateFontScaleSettings();
     state.isStreaming = false;
     state.settings.launchCount = (state.settings.launchCount || 0) + 1;
     saveState();
     renderChatList();
+    updateMenuUnread();
     setupEventListeners();
     applyTheme();
     applyFontSize();
@@ -217,29 +219,44 @@ function ensureMemorySystem() {
 function getActiveProvider() { return state.providers.find(p => p.id === state.activeProviderId) || null; }
 
 function createNewChat() {
-    const chat = { id: Date.now().toString(), title: '新对话', messages: [], createdAt: new Date().toISOString() };
+    const chat = { id: Date.now().toString(), title: '新对话', messages: [], createdAt: new Date().toISOString(), mcpEnabled: {} };
     state.chats.unshift(chat); state.currentChatId = chat.id;
     saveState(); renderChatList(); renderMessages(); updateHeader();
 }
 
-function switchChat(chatId) { state.currentChatId = chatId; saveState(); renderChatList(); renderMessages(); updateHeader(); closeSidebar(); }
+function switchChat(chatId) { state.currentChatId = chatId; const chat = state.chats.find(c => c.id === chatId); if (chat) chat.unread = false; saveState(); renderChatList(); renderMessages(); updateHeader(); updateMenuUnread(); closeSidebar(); }
 
 function deleteChat(chatId) {
     if (state.chats.length <= 1) { const c = state.chats.find(x => x.id === chatId); if (c) { c.messages = []; c.title = '新对话'; } }
     else { state.chats = state.chats.filter(x => x.id !== chatId); if (state.currentChatId === chatId) state.currentChatId = state.chats[0].id; }
-    saveState(); renderChatList(); renderMessages(); updateHeader();
+    saveState(); renderChatList(); renderMessages(); updateHeader(); updateMenuUnread();
 }
 
 function getCurrentChat() { return state.chats.find(c => c.id === state.currentChatId); }
 
+function chatLastTime(chat) {
+    const lastMsg = chat.messages[chat.messages.length - 1];
+    if (lastMsg && lastMsg.timestamp) return new Date(lastMsg.timestamp).getTime();
+    return chat.createdAt ? new Date(chat.createdAt).getTime() : 0;
+}
+
+function updateMenuUnread() {
+    const btn = document.getElementById('openSidebar');
+    if (!btn) return;
+    btn.classList.toggle('has-unread', state.chats.some(c => c.unread));
+}
+
 function renderChatList() {
     const container = document.getElementById('chatList');
     if (!container) return;
-    container.innerHTML = state.chats.map(chat => {
-        const lastMsg = chat.messages[chat.messages.length - 1];
-        const lastTime = (lastMsg && lastMsg.timestamp) || chat.createdAt;
+    const sorted = [...state.chats].sort((a, b) => {
+        if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        return chatLastTime(b) - chatLastTime(a);
+    });
+    container.innerHTML = sorted.map(chat => {
+        const lastTime = new Date(chatLastTime(chat)).toISOString();
         const modelName = chat.model || state.settings.model || '未指定模型';
-        return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '"><div class="chat-item-body"><div class="chat-item-row1"><span class="chat-item-title">' + escapeHtml(chat.title) + '</span><span class="chat-item-time">' + formatTime(lastTime) + '</span></div><span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div><button class="chat-item-delete" data-id="' + chat.id + '" title="删除">🗑</button></div>';
+        return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '"><div class="chat-item-body"><div class="chat-item-row1">' + (chat.pinned ? '<span class="chat-item-pin">📌</span>' : '') + '<span class="chat-item-title">' + escapeHtml(chat.title) + '</span><span class="chat-item-time">' + formatTime(lastTime) + '</span></div><span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div><button class="chat-item-delete" data-id="' + chat.id + '" title="删除">🗑</button></div>';
     }).join('');
     container.querySelectorAll('.chat-item').forEach(el => {
         el.addEventListener('click', (e) => { if (e.target.classList.contains('chat-item-delete')) { e.stopPropagation(); deleteChat(e.target.dataset.id); } else switchChat(el.dataset.id); });
@@ -370,6 +387,33 @@ function closeInfoSheet() {
     const backdrop = document.getElementById('infoSheetBackdrop');
     if (sheet) sheet.classList.remove('active');
     if (backdrop) backdrop.classList.remove('active');
+    if (mcpEditingId) {
+        const id = mcpEditingId;
+        mcpEditingId = null;
+        const s = (state.settings.mcpServers || []).find(x => x.id === id);
+        if (s && s.enabled && s.url) reconnectMcpServerInBackground(s);
+    }
+}
+
+async function reconnectMcpServerInBackground(s) {
+    try {
+        const result = await McpClient.testConnection(s);
+        s.status = 'connected';
+        s.toolCount = result.toolCount;
+        s.tools = result.tools;
+        s.errorMsg = '';
+        registerMcpTools(s);
+        saveState();
+        showToast('连接成功');
+    } catch (e) {
+        s.status = 'error';
+        s.errorMsg = e.message;
+        s.tools = [];
+        s.toolCount = 0;
+        saveState();
+        showToast('连接失败');
+    }
+    if (settingsView === 'mcpService') renderSettingsView();
 }
 function infoSheetJsonBlock(label, data) {
     if (data === undefined || data === null || data === '') data = '—';
@@ -576,8 +620,6 @@ function bindBubbleLongPress() {
 }
 
 function updateHeader() {
-    const chat = getCurrentChat();
-    const titleEl = document.getElementById('currentChatTitle'); if (titleEl) titleEl.textContent = chat ? chat.title : '新对话';
     const provider = getActiveProvider();
     const modelText = state.settings.model || '未配置模型';
     const badge = document.getElementById('modelBadge'); if (badge) badge.textContent = provider ? provider.name + ' / ' + modelText : modelText;
@@ -619,7 +661,7 @@ async function sendMessage() {
     if (!provider || !provider.apiBase || !provider.apiKey || !state.settings.model) { alert('请先在设置中配置供应商和模型'); return; }
     chat.messages.push({ role: 'user', content, timestamp: new Date().toISOString() });
     input.value = ''; autoResize(input); updateSendButton(); renderMessages();
-    if (chat.messages.filter(m => m.role === 'user').length === 1) { chat.title = content.slice(0, 20) + (content.length > 20 ? '...' : ''); renderChatList(); updateHeader(); }
+    if (chat.messages.filter(m => m.role === 'user').length === 1) { chat.title = content.slice(0, 6) + (content.length > 6 ? '...' : ''); renderChatList(); updateHeader(); }
 
     const messagesContainer = document.getElementById('messages');
     const aiAvatarHtml = state.settings.aiAvatar ? '<img src="' + state.settings.aiAvatar + '">' : '✦';
@@ -659,7 +701,7 @@ currentAbortController = new AbortController();
             const body = { model: state.settings.model, messages: currentMessages, temperature: state.settings.temperature, stream: true, stream_options: { include_usage: true } };
             if (state.settings.maxTokens) body.max_tokens = state.settings.maxTokens;
             const toolSchemas = ToolSystem.getSchemas();
-            if (toolSchemas) body.tools = toolSchemas;
+            if (toolSchemas) body.tools = filterToolsForChat(toolSchemas, chat);
 
             const response = await fetch(provider.apiBase + '/chat/completions', {
     method: 'POST',
@@ -799,6 +841,7 @@ currentAbortController = new AbortController();
             const assistantMsg = { role: 'assistant', content: finalContent, timestamp: new Date().toISOString(), usage: usage, duration: duration, toolCalls: toolCallLog.length ? toolCallLog : null, preToolContent: preToolContent || null };
             chat.messages.push(assistantMsg);
             saveState();
+            if (state.currentChatId !== chat.id) { chat.unread = true; saveState(); updateMenuUnread(); }
             renderMessages();
             syncMessageToSupabase(chat.messages[chat.messages.length - 2], chat.id);
             syncMessageToSupabase(assistantMsg, chat.id);
@@ -813,6 +856,7 @@ currentAbortController = new AbortController();
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
             chat.messages.push({ role: 'assistant', content: bubble.textContent, timestamp: new Date().toISOString(), duration: duration, interrupted: true });
             saveState();
+            if (state.currentChatId !== chat.id) { chat.unread = true; saveState(); updateMenuUnread(); }
         }
     } else {
         const ld = document.getElementById('loading-message');
@@ -1118,6 +1162,22 @@ function bindSettingsContentEvents() {
     if (spEl) spEl.addEventListener('change', () => { state.settings.systemPrompt = spEl.value; saveState(); });
     const cfi = document.getElementById('customFontInput');
     if (cfi) cfi.addEventListener('change', handleCustomFontPick);
+    document.querySelectorAll('.font-choice-card').forEach(c => c.addEventListener('click', () => {
+        state.settings.chatFont = c.dataset.chatFont;
+        saveState();
+        applyChatFont();
+        document.querySelectorAll('.font-choice-card').forEach(x => x.classList.toggle('active', x === c));
+    }));
+    document.querySelectorAll('.font-dot').forEach(d => d.addEventListener('click', () => {
+        const key = d.dataset.key;
+        const v = parseInt(d.dataset.value, 10);
+        state.settings[key] = v;
+        saveState();
+        applyFontScales();
+        document.querySelectorAll('.font-dot[data-key="' + key + '"]').forEach(x => x.classList.toggle('active', x === d));
+        const valEl = document.getElementById(key === 'chatFontScale' ? 'fontScaleValue' : 'thinkingScaleValue');
+        if (valEl) valEl.textContent = v;
+    }));
     const rf = document.getElementById('regexFileInputDetail');
     if (rf) rf.addEventListener('change', handleRegexImportDetail);
     const mms = document.getElementById('memoryModeSelect');
@@ -1212,7 +1272,7 @@ const SETTINGS_PAGES = {
     'contextSummary': ['上下文总结', 'file-text', renderContextSummaryPage],
     'dataBackup': ['数据备份与恢复', 'database', renderDataBackupPage],
     'appearance': ['外观设置', 'palette', renderAppearancePage],
-    'fontSettings': ['字体设置', 'type', renderFontSettingsPage],
+    'fontSettings': ['字体样式和大小', 'type', renderFontSettingsPage],
     'opacitySettings': ['透明度设置', 'droplets', renderOpacitySettingsPage],
     'messageDisplay': ['消息显示', 'message-square', renderMessageDisplayPage],
     'codeInteraction': ['代码与交互', 'code-2', renderCodeInteractionPage],
@@ -1287,22 +1347,44 @@ function clearImageSetting(key) {
 
 // 字体设置
 function renderFontSettingsPage() {
-    const cur = state.settings.chatFont || 'default';
-    const opts = [['default', '默认'], ['serif', '衬线体'], ['mono', '等宽']];
-    if (state.settings.customFontDataUrl) opts.push(['custom', '自定义']);
-    const segs = opts.map(([v, l]) => '<button class="segmented-btn' + (cur === v ? ' active' : '') + '" data-chat-font="' + v + '">' + l + '</button>').join('');
-    return settingsGroup('聊天字体', [
-        '<div class="settings-row settings-row-stack"><div class="settings-entry-title">字体</div><div class="segmented-control">' + segs + '</div></div>'
+    const curFont = state.settings.chatFont || 'default';
+    const fontOptions = [['default', '默认'], ['serif', '衬线体'], ['mono', '等宽']];
+    if (state.settings.customFontDataUrl) fontOptions.push(['custom', state.settings.customFontName || '自定义']);
+    const cards = fontOptions.map(([v, l]) =>
+        '<button class="font-choice-card' + (curFont === v ? ' active' : '') + '" data-chat-font="' + v + '">' + escapeHtml(l) + '</button>'
+    ).join('');
+
+    const chatScale = state.settings.chatFontScale != null ? state.settings.chatFontScale : 40;
+    const thinkScale = state.settings.thinkingFontScale != null ? state.settings.thinkingFontScale : 40;
+
+    return settingsGroup('', [
+        '<div class="font-settings-preview" id="fontSettingsPreview">梦后楼台高锁，酒醒帘幕低垂。\n去年春恨却来时，落花人独立，微雨燕双飞。\n记得小蘋初见，两重心字罗衣。\n琵琶弦上说相思，当时明月在，曾照彩云归。</div>'
     ]) +
-    settingsGroup('字号', [
-        rangeRow('chatFontScale', '聊天字体大小', 50, 150, 5, { def: 100 }),
-        '<div class="settings-row" style="flex-direction:column;align-items:stretch;border-bottom:none;"><div class="font-preview">凌晨四点钟，看到海棠花未眠。</div></div>',
-        rangeRow('thinkingFontScale', '思维链字体大小', 50, 150, 5, { def: 100 })
+    settingsGroup('字体选择', [
+        '<div class="font-choice-scroll">' + cards + '</div>'
+    ]) +
+    settingsGroup('字体大小', [
+        '<div class="settings-row"><span class="settings-entry-title">字体大小</span><span class="settings-range-value" id="fontScaleValue">' + chatScale + '</span></div>',
+        fontDotScaleHtml('chatFontScale', chatScale)
+    ]) +
+    settingsGroup('思维链字体大小', [
+        '<div class="settings-row"><span class="settings-entry-title">思维链字体大小</span><span class="settings-range-value" id="thinkingScaleValue">' + thinkScale + '</span></div>',
+        fontDotScaleHtml('thinkingFontScale', thinkScale)
     ]) +
     settingsGroup('自定义字体', [
-        '<div class="settings-row"><div class="settings-entry-info"><div class="settings-entry-title">导入自定义字体</div><div class="settings-entry-sub">支持 .ttf / .otf</div></div>' + (state.settings.customFontName ? '<span class="settings-range-value">' + escapeHtml(state.settings.customFontName) + '</span>' : '') + '<label class="wp-btn wp-btn-pick" for="customFontInput">选择文件</label></div>' +
+        '<button class="btn-secondary font-import-btn" id="fontImportBtn" onclick="document.getElementById(\'customFontInput\').click()"><i data-lucide="upload" style="width:14px;height:14px;margin-right:6px;"></i>导入自定义字体</button>' +
+        (state.settings.customFontName ? '<div class="font-import-name">' + escapeHtml(state.settings.customFontName) + '</div>' : '') +
+        '<div class="settings-entry-sub font-import-hint">支持 .ttf / .otf</div>' +
         '<input type="file" id="customFontInput" accept=".ttf,.otf,font/ttf,font/otf" hidden>'
     ]);
+}
+
+function fontDotScaleHtml(key, current) {
+    const values = [0, 20, 40, 60, 80, 100];
+    const dots = values.map(v =>
+        '<button class="font-dot' + (Number(v) === Number(current) ? ' active' : '') + '" data-key="' + key + '" data-value="' + v + '" title="' + v + '"></button>'
+    ).join('');
+    return '<div class="font-dot-scale"><span class="font-scale-a">A</span><div class="font-dot-track">' + dots + '</div><span class="font-scale-a font-scale-a-big">A</span></div>';
 }
 
 // 透明度设置
@@ -2032,17 +2114,13 @@ function renderMcpSheetBasic(s) {
         '<div class="mcp-sheet-headers">' + headersHtml + '</div>' +
         '<button class="mcp-sheet-add-header" onclick="addMcpHeader(\'' + s.id + '\')"><i data-lucide="plus"></i> 添加请求头</button>' +
     '</div>' +
-    '<div class="mcp-sheet-actions">' +
-        '<button class="btn-primary mcp-sheet-test" id="mcpSheetTestBtn" onclick="testMcpServerSheet(\'' + s.id + '\')"><i data-lucide="wifi" style="width:14px;height:14px;margin-right:6px;"></i>测试连接</button>' +
-        '<div class="mcp-sheet-test-result" id="mcpSheetResult"></div>' +
-    '</div>' +
     '<button class="mcp-sheet-delete" onclick="deleteMcpServerSheet(\'' + s.id + '\')"><i data-lucide="trash-2" style="width:14px;height:14px;margin-right:6px;"></i>删除服务器</button>';
 }
 
 function renderMcpSheetTools(s) {
     const tools = s.tools || [];
     if (!tools.length) {
-        return '<div class="bedroom-empty" style="padding:30px 10px;">没有可用工具<br>请先测试连接</div>';
+        return '<div class="bedroom-empty" style="padding:30px 10px;">没有可用工具<br>关闭抽屉后会自动连接获取</div>';
     }
     return '<div class="mcp-sheet-tool-list">' +
         tools.map(t =>
@@ -2057,10 +2135,7 @@ function renderMcpSheetTools(s) {
 async function testMcpServerSheet(id) {
     const s = (state.settings.mcpServers || []).find(x => x.id === id);
     if (!s || !s.url) { showToast('请先填写 URL'); return; }
-    const el = document.getElementById('mcpSheetResult');
-    const btn = document.getElementById('mcpSheetTestBtn');
-    if (el) el.innerHTML = '<span style="color:var(--text-light);">连接中...</span>';
-    showToast('正在测试连接...', btn);
+    showToast('正在测试连接...');
     try {
         const result = await McpClient.testConnection(s);
         s.status = 'connected';
@@ -2069,8 +2144,7 @@ async function testMcpServerSheet(id) {
         s.errorMsg = '';
         registerMcpTools(s);
         saveState();
-        if (el) el.innerHTML = '<span style="color:#27ae60;">✅ 连接成功 · ' + result.toolCount + ' 工具 · ' + result.elapsed + 'ms</span>';
-        showToast('连接成功 · ' + result.toolCount + ' 个工具', btn);
+        showToast('连接成功 · ' + result.toolCount + ' 个工具');
         renderMcpSheet();
     } catch (e) {
         s.status = 'error';
@@ -2078,8 +2152,7 @@ async function testMcpServerSheet(id) {
         s.tools = [];
         s.toolCount = 0;
         saveState();
-        if (el) el.innerHTML = '<span style="color:#e74c3c;">❌ ' + escapeHtml(e.message).slice(0, 80) + '</span>';
-        showToast('连接失败', btn);
+        showToast('连接失败');
     }
 }
 
@@ -2325,8 +2398,23 @@ function applyChatFont() {
 }
 function applyFontScales() {
     const root = document.documentElement.style;
-    root.setProperty('--chat-font-scale', ((state.settings.chatFontScale != null ? state.settings.chatFontScale : 100) / 100).toFixed(3));
-    root.setProperty('--thinking-font-scale', ((state.settings.thinkingFontScale != null ? state.settings.thinkingFontScale : 100) / 100).toFixed(3));
+    const toFactor = v => (0.6 + (v != null ? v : 40) / 100).toFixed(3);
+    root.setProperty('--chat-font-scale', toFactor(state.settings.chatFontScale));
+    root.setProperty('--thinking-font-scale', toFactor(state.settings.thinkingFontScale));
+}
+function migrateFontScaleSettings() {
+    if (state.settings.fontScaleVersion === 2) return;
+    const dots = [0, 20, 40, 60, 80, 100];
+    const mapOld = v => {
+        v = Number(v);
+        if (isNaN(v)) return 40;
+        const mapped = (v - 60) * 1.2;
+        return dots.reduce((best, d) => Math.abs(d - mapped) < Math.abs(d - best) ? d : best, dots[0]);
+    };
+    state.settings.chatFontScale = state.settings.chatFontScale != null ? mapOld(state.settings.chatFontScale) : 40;
+    state.settings.thinkingFontScale = state.settings.thinkingFontScale != null ? mapOld(state.settings.thinkingFontScale) : 40;
+    state.settings.fontScaleVersion = 2;
+    saveState();
 }
 function applyCodeWrap() { document.documentElement.setAttribute('data-code-wrap', state.settings.codeWrap ? 'on' : 'off'); }
 function applyInputBlur() { document.documentElement.setAttribute('data-input-blur', state.settings.inputBlur ? 'on' : 'off'); }
@@ -2742,11 +2830,31 @@ function bindConfigSheetEvents(kind) {
     } else {
         document.querySelectorAll('#infoSheetContent .mcp-toggle').forEach(t => {
             t.addEventListener('change', () => {
-                const srv = (state.settings.mcpServers || []).find(x => x.id === t.dataset.id);
-                if (srv) { srv.enabled = t.checked; saveState(); }
+                const chat = getCurrentChat();
+                if (!chat) return;
+                if (!chat.mcpEnabled) chat.mcpEnabled = {};
+                chat.mcpEnabled[t.dataset.id] = t.checked;
+                saveState();
             });
         });
     }
+}
+
+function isChatMcpEnabled(chat, serverId) {
+    if (chat && chat.mcpEnabled && chat.mcpEnabled[serverId] !== undefined) return !!chat.mcpEnabled[serverId];
+    const srv = (state.settings.mcpServers || []).find(x => x.id === serverId);
+    return !!(srv && srv.enabled);
+}
+
+function filterToolsForChat(schemas, chat) {
+    const servers = state.settings.mcpServers || [];
+    return schemas.filter(s => {
+        const name = s.function && s.function.name;
+        if (!name || !name.startsWith('mcp_')) return true;
+        const srv = servers.find(x => name.indexOf('mcp_' + x.id + '_') === 0);
+        if (!srv) return false;
+        return isChatMcpEnabled(chat, srv.id);
+    });
 }
 
 // 模型选择面板（复用 info-sheet 半屏抽屉）
@@ -2806,30 +2914,22 @@ function setupPillPhotoLongPress() {
 
 function renderMcpQuickSheet() {
     const list = state.settings.mcpServers || [];
+    const chat = getCurrentChat();
+    const enabledMap = (chat && chat.mcpEnabled) || {};
     let html = list.map(s => {
         const isErr = s.status === 'error';
+        const checked = enabledMap[s.id] !== undefined ? !!enabledMap[s.id] : !!s.enabled;
         return '<div class="mcp-item' + (isErr ? ' mcp-item-error' : '') + '">' +
             '<div class="mcp-item-icon"><i data-lucide="' + (isErr ? 'alert-triangle' : 'puzzle') + '"></i></div>' +
             '<div class="mcp-item-body"><div class="mcp-item-name">' + escapeHtml(s.name) + '</div>' +
             (isErr ? '<div class="mcp-item-error-msg">' + escapeHtml(s.errorMsg || '连接失败') + '</div>'
                 : '<div class="mcp-item-sub">Connected</div><span class="mcp-item-tools">' + (s.toolCount || 0) + '/' + (s.toolTotal || s.toolCount || 0) + ' tools</span>') +
             '</div>' +
-            '<label class="switch"><input type="checkbox" class="mcp-toggle" data-id="' + s.id + '"' + (s.enabled ? ' checked' : '') + (isErr ? ' disabled' : '') + '><span class="switch-slider"></span></label>' +
+            '<label class="switch"><input type="checkbox" class="mcp-toggle" data-id="' + s.id + '"' + (checked ? ' checked' : '') + (isErr ? ' disabled' : '') + '><span class="switch-slider"></span></label>' +
             '</div>';
     }).join('');
     if (!list.length) html = '<div class="bedroom-empty">还没有连接 MCP 服务器</div>';
-    html += '<button class="btn-secondary mcp-add-btn" onclick="addMcpServerLegacy()"><i data-lucide="plus"></i> 添加 MCP 服务器</button>';
     return html;
-}
-
-function addMcpServerLegacy() {
-    const name = prompt('服务器名称（如 supabase）：');
-    if (!name) return;
-    const url = prompt('服务器地址（可留空）：') || '';
-    if (!state.settings.mcpServers) state.settings.mcpServers = [];
-    state.settings.mcpServers.push({ id: 'mcp' + Date.now(), name: name.trim(), url: url.trim(), status: 'connected', toolCount: 0, toolTotal: 0, enabled: true });
-    saveState();
-    if (document.getElementById('infoSheet') && document.getElementById('infoSheet').classList.contains('active')) openConfigSheet('mcp');
 }
 
 function renderSearchSheet() {
@@ -3076,7 +3176,7 @@ function setupEventListeners() {
     on('sidebarBackdrop', 'click', closeSidebar);
     on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
     on('headerNewChat', 'click', createNewChat);
-    on('currentChatTitle', 'click', editChatTitle);
+    on('headerMoreBtn', 'click', openChatMore);
     on('sidebarBackToHome', 'click', () => { closeSidebar(); showPage('home'); });
     on('homeOpenSettings', 'click', openSettingsPanel);
     on('chatEntryBar', 'click', () => { showPage('chat'); });
@@ -3121,7 +3221,6 @@ function setupEventListeners() {
     on('pillSearch', 'click', (e) => { e.stopPropagation(); openConfigSheet('search'); });
     on('pillMcp', 'click', (e) => { e.stopPropagation(); openConfigSheet('mcp'); });
     on('pillStar', 'click', (e) => { e.stopPropagation(); openStarredList(); });
-    on('pillAdd', 'click', (e) => { e.stopPropagation(); showToast('敬请期待'); });
     on('userInfoClickable', 'click', openEditUser);
     on('closeEditUser', 'click', closeEditUser);
     on('saveEditUser', 'click', saveEditUser);
@@ -3141,6 +3240,10 @@ function setupEventListeners() {
     on('editTitleCancel', 'click', closeEditTitle);
     on('editTitleSave', 'click', saveEditTitle);
     on('editTitleOverlay', 'click', e => { if (e.target === e.currentTarget) closeEditTitle(); });
+    on('chatMoreRename', 'click', () => { closeChatMore(); openEditTitle(); });
+    on('chatMorePin', 'click', togglePinChat);
+    on('chatMoreDelete', 'click', () => { const c = getCurrentChat(); if (c) deleteChat(c.id); });
+    on('chatMoreOverlay', 'click', e => { if (e.target === e.currentTarget) closeChatMore(); });
     const eti = document.getElementById('editTitleInput');
     if (eti) eti.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveEditTitle(); } });
     setupPillPhotoLongPress();
@@ -3152,8 +3255,23 @@ function deleteMessage(idx) { const chat=getCurrentChat(); chat.messages.splice(
 function regenerateMessage(idx) { const chat=getCurrentChat(); if(chat.messages[idx]&&chat.messages[idx].role==='assistant'){chat.messages.splice(idx,1);saveState();renderMessages();resendLastUserMessage();}else if(chat.messages[idx]&&chat.messages[idx].role==='user'){const c=chat.messages[idx].content;chat.messages=chat.messages.slice(0,idx);saveState();document.getElementById('messageInput').value=c;sendMessage();} }
 async function resendLastUserMessage() { const chat=getCurrentChat(); const last=[...chat.messages].reverse().find(m=>m.role==='user'); if(last){document.getElementById('messageInput').value=last.content;chat.messages.pop();saveState();sendMessage();} }
 function editMessage(idx) { const chat=getCurrentChat(); const msg=chat.messages[idx]; const nc=prompt('编辑消息:',msg.content); if(nc!==null){msg.content=nc;saveState();renderMessages();} }
-function branchChat(idx) { const chat=getCurrentChat(); const bm=chat.messages.slice(0,idx+1); const nc={id:Date.now().toString(),title:'分支: '+(chat.title||'新对话'),messages:JSON.parse(JSON.stringify(bm)),createdAt:new Date().toISOString()}; state.chats.unshift(nc); state.currentChatId=nc.id; saveState(); renderChatList(); renderMessages(); updateHeader(); }
+function branchChat(idx) { const chat=getCurrentChat(); const bm=chat.messages.slice(0,idx+1); const nc={id:Date.now().toString(),title:'分支: '+(chat.title||'新对话'),messages:JSON.parse(JSON.stringify(bm)),createdAt:new Date().toISOString(),mcpEnabled:{}}; state.chats.unshift(nc); state.currentChatId=nc.id; saveState(); renderChatList(); renderMessages(); updateHeader(); }
 function editChatTitle() { openEditTitle(); }
+function openChatMore() {
+    const chat = getCurrentChat();
+    const ov = document.getElementById('chatMoreOverlay');
+    if (!ov) return;
+    const pinBtn = document.getElementById('chatMorePin');
+    if (pinBtn) pinBtn.innerHTML = '<i data-lucide="arrow-up-from-line"></i><span>' + (chat && chat.pinned ? '取消置顶' : '置顶') + '</span>';
+    ov.classList.add('active');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+function closeChatMore() { const ov = document.getElementById('chatMoreOverlay'); if (ov) ov.classList.remove('active'); }
+function togglePinChat() {
+    const chat = getCurrentChat(); if (!chat) return;
+    chat.pinned = !chat.pinned;
+    saveState(); renderChatList(); closeChatMore();
+}
 function openEditTitle() {
     const chat = getCurrentChat(); if (!chat) return;
     const input = document.getElementById('editTitleInput');

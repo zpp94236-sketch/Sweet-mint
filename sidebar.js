@@ -45,7 +45,7 @@
         const lastTime = chatLastTime(chat);
         const modelName = chat.model || (state.settings && state.settings.model) || '未指定模型';
         return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '" draggable="true">' +
-            '<div class="chat-item-body"><div class="chat-item-row1"><span class="chat-item-title">' + highlightTitle(chat.title, query) + '</span>' +
+            '<div class="chat-item-body"><div class="chat-item-row1">' + (chat.pinned ? '<span class="chat-item-pin">📌</span>' : '') + '<span class="chat-item-title">' + highlightTitle(chat.title, query) + '</span>' +
             '<span class="chat-item-time">' + formatTime(lastTime) + '</span></div>' +
             '<span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div>' +
             '<button class="chat-item-delete" data-id="' + chat.id + '" title="删除">🗑</button></div>';
@@ -211,13 +211,48 @@
         const menu = document.createElement('div');
         menu.className = 'chat-move-menu';
         menu.id = 'chatMoveMenu';
-        let html = '<div class="chat-move-menu-title">移动「' + escapeHtml(String(chat.title || '').slice(0, 12)) + '」到</div>';
-        html += '<button class="chat-move-item' + (!chat.folderId ? ' active' : '') + '" data-folder="">未分组</button>';
+        let html = '<div class="chat-move-menu-title">' + escapeHtml(String(chat.title || '').slice(0, 12)) + '</div>';
+        html += '<button class="chat-move-item" data-act="rename"><i data-lucide="pencil"></i>重命名</button>';
+        html += '<button class="chat-move-item" data-act="pin"><i data-lucide="arrow-up-from-line"></i>' + (chat.pinned ? '取消置顶' : '置顶') + '</button>';
+        html += '<button class="chat-move-item chat-move-item-danger" data-act="delete"><i data-lucide="trash-2"></i>删除</button>';
+        html += '<button class="chat-move-item" data-act="move"><i data-lucide="folder-input"></i>移动</button>';
+        html += '<div class="chat-move-folders" id="chatMoveFolders">' +
+            '<div class="chat-move-subtitle">移动到</div>' +
+            '<button class="chat-move-item' + (!chat.folderId ? ' active' : '') + '" data-folder="">未分组</button>';
         state.folders.forEach(function (f) {
             html += '<button class="chat-move-item' + (chat.folderId === f.id ? ' active' : '') + '" data-folder="' + f.id + '"><i data-lucide="folder"></i>' + escapeHtml(f.name) + '</button>';
         });
+        html += '</div>';
         menu.innerHTML = html;
+
+        const renameBtn = menu.querySelector('[data-act="rename"]');
+        if (renameBtn) renameBtn.addEventListener('click', function () {
+            const t = (window.prompt('重命名对话', chat.title || '') || '').trim();
+            if (t) { chat.title = t; saveState(); renderChatList(); }
+            hideMoveMenu();
+        });
+
+        const pinBtn = menu.querySelector('[data-act="pin"]');
+        if (pinBtn) pinBtn.addEventListener('click', function () {
+            chat.pinned = !chat.pinned;
+            saveState(); renderChatList();
+            hideMoveMenu();
+        });
+
+        const delBtn = menu.querySelector('[data-act="delete"]');
+        if (delBtn) delBtn.addEventListener('click', function () {
+            deleteChat(chat.id);
+            hideMoveMenu();
+        });
+
+        const moveBtn = menu.querySelector('[data-act="move"]');
+        if (moveBtn) moveBtn.addEventListener('click', function () {
+            const folders = menu.querySelector('#chatMoveFolders');
+            if (folders) { folders.classList.toggle('open'); positionMoveMenu(menu, pos); }
+        });
+
         menu.querySelectorAll('.chat-move-item').forEach(function (it) {
+            if (!it.hasAttribute('data-folder')) return;
             it.addEventListener('click', function () {
                 moveChatToFolder(chat.id, it.dataset.folder || null);
                 hideMoveMenu();
@@ -225,6 +260,10 @@
         });
         document.body.appendChild(menu);
         if (typeof lucide !== 'undefined') lucide.createIcons();
+        positionMoveMenu(menu, pos);
+    }
+
+    function positionMoveMenu(menu, pos) {
         const r = menu.getBoundingClientRect();
         const x = Math.max(8, Math.min(pos.clientX, window.innerWidth - r.width - 8));
         const y = Math.max(8, Math.min(pos.clientY, window.innerHeight - r.height - 8));
