@@ -1095,6 +1095,14 @@ function bindSettingsContentEvents() {
         if (d) d.textContent = rangeDisplayText(key, val);
         applySettingChange(key);
     }));
+    document.querySelectorAll('.settings-range').forEach(r => {
+        function updateFill() {
+            const pct = (r.value - r.min) / (r.max - r.min) * 100;
+            r.style.background = 'linear-gradient(to right, var(--primary-light) ' + pct + '%, rgba(220,218,214,0.45) ' + pct + '%)';
+        }
+        updateFill();
+        r.addEventListener('input', updateFill);
+    });
     document.querySelectorAll('.settings-text-input').forEach(inp => inp.addEventListener('change', () => {
         state.settings[inp.dataset.key] = inp.value.trim();
         saveState();
@@ -1171,7 +1179,7 @@ function bindSettingsContentEvents() {
     document.querySelectorAll('.font-page-range').forEach(r => {
         function updateFill() {
             const pct = (r.value - r.min) / (r.max - r.min) * 100;
-            r.style.background = 'linear-gradient(to right, rgba(210,180,210,0.5) ' + pct + '%, rgba(220,218,214,0.45) ' + pct + '%)';
+            r.style.background = 'linear-gradient(to right, var(--primary-light) ' + pct + '%, rgba(220,218,214,0.45) ' + pct + '%)';
         }
         updateFill();
         r.addEventListener('input', () => {
@@ -1368,11 +1376,9 @@ function renderFontSettingsPage() {
         '<div class="font-page-preview" id="fontSettingsPreview">梦后楼台高锁，酒醒帘幕低垂。\n去年春恨却来时，落花人独立，微雨燕双飞。\n记得小蘋初见，两重心字罗衣。\n琵琶弦上说相思，当时明月在，曾照彩云归。</div>' +
         '<div class="font-page-section-title">字体选择</div>' +
         '<div class="font-choice-scroll">' + cards + '</div>' +
-        '<div class="font-page-section-title">字体大小</div>' +
-        '<div class="font-page-slider-head"><span>字体大小</span><span class="font-page-slider-val" id="fontScaleValue">' + chatScale + '</span></div>' +
+        '<div class="font-page-section-title">字体大小 <span class="font-page-slider-val" id="fontScaleValue">' + chatScale + '</span></div>' +
         fontSliderHtml('chatFontScale', chatScale) +
-        '<div class="font-page-section-title">思维链字体大小</div>' +
-        '<div class="font-page-slider-head"><span>思维链字体大小</span><span class="font-page-slider-val" id="thinkingScaleValue">' + thinkScale + '</span></div>' +
+        '<div class="font-page-section-title">思维链字体大小 <span class="font-page-slider-val" id="thinkingScaleValue">' + thinkScale + '</span></div>' +
         fontSliderHtml('thinkingFontScale', thinkScale) +
         '<button class="btn-secondary font-page-import-btn" onclick="document.getElementById(\'customFontInput\').click()"><i data-lucide="upload" style="width:14px;height:14px;margin-right:6px;"></i>导入自定义字体</button>' +
         '<div class="font-page-import-hint">支持 .ttf / .otf</div>' +
