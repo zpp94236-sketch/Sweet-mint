@@ -1168,15 +1168,23 @@ function bindSettingsContentEvents() {
         applyChatFont();
         document.querySelectorAll('.font-choice-card').forEach(x => x.classList.toggle('active', x === c));
     }));
-    document.querySelectorAll('.font-page-range').forEach(r => r.addEventListener('input', () => {
-        const key = r.dataset.key;
-        const v = parseInt(r.value, 10);
-        state.settings[key] = v;
-        saveState();
-        applyFontScales();
-        const valEl = document.getElementById(key === 'chatFontScale' ? 'fontScaleValue' : 'thinkingScaleValue');
-        if (valEl) valEl.textContent = v;
-    }));
+    document.querySelectorAll('.font-page-range').forEach(r => {
+        function updateFill() {
+            const pct = (r.value - r.min) / (r.max - r.min) * 100;
+            r.style.background = 'linear-gradient(to right, rgba(210,180,210,0.5) ' + pct + '%, rgba(220,218,214,0.45) ' + pct + '%)';
+        }
+        updateFill();
+        r.addEventListener('input', () => {
+            const key = r.dataset.key;
+            const v = parseInt(r.value, 10);
+            state.settings[key] = v;
+            saveState();
+            applyFontScales();
+            updateFill();
+            const valEl = document.getElementById(key === 'chatFontScale' ? 'fontScaleValue' : 'thinkingScaleValue');
+            if (valEl) valEl.textContent = v;
+        });
+    });
     const rf = document.getElementById('regexFileInputDetail');
     if (rf) rf.addEventListener('change', handleRegexImportDetail);
     const mms = document.getElementById('memoryModeSelect');
