@@ -47,8 +47,7 @@
         return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '">' +
             '<div class="chat-item-body"><div class="chat-item-row1">' + (chat.pinned ? '<span class="chat-item-pin">📌</span>' : '') + '<span class="chat-item-title">' + highlightTitle(chat.title, query) + '</span>' +
             '<span class="chat-item-time">' + formatTime(lastTime) + '</span></div>' +
-            '<span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div>' +
-            '<button class="chat-item-delete" data-id="' + chat.id + '" title="删除">🗑</button></div>';
+            '<span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div></div>';
     }
 
     function renderChatList() {
@@ -112,8 +111,6 @@
         container.querySelectorAll('.chat-item').forEach(function (el) {
             el.addEventListener('click', function (e) {
                 if (window.__chatLongPressSuppress) { window.__chatLongPressSuppress = false; e.stopPropagation(); return; }
-                const del = e.target.closest('.chat-item-delete');
-                if (del) { e.stopPropagation(); deleteChat(del.dataset.id); return; }
                 switchChat(el.dataset.id);
             });
 
@@ -342,6 +339,16 @@
             clearBtn.style.display = 'none';
             renderChatList();
         });
+
+        const folderToggle = document.getElementById('sidebarFolderToggle');
+        const folderBody = document.getElementById('sidebarFolderBody');
+        const folderSection = document.getElementById('sidebarFolderSection');
+        if (folderToggle) {
+            folderToggle.addEventListener('click', function () {
+                const open = folderSection.classList.toggle('open');
+                folderBody.style.display = open ? 'block' : 'none';
+            });
+        }
 
         const newFolderBtn = document.getElementById('newFolderBtn');
         if (newFolderBtn) newFolderBtn.addEventListener('click', function () {

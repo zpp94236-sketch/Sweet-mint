@@ -23,14 +23,19 @@
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
         <aside class="sidebar hidden" id="sidebar">
             <div class="sidebar-header">
-                <button class="btn-icon" id="closeSidebar"><i data-lucide="x"></i></button>
                 <button class="btn-icon" id="sidebarOpenSettings" title="设置" onclick="closeSidebar();openSettingsPanel()"><i data-lucide="settings"></i></button>
                 <input type="file" id="userAvatarInput" accept="image/*" hidden>
             </div>
-            <button class="btn-new-folder" id="newFolderBtn">
-                <i data-lucide="folder-plus"></i>
-                <span>新建文件夹</span>
-            </button>
+
+            <div class="sidebar-folder-section" id="sidebarFolderSection">
+                <div class="sidebar-folder-toggle" id="sidebarFolderToggle">
+                    <span class="sidebar-folder-label">文件夹</span>
+                    <i data-lucide="chevron-down" class="sidebar-folder-chevron"></i>
+                </div>
+                <div class="sidebar-folder-body" id="sidebarFolderBody" style="display:none;">
+                    <button class="sidebar-new-folder-btn" id="newFolderBtn"><i data-lucide="folder-plus"></i>新建文件夹</button>
+                </div>
+            </div>
 
             <div class="chat-list" id="chatList"></div>
             <div class="sidebar-footer">
@@ -39,8 +44,7 @@
                     <input type="text" id="chatSearchInput" class="sidebar-search-input" placeholder="搜索对话...">
                     <button class="sidebar-search-clear" id="chatSearchClear" title="清除" style="display:none;"><i data-lucide="x"></i></button>
                 </div>
-                <button class="nav-icon-btn nav-icon-btn-home" id="sidebarBackToHome" title="客厅"><i data-lucide="home"></i><span>客厅</span></button>
-                <button class="nav-icon-btn" id="sidebarNewChat" title="新建对话"><i data-lucide="message-circle-plus"></i><span>新建</span></button>
+                <button class="nav-icon-btn nav-icon-btn-home" id="sidebarBackToHome" title="客厅"><i data-lucide="home"></i></button>
             </div>
         </aside>
 

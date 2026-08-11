@@ -256,10 +256,10 @@ function renderChatList() {
     container.innerHTML = sorted.map(chat => {
         const lastTime = new Date(chatLastTime(chat)).toISOString();
         const modelName = chat.model || state.settings.model || '未指定模型';
-        return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '"><div class="chat-item-body"><div class="chat-item-row1">' + (chat.pinned ? '<span class="chat-item-pin">📌</span>' : '') + '<span class="chat-item-title">' + escapeHtml(chat.title) + '</span><span class="chat-item-time">' + formatTime(lastTime) + '</span></div><span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div><button class="chat-item-delete" data-id="' + chat.id + '" title="删除">🗑</button></div>';
+        return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '"><div class="chat-item-body"><div class="chat-item-row1">' + (chat.pinned ? '<span class="chat-item-pin">📌</span>' : '') + '<span class="chat-item-title">' + escapeHtml(chat.title) + '</span><span class="chat-item-time">' + formatTime(lastTime) + '</span></div><span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div></div>';
     }).join('');
     container.querySelectorAll('.chat-item').forEach(el => {
-        el.addEventListener('click', (e) => { if (e.target.classList.contains('chat-item-delete')) { e.stopPropagation(); deleteChat(e.target.dataset.id); } else switchChat(el.dataset.id); });
+        el.addEventListener('click', (e) => { switchChat(el.dataset.id); });
     });
 }
 
@@ -3161,10 +3161,8 @@ function openMemoryPage() { closeSidebar(); alert('记忆页面开发中，敬�
 function on(id, evt, fn) { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); }
 function setupEventListeners() {
     on('openSidebar', 'click', openSidebar);
-    on('closeSidebar', 'click', closeSidebar);
     on('sidebarBackdrop', 'click', closeSidebar);
     on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
-    on('sidebarNewChat', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
     on('headerNewChat', 'click', createNewChat);
     on('headerMoreBtn', 'click', openChatMore);
     on('sidebarBackToHome', 'click', () => { closeSidebar(); showPage('home'); });
