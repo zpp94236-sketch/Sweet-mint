@@ -1329,7 +1329,9 @@ function bindSettingsContentEvents() {
     if (thinkToggle) {
         thinkToggle.addEventListener('change', function () {
             if (this.checked) {
-                state.settings.thinkingLevel = state.settings.thinkingLevel === 'off' ? 'verylow' : state.settings.thinkingLevel;
+                if (!state.settings.thinkingLevel || state.settings.thinkingLevel === 'off') {
+                    state.settings.thinkingLevel = 'verylow';
+                }
             } else {
                 state.settings.thinkingLevel = 'off';
             }
