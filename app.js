@@ -1325,13 +1325,19 @@ function bindSettingsContentEvents() {
         });
     }
 
-    document.querySelectorAll('.msg-display-toggle[data-key="unlimitedContext"]').forEach(t => {
-        t.addEventListener('change', () => {
-            state.settings.contextCount = t.checked ? 100 : 20;
+    const thinkToggle = document.getElementById('thinkingEnabledToggle');
+    if (thinkToggle) {
+        thinkToggle.addEventListener('change', function () {
+            if (this.checked) {
+                state.settings.thinkingLevel = state.settings.thinkingLevel === 'off' ? 'verylow' : state.settings.thinkingLevel;
+            } else {
+                state.settings.thinkingLevel = 'off';
+            }
             saveState();
             renderSettingsView();
         });
-    });
+    }
+
     const rf = document.getElementById('regexFileInputDetail');
     if (rf) rf.addEventListener('change', handleRegexImportDetail);
     const mms = document.getElementById('memoryModeSelect');
@@ -1615,7 +1621,7 @@ function renderAssistantBasicPage() {
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row">' +
             '<div class="settings-entry-info"><div class="settings-entry-title">思考</div><div class="settings-entry-sub">' + escapeHtml(thinkingLabels[thinking] || '关闭') + '</div></div>' +
-            '<label class="switch"><input type="checkbox" onchange="toggleThinkingEnabled(event.target.checked)"' + (thinkingEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+            '<label class="switch"><input type="checkbox" id="thinkingEnabledToggle"' + (thinkingEnabled ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
         '</div>' +
         (thinkingEnabled ? '<div class="settings-row settings-row-stack" style="border-bottom:none;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;"><span class="settings-entry-title">思考深度</span><span class="settings-range-value">' + escapeHtml(thinkingLabels[thinking]) + '</span></div>' +
@@ -2519,18 +2525,13 @@ function openAddMcpServer() {
 // ===== 上下文总结 =====
 function renderContextSummaryPage() {
     const ctx = state.settings.contextCount || 20;
-    const unlimited = ctx >= 100;
 
     return '<div class="settings-group-title">默认上下文窗口</div>' +
     '<div class="settings-list-card" style="margin-bottom:14px;">' +
         '<div class="settings-row settings-row-stack">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><i data-lucide="cpu" class="settings-row-icon"></i><span class="settings-entry-title">上下文窗口</span></div>' +
-            '<div class="settings-entry-sub" style="margin-bottom:10px;">保留最近 <span id="contextCountDisplay">' + (unlimited ? '无限' : ctx) + '</span> 条消息</div>' +
-            '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="0" max="100" step="5" value="' + ctx + '">' +
-        '</div>' +
-        '<div class="settings-row" style="border-bottom:none;">' +
-            '<div class="settings-entry-info"><div style="display:flex;align-items:center;gap:8px;"><i data-lucide="cpu" class="settings-row-icon"></i><span class="settings-entry-title">无限上下文窗口</span></div><div class="settings-entry-sub">保留完整对话历史，而不是只保留最近的消息</div></div>' +
-            '<label class="switch"><input type="checkbox" class="msg-display-toggle" data-key="unlimitedContext"' + (unlimited ? ' checked' : '') + '><span class="switch-slider"></span></label>' +
+            '<div class="settings-entry-sub" style="margin-bottom:10px;">保留最近 <span id="contextCountDisplay">' + (ctx >= 100 ? '无限' : ctx) + '</span> 条消息</div>' +
+            '<input type="range" class="settings-range font-page-range" data-key="contextCount" data-scale="1" min="20" max="100" step="5" value="' + ctx + '">' +
         '</div>' +
     '</div>' +
     settingsGroup('上下文设置', [
