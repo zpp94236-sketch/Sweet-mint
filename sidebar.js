@@ -44,7 +44,7 @@
     function chatItemHtml(chat, query) {
         const lastTime = chatLastTime(chat);
         const modelName = chat.model || (state.settings && state.settings.model) || '未指定模型';
-        return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '" draggable="true">' +
+        return '<div class="chat-item' + (chat.id === state.currentChatId ? ' active' : '') + '" data-id="' + chat.id + '">' +
             '<div class="chat-item-body"><div class="chat-item-row1">' + (chat.pinned ? '<span class="chat-item-pin">📌</span>' : '') + '<span class="chat-item-title">' + highlightTitle(chat.title, query) + '</span>' +
             '<span class="chat-item-time">' + formatTime(lastTime) + '</span></div>' +
             '<span class="chat-item-subtitle">' + escapeHtml(modelName) + '</span></div>' +
@@ -108,12 +108,9 @@
     }
 
     // ---------- 列表交互 ----------
-    let wasDragging = false;
-
     function bindChatListEvents(container) {
         container.querySelectorAll('.chat-item').forEach(function (el) {
             el.addEventListener('click', function (e) {
-                if (wasDragging) { wasDragging = false; e.stopPropagation(); return; }
                 if (window.__chatLongPressSuppress) { window.__chatLongPressSuppress = false; e.stopPropagation(); return; }
                 const del = e.target.closest('.chat-item-delete');
                 if (del) { e.stopPropagation(); deleteChat(del.dataset.id); return; }
@@ -122,37 +119,30 @@
 
             let timer = null;
             let startX = 0, startY = 0;
-            el.addEventListener('pointerdown', function (e) {
-                if (e.pointerType === 'mouse' && e.button !== 0) return;
+            el.addEventListener('touchstart', function (e) {
                 window.__chatLongPressSuppress = false;
-                startX = e.clientX; startY = e.clientY;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
                 if (timer) clearTimeout(timer);
                 timer = setTimeout(function () {
                     timer = null;
                     window.__chatLongPressSuppress = true;
                     showMoveMenu(el, { clientX: startX, clientY: startY });
                 }, 600);
-            });
-            const cancelLongPress = function (e) {
+            }, { passive: true });
+            el.addEventListener('touchmove', function (e) {
                 if (!timer) return;
-                if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
+                if (Math.abs(e.touches[0].clientX - startX) > 10 || Math.abs(e.touches[0].clientY - startY) > 10) {
                     clearTimeout(timer); timer = null;
                 }
-            };
-            el.addEventListener('pointermove', cancelLongPress);
-            el.addEventListener('pointerup', function () { if (timer) { clearTimeout(timer); timer = null; } });
-            el.addEventListener('pointercancel', function () { if (timer) { clearTimeout(timer); timer = null; } });
+            }, { passive: true });
+            el.addEventListener('touchend', function () { if (timer) { clearTimeout(timer); timer = null; } });
+            el.addEventListener('touchcancel', function () { if (timer) { clearTimeout(timer); timer = null; } });
             el.addEventListener('contextmenu', function (e) {
                 e.preventDefault();
                 window.__chatLongPressSuppress = true;
                 showMoveMenu(el, { clientX: e.clientX, clientY: e.clientY });
             });
-            el.addEventListener('dragstart', function (e) {
-                wasDragging = true;
-                e.dataTransfer.setData('text/plain', el.dataset.id);
-                e.dataTransfer.effectAllowed = 'move';
-            });
-            el.addEventListener('dragend', function () { wasDragging = false; });
         });
 
         container.querySelectorAll('.chat-folder-head').forEach(function (head) {

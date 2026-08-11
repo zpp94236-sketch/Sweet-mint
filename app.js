@@ -1168,13 +1168,12 @@ function bindSettingsContentEvents() {
         applyChatFont();
         document.querySelectorAll('.font-choice-card').forEach(x => x.classList.toggle('active', x === c));
     }));
-    document.querySelectorAll('.font-dot').forEach(d => d.addEventListener('click', () => {
-        const key = d.dataset.key;
-        const v = parseInt(d.dataset.value, 10);
+    document.querySelectorAll('.font-slider-range').forEach(r => r.addEventListener('input', () => {
+        const key = r.dataset.key;
+        const v = parseInt(r.value, 10);
         state.settings[key] = v;
         saveState();
         applyFontScales();
-        document.querySelectorAll('.font-dot[data-key="' + key + '"]').forEach(x => x.classList.toggle('active', x === d));
         const valEl = document.getElementById(key === 'chatFontScale' ? 'fontScaleValue' : 'thinkingScaleValue');
         if (valEl) valEl.textContent = v;
     }));
@@ -1381,10 +1380,17 @@ function renderFontSettingsPage() {
 
 function fontDotScaleHtml(key, current) {
     const values = [0, 20, 40, 60, 80, 100];
-    const dots = values.map(v =>
-        '<button class="font-dot' + (Number(v) === Number(current) ? ' active' : '') + '" data-key="' + key + '" data-value="' + v + '" title="' + v + '"></button>'
-    ).join('');
-    return '<div class="font-dot-scale"><span class="font-scale-a">A</span><div class="font-dot-track">' + dots + '</div><span class="font-scale-a font-scale-a-big">A</span></div>';
+    const idx = values.indexOf(Number(current));
+    const snapIdx = idx >= 0 ? idx : 2;
+    // 使用原生 range，step=20，配合自定义样式
+    return '<div class="font-slider-wrap">' +
+        '<span class="font-scale-a">A</span>' +
+        '<div class="font-slider-track">' +
+            '<input type="range" class="font-slider-range" data-key="' + key + '" min="0" max="100" step="20" value="' + (snapIdx * 20) + '">' +
+            '<div class="font-slider-dots">' + values.map(function() { return '<span class="font-slider-dot"></span>'; }).join('') + '</div>' +
+        '</div>' +
+        '<span class="font-scale-a font-scale-a-big">A</span>' +
+    '</div>';
 }
 
 // 透明度设置
@@ -3175,6 +3181,7 @@ function setupEventListeners() {
     on('closeSidebar', 'click', closeSidebar);
     on('sidebarBackdrop', 'click', closeSidebar);
     on('newChatBtn', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
+    on('sidebarNewChat', 'click', () => { createNewChat(); closeSidebar(); showPage('chat'); });
     on('headerNewChat', 'click', createNewChat);
     on('headerMoreBtn', 'click', openChatMore);
     on('sidebarBackToHome', 'click', () => { closeSidebar(); showPage('home'); });
