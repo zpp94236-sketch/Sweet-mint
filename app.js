@@ -3687,7 +3687,7 @@ function renderBedroom() {
     const extraBtn = document.getElementById('bedroomExtraBtn');
     if (!content) return;
     let title = '卧室', html = '', showAdd = null;
-    if (view === 'bedroomHome') { title = '卧室'; html = '<div class="room-content"><div class="room-title-en">Bedroom</div>' + renderBedroomGrid() + '</div>'; }
+    if (view === 'bedroomHome') { title = '卧室'; html = '<div class="room-title-en">Bedroom</div><div class="room-content">' + renderBedroomGrid() + '</div>'; }
     else if (view === 'diaryList') { title = '拾光'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryDetail') { title = '日记'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryEdit') { title = '写日记'; html = renderDiaryEditPage(bedroomParams.id || diaryCurrentId); }
@@ -3714,13 +3714,13 @@ function renderBedroom() {
     else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
     else if (view === 'studyHome') { title = '书房'; html = renderStudyHome(); }
-    else if (view === 'kitchenHome') { title = '厨房'; html = '<div class="room-content"><div class="room-title-en">Kitchen</div>' + renderPlaceholderGrid([
+    else if (view === 'kitchenHome') { title = '厨房'; html = '<div class="room-title-en">Kitchen</div><div class="room-content">' + renderPlaceholderGrid([
         { icon: '🍽️', name: '饮食记录', desc: '敬请期待' },
         { icon: '🛵', name: '外卖点单', desc: '敬请期待' },
         { icon: '📖', name: '菜谱研究', desc: '敬请期待' },
         { icon: '🫊', name: '冰箱', desc: '敬请期待' }
     ]) + '</div>'; }
-    else if (view === 'gardenHome') { title = '花园'; html = '<div class="room-content"><div class="room-title-en">Garden</div>' + renderPlaceholderGrid([
+    else if (view === 'gardenHome') { title = '花园'; html = '<div class="room-title-en">Garden</div><div class="room-content">' + renderPlaceholderGrid([
         { icon: '🐾', name: '宠物', desc: '敬请期待' },
         { icon: '🏃', name: '运动健康', desc: '敬请期待' },
         { icon: '🌾', name: '农田', desc: '敬请期待' },

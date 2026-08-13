@@ -62,7 +62,7 @@
                 '<div class="todo-done-body" style="' + (doneCollapsed ? 'display:none' : '') + '">' + done.map(todoItemHtml).join('') + '</div>' +
                 '</div>';
         }
-        return '<div class="room-content"><div class="room-title-en">Study Room</div>' +
+        return '<div class="room-title-en">Study Room</div><div class="room-content">' +
             '<div class="study-home">' +
             '<section class="todo-panel">' +
             '<div class="todo-panel-head">' +
