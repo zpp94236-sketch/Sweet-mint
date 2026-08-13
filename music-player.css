@@ -424,3 +424,52 @@
 }
 .mf-btn-play:active { background: rgba(255,255,255,0.85); }
 .mf-btn-play i, .mf-btn-play svg { width: 28px !important; height: 28px !important; }
+
+/* 歌曲更多按钮 */
+.music-track-more {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    letter-spacing: 1px;
+}
+.music-track-more:active { background: var(--primary-lighter); }
+
+/* 歌曲操作菜单 */
+.music-menu-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+    padding: 4px 0 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+.music-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: background 0.15s;
+}
+.music-menu-item:active { background: var(--primary-lighter); }
+.music-menu-item i, .music-menu-item svg { width: 18px !important; height: 18px !important; color: var(--text-light); }
+.music-menu-danger { color: #e74c3c; }
+.music-menu-danger i, .music-menu-danger svg { color: #e74c3c !important; }
+
+/* 编辑表单 */
+.music-edit-form {
+    padding: 4px 0;
+}
