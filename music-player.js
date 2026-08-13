@@ -231,6 +231,9 @@
             '</div>'
         ).join('') + '</div>';
 
+        // Storage 同步按钮
+        const syncBtn = '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:16px;" onclick="window._musicPlayer.syncFromStorage()">🔄 从 Storage 同步歌曲</button>';
+
         // 最近播放
         const history = musicCache.history.slice(0, 6);
         let historyHtml = '';
@@ -247,6 +250,7 @@
             '<div class="music-home-header"><span class="music-home-title">Music</span></div>' +
             recHtml +
             entriesHtml +
+            syncBtn +
             historyHtml +
             '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>' +
         '</div>';
@@ -391,6 +395,65 @@
         }
     }
 
+    async function syncFromStorage() {
+        if (!isSupabaseConfigured()) { alert('请先配置云端同步'); return; }
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const key = state.memorySystem.settings.supabaseKey;
+
+        showToast('正在扫描...');
+        try {
+            // 列出 Storage 中 music bucket 的所有文件
+            const res = await fetch(base + '/storage/v1/object/list/music', {
+                method: 'POST',
+                headers: {
+                    'apikey': key,
+                    'Authorization': 'Bearer ' + key,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prefix: '', limit: 500, offset: 0, sortBy: { column: 'name', order: 'asc' } })
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const files = await res.json();
+
+            // 获取已有记录的 file_url
+            const existing = new Set(musicCache.tracks.map(t => t.file_url));
+
+            let added = 0;
+            const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+
+            for (const f of files) {
+                if (!f.name || f.name.startsWith('.')) continue;
+                const fileUrl = base + '/storage/v1/object/public/music/' + encodeURIComponent(f.name);
+                if (existing.has(fileUrl)) continue;
+
+                // 从文件名解析歌手和歌名（格式：Artist - Title.mp3）
+                const nameNoExt = f.name.replace(/\.[^.]+$/, '');
+                let title = nameNoExt, artist = '';
+                const sep = nameNoExt.indexOf(' - ');
+                if (sep > 0) {
+                    artist = nameNoExt.slice(0, sep).trim();
+                    title = nameNoExt.slice(sep + 3).trim();
+                }
+
+                await fetch(base + '/rest/v1/music_tracks', {
+                    method: 'POST', headers: h,
+                    body: JSON.stringify({ title, artist, file_url: fileUrl })
+                });
+                added++;
+            }
+
+            showToast('扫描完成，新增 ' + added + ' 首');
+            await loadMusicData(true);
+            const content = document.getElementById('bedroomContent');
+            if (content) {
+                content.innerHTML = renderMusicHome();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        } catch (e) {
+            alert('扫描失败: ' + e.message);
+        }
+    }
+
     // ===== 暴露接口 =====
     window._musicPlayer = {
         loadData: loadMusicData,
@@ -403,6 +466,7 @@
         playPrev,
         handleLike,
         uploadTrack,
+        syncFromStorage,
         getPlayer: () => player,
         _currentList: null
     };
