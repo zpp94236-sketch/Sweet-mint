@@ -218,3 +218,209 @@
 [data-theme="dark"] .music-mini-bar { background: var(--bg-white); }
 [data-theme="dark"] .mini-bar-progress { background: rgba(255,255,255,0.08); }
 [data-theme="dark"] .music-track-item.now-playing { background: rgba(255,255,255,0.08); }
+
+/* ===== 全屏播放页 ===== */
+.music-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    color: #fff;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+.mf-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    flex-shrink: 0;
+}
+.mf-back, .mf-more {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.mf-back:active, .mf-more:active { background: rgba(255,255,255,0.2); }
+.mf-back i, .mf-back svg, .mf-more i, .mf-more svg { width: 20px !important; height: 20px !important; }
+.mf-header-info { text-align: center; flex: 1; min-width: 0; }
+.mf-header-title { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mf-header-artist { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+.mf-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 24px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* 黑胶唱片 */
+.mf-vinyl-wrap {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #333 0%, #1a1a1a 40%, #333 41%, #222 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+    margin-bottom: 20px;
+    transition: width 0.3s, height 0.3s;
+}
+.mf-vinyl-wrap.spinning {
+    animation: vinylSpin 12s linear infinite;
+}
+.mf-vinyl-wrap.mf-vinyl-large {
+    width: 280px;
+    height: 280px;
+}
+@keyframes vinylSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.mf-vinyl {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #444;
+    background: #2a2a2a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mf-vinyl-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+.mf-vinyl-default {
+    font-size: 32px;
+    background: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+/* 歌词 */
+.mf-lyrics {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    width: 100%;
+    max-height: 180px;
+    padding: 10px 0;
+    text-align: center;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(transparent, #000 15%, #000 85%, transparent);
+    -webkit-mask-image: linear-gradient(transparent, #000 15%, #000 85%, transparent);
+}
+.mf-lyric-line {
+    font-size: 14px;
+    color: rgba(255,255,255,0.4);
+    padding: 8px 0;
+    transition: all 0.3s;
+    line-height: 1.6;
+}
+.mf-lyric-line.active {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+}
+.mf-lyrics-empty {
+    color: rgba(255,255,255,0.3);
+    font-size: 14px;
+    padding: 40px 0;
+}
+
+/* 控制区 */
+.mf-controls {
+    padding: 20px 24px 24px;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    flex-shrink: 0;
+}
+.mf-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.mf-time {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    min-width: 36px;
+    font-variant-numeric: tabular-nums;
+}
+.mf-progress-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
+    touch-action: none;
+}
+.mf-progress-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: #fff;
+    border-radius: 2px;
+    transition: width 0.1s linear;
+}
+.mf-progress-thumb {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: left 0.1s linear;
+}
+
+.mf-btns {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+.mf-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.mf-btn:active { background: rgba(255,255,255,0.1); }
+.mf-btn i, .mf-btn svg { width: 22px !important; height: 22px !important; }
+.mf-btn-play {
+    width: 60px; height: 60px;
+    background: #fff;
+    color: #1a1a1a;
+    border-radius: 50%;
+}
+.mf-btn-play:active { background: rgba(255,255,255,0.85); }
+.mf-btn-play i, .mf-btn-play svg { width: 28px !important; height: 28px !important; }
