@@ -698,16 +698,19 @@
                 }
             });
 
-            // 获取已有记录的 file_url
-            const existing = new Set(musicCache.tracks.map(t => t.file_url));
+            // 获取已有记录的 file_url（统一解码后比较）
+            const existing = new Set(musicCache.tracks.map(t => {
+                try { return decodeURIComponent(t.file_url); } catch(e) { return t.file_url; }
+            }));
 
             let added = 0;
             const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
 
             for (const f of audioFiles) {
                 const fileUrl = base + '/storage/v1/object/public/music/' + f.name;
-                const fileUrlEncoded = base + '/storage/v1/object/public/music/' + encodeURIComponent(f.name);
-                if (existing.has(fileUrl) || existing.has(fileUrlEncoded)) continue;
+                let decodedUrl;
+                try { decodedUrl = decodeURIComponent(fileUrl); } catch(e) { decodedUrl = fileUrl; }
+                if (existing.has(decodedUrl)) continue;
 
                 // 从文件名解析歌手和歌名（格式：Artist - Title.mp3）
                 const nameNoExt = f.name.replace(/\.[^.]+$/, '');
