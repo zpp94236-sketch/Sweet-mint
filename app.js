@@ -3687,7 +3687,7 @@ function renderBedroom() {
     const extraBtn = document.getElementById('bedroomExtraBtn');
     if (!content) return;
     let title = '卧室', html = '', showAdd = null;
-    if (view === 'bedroomHome') { title = '卧室'; html = '<div class="room-content"><div class="room-title-en">Bedroom</div>' + renderBedroomHeatmap() + renderBedroomGrid() + '</div>'; }
+    if (view === 'bedroomHome') { title = '卧室'; html = '<div class="room-content"><div class="room-title-en">Bedroom</div>' + renderBedroomGrid() + '</div>'; }
     else if (view === 'diaryList') { title = '拾光'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryDetail') { title = '日记'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryEdit') { title = '写日记'; html = renderDiaryEditPage(bedroomParams.id || diaryCurrentId); }
@@ -3888,7 +3888,7 @@ function renderMemoryHome() {
     const n = state.memorySystem.memories.filter(m => m.category === 'palace').length;
     return '<div class="memory-cat-card" onclick="bedroomGo(\'memoryList\',{category:\'palace\'})"><div class="memory-cat-icon">🏛️</div><div class="memory-cat-info"><span class="memory-cat-name">记忆宫殿</span><span class="memory-cat-count">' + n + ' 条</span></div><i data-lucide="chevron-right"></i></div>';
 })();
-    return '<div class="memory-cat-list">' + cardFor(cats[0]) + palaceCard + cardFor(cats[1]) + cardFor(cats[2]) + '</div>';
+    return renderBedroomHeatmap() + '<div class="memory-cat-list">' + cardFor(cats[0]) + palaceCard + cardFor(cats[1]) + cardFor(cats[2]) + '</div>';
 }
 function renderMemoryList() {
     const cat = bedroomParams.category;
