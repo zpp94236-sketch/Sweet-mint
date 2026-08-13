@@ -3692,6 +3692,10 @@ function renderBedroom() {
     else if (view === 'diaryDetail') { title = '日记'; html = '<div class="diary-empty">加载中...</div>'; }
     else if (view === 'diaryEdit') { title = '写日记'; html = renderDiaryEditPage(bedroomParams.id || diaryCurrentId); }
     else if (view === 'memoryHome') { title = '琥珀'; html = renderMemoryHome(); showAdd = () => bedroomGo('memoryEdit', { category: 'core' }); }
+    else if (view === 'palaceHome') { title = '记忆宫殿'; html = renderPalaceHome(); showAdd = () => bedroomGo('memoryEdit', { category: 'core' }); }
+    else if (view === 'fragmentList') { title = '碎片'; html = renderMemoryListByCategory('fragment'); showAdd = () => bedroomGo('memoryEdit', { category: 'fragment' }); }
+    else if (view === 'milestoneList') { title = '里程碑'; html = renderMemoryListByCategory('milestone'); showAdd = () => bedroomGo('memoryEdit', { category: 'milestone' }); }
+    else if (view === 'keepsakeList') { title = '信物'; html = renderMemoryListByCategory('keepsake'); showAdd = () => bedroomGo('memoryEdit', { category: 'keepsake' }); }
     else if (view === 'memoryList') {
         const names = { core: '核心记忆', palace: '记忆宫殿', longterm: '长期记忆', shortterm: '短期记忆' };
         title = names[bedroomParams.category] || '记忆列表'; html = renderMemoryList();
@@ -3879,21 +3883,46 @@ function deleteDiary(date) {
 
 // --- 琥珀 ---
 function renderMemoryHome() {
-    const cats = [{ k: 'core', icon: '💎', name: '核心记忆' }, { k: 'longterm', icon: '📚', name: '长期记忆' }, { k: 'shortterm', icon: '🌿', name: '短期记忆' }];
-    const cardFor = c => {
+    const palaceCount = state.memorySystem.memories.filter(m => m.category === 'core' || m.category === 'longterm' || m.category === 'shortterm' || m.category === 'palace').length;
+    const fragmentCount = state.memorySystem.memories.filter(m => m.category === 'fragment').length;
+    const milestoneCount = state.memorySystem.memories.filter(m => m.category === 'milestone').length;
+    const keepsakeCount = state.memorySystem.memories.filter(m => m.category === 'keepsake').length;
+
+    const items = [
+        { icon: '🏛️', name: '记忆宫殿', desc: palaceCount + ' 条', go: 'palaceHome' },
+        { icon: '🧩', name: '碎片', desc: fragmentCount + ' 条', go: 'fragmentList' },
+        { icon: '🚩', name: '里程碑', desc: milestoneCount + ' 条', go: 'milestoneList' },
+        { icon: '💌', name: '信物', desc: keepsakeCount + ' 条', go: 'keepsakeList' }
+    ];
+
+    return renderBedroomHeatmap() + '<div class="room-grid bedroom-grid">' + items.map(it =>
+        '<div class="room-card" onclick="bedroomGo(\'' + it.go + '\',{})"><div class="room-icon">' + it.icon + '</div><div class="room-info"><span class="room-name">' + it.name + '</span><span class="room-desc">' + it.desc + '</span></div></div>'
+    ).join('') + '</div>';
+}
+
+function renderPalaceHome() {
+    const cats = [
+        { k: 'core', icon: '💎', name: '核心记忆' },
+        { k: 'palace', icon: '🏛️', name: '云端记忆' },
+        { k: 'longterm', icon: '📚', name: '长期记忆' },
+        { k: 'shortterm', icon: '🌿', name: '短期记忆' }
+    ];
+    return '<div class="memory-cat-list">' + cats.map(c => {
         const n = state.memorySystem.memories.filter(m => m.category === c.k).length;
         return '<div class="memory-cat-card" onclick="bedroomGo(\'memoryList\',{category:\'' + c.k + '\'})"><div class="memory-cat-icon">' + c.icon + '</div><div class="memory-cat-info"><span class="memory-cat-name">' + c.name + '</span><span class="memory-cat-count">' + n + ' 条</span></div><i data-lucide="chevron-right"></i></div>';
-    };
-  const palaceCard = (() => {
-    const n = state.memorySystem.memories.filter(m => m.category === 'palace').length;
-    return '<div class="memory-cat-card" onclick="bedroomGo(\'memoryList\',{category:\'palace\'})"><div class="memory-cat-icon">🏛️</div><div class="memory-cat-info"><span class="memory-cat-name">记忆宫殿</span><span class="memory-cat-count">' + n + ' 条</span></div><i data-lucide="chevron-right"></i></div>';
-})();
-    return renderBedroomHeatmap() + '<div class="memory-cat-list">' + cardFor(cats[0]) + palaceCard + cardFor(cats[1]) + cardFor(cats[2]) + '</div>';
+    }).join('') + '</div>';
 }
 function renderMemoryList() {
     const cat = bedroomParams.category;
     const items = state.memorySystem.memories.filter(m => m.category === cat).sort((a, b) => (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt));
     if (!items.length) return '<div class="bedroom-empty">还没有记忆，点右上角 + 添加吧～</div>';
+    return '<div class="memory-item-list">' + items.map(m =>
+        '<div class="memory-item" onclick="bedroomGo(\'memoryDetail\',{id:\'' + m.id + '\'})"><div class="memory-item-summary">' + escapeHtml(m.summary || m.content.slice(0, 30)) + '</div><div class="memory-item-meta"><span>' + formatMsgTime(m.createdAt) + '</span>' + (m.tags && m.tags.length ? '<span class="memory-item-tags">' + m.tags.map(t => '#' + escapeHtml(t)).join(' ') + '</span>' : '') + '</div></div>'
+    ).join('') + '</div>';
+}
+function renderMemoryListByCategory(cat) {
+    const items = state.memorySystem.memories.filter(m => m.category === cat).sort((a, b) => (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt));
+    if (!items.length) return '<div class="bedroom-empty">还没有内容，点右上角 + 添加吧～</div>';
     return '<div class="memory-item-list">' + items.map(m =>
         '<div class="memory-item" onclick="bedroomGo(\'memoryDetail\',{id:\'' + m.id + '\'})"><div class="memory-item-summary">' + escapeHtml(m.summary || m.content.slice(0, 30)) + '</div><div class="memory-item-meta"><span>' + formatMsgTime(m.createdAt) + '</span>' + (m.tags && m.tags.length ? '<span class="memory-item-tags">' + m.tags.map(t => '#' + escapeHtml(t)).join(' ') + '</span>' : '') + '</div></div>'
     ).join('') + '</div>';
@@ -3904,7 +3933,7 @@ function renderMemoryEdit() {
     return '<div class="form-group"><label>内容</label><textarea id="memContent" rows="5" placeholder="记录内容...">' + escapeHtml(existing ? existing.content : '') + '</textarea></div>' +
         '<div class="form-group"><label>摘要</label><input type="text" id="memSummary" placeholder="一句话摘要" value="' + escapeHtml(existing ? (existing.summary || '') : '') + '"></div>' +
         '<div class="form-group"><label>分类</label><div class="segmented-control" id="memCatPicker">' +
-        ['core', 'longterm', 'shortterm'].map(k => '<button class="segmented-btn' + (pickedMemCat === k ? ' active' : '') + '" data-cat="' + k + '" onclick="pickMemCat(\'' + k + '\')">' + ({ core: '💎核心', longterm: '📚长期', shortterm: '🌿短期' })[k] + '</button>').join('') +
+        ['core', 'longterm', 'shortterm', 'fragment', 'milestone', 'keepsake'].map(k => '<button class="segmented-btn' + (pickedMemCat === k ? ' active' : '') + '" data-cat="' + k + '" onclick="pickMemCat(\'' + k + '\')">' + ({ core: '💎核心', longterm: '📚长期', shortterm: '🌿短期', fragment: '🧩碎片', milestone: '🚩里程碑', keepsake: '💌信物' })[k] + '</button>').join('') +
         '</div></div>' +
         '<div class="form-group"><label>标签（逗号分隔）</label><input type="text" id="memTags" placeholder="标签1, 标签2" value="' + escapeHtml(existing && existing.tags ? existing.tags.join(', ') : '') + '"></div>' +
         '<button class="btn-primary bedroom-save-btn" onclick="saveMemory(\'' + (id || '') + '\')">保存</button>';
