@@ -231,9 +231,6 @@
             '</div>'
         ).join('') + '</div>';
 
-        // Storage 同步按钮
-        const syncBtn = '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:16px;" onclick="window._musicPlayer.syncFromStorage()">🔄 从 Storage 同步歌曲</button>';
-
         // 最近播放
         const history = musicCache.history.slice(0, 6);
         let historyHtml = '';
@@ -247,10 +244,8 @@
         }
 
         return '<div class="music-home">' +
-            '<div class="music-home-header"><span class="music-home-title">Music</span></div>' +
             recHtml +
             entriesHtml +
-            syncBtn +
             historyHtml +
             '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>' +
         '</div>';

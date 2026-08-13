@@ -1077,7 +1077,7 @@ function renderDataBackupPage() {
     '<div class="form-group"><label>Supabase Anon Key</label><input type="password" id="csKey" placeholder="eyJ..." value="' + escapeHtml(s.supabaseKey || '') + '"></div>' +
     '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="saveCloudSyncConfig()">保存配置</button>' +
     '<button class="btn-secondary" style="width:100%;justify-content:center;margin-bottom:10px;" onclick="testCloudConnection()">测试连接</button>' +
-    '<button class="btn-primary bedroom-save-btn" onclick="pullMemoriesFromCloud()">拉取云端记忆</button>';
+    '<button class="btn-primary bedroom-save-btn" onclick="pullMemoriesFromCloud()">拉取云端数据</button>';
 }
 
 function hexToHsl(hex) {
@@ -3716,7 +3716,7 @@ function renderBedroom() {
     else if (view === 'musicHome' || view === 'musicAll' || view === 'musicUserLikes' || view === 'musicAiLikes' || view === 'musicPlaylists') {
         title = '音响';
         html = window._musicPlayer ? window._musicPlayer.renderPage(view) : '<div class="bedroom-empty">加载中...</div>';
-        if (view === 'musicHome') showAdd = () => bedroomGo('musicUpload', {});
+        if (view === 'musicHome') showAdd = () => { if (window._musicPlayer) window._musicPlayer.syncFromStorage(); };
     }
     else if (view === 'musicUpload') { title = '上传歌曲'; html = window._musicPlayer ? window._musicPlayer.renderUpload() : ''; }
     else if (view === 'studyHome') { title = '书房'; html = renderStudyHome(); }
@@ -3737,6 +3737,9 @@ function renderBedroom() {
     if (extraBtn) {
         if (showAdd) { extraBtn.style.display = 'flex'; extraBtn.onclick = showAdd; }
         else { extraBtn.style.display = 'none'; extraBtn.onclick = null; }
+    }
+    if (view === 'musicHome' && extraBtn) {
+        extraBtn.innerHTML = '<i data-lucide="refresh-cw"></i>';
     }
     if (view === 'echoHome') { loadEcho(); }
 if (view === 'piggyHome') {
