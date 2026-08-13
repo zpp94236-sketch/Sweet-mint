@@ -62,7 +62,8 @@
                 '<div class="todo-done-body" style="' + (doneCollapsed ? 'display:none' : '') + '">' + done.map(todoItemHtml).join('') + '</div>' +
                 '</div>';
         }
-        return '<div class="study-home">' +
+        return '<div class="room-content"><div class="room-title-en">Study Room</div>' +
+            '<div class="study-home">' +
             '<section class="todo-panel">' +
             '<div class="todo-panel-head">' +
             '<span class="todo-panel-title">待办</span>' +
@@ -72,6 +73,7 @@
             '</section>' +
             gridHtml +
             '<button class="todo-fab" onclick="studyAddTodo()">+</button>' +
+            '</div>' +
             '</div>';
     }
 

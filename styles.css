@@ -849,7 +849,29 @@ body {
 
 
 /* ===== 房间网格 ===== */
-.room-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.room-title-en {
+    font-family: 'Great Vibes', cursive;
+    font-size: 48px;
+    color: #7a9bb5;
+    text-align: left;
+    padding: 24px 20px 8px;
+    padding-top: max(24px, calc(env(safe-area-inset-top) + 20px));
+    margin: 0;
+    line-height: 1.2;
+}
+@media (display-mode: standalone) {
+    .room-title-en {
+        padding-top: max(48px, calc(env(safe-area-inset-top) + 28px));
+    }
+}
+.room-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 16px;
+}
+.room-content > * { width: 100%; }
+.room-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 400px; }
 .room-card { background: rgba(255,255,255,0.6); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 16px; padding: 16px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: all var(--transition); border: 1px solid rgba(255,255,255,0.55); box-shadow: 0 3px 12px rgba(120,150,135,0.1); position: relative; overflow: hidden; }
 .room-card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.78); }
 .room-card:active { transform: scale(0.97); }
