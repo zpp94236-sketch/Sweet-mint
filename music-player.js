@@ -668,95 +668,144 @@
         if (!isSupabaseConfigured()) { alert('请先配置云端同步'); return; }
         const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
         const key = state.memorySystem.settings.supabaseKey;
+        const storageHeaders = { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' };
 
         showToast('正在扫描...');
         try {
-            // 列出 Storage 中 music bucket 的所有文件
-            const res = await fetch(base + '/storage/v1/object/list/music', {
-                method: 'POST',
-                headers: {
-                    'apikey': key,
-                    'Authorization': 'Bearer ' + key,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ prefix: '', limit: 500, offset: 0, sortBy: { column: 'name', order: 'asc' } })
-            });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const files = await res.json();
+            // 分页列出 Storage 中所有文件
+            let allFiles = [];
+            let offset = 0;
+            const pageSize = 100;
+            while (true) {
+                const res = await fetch(base + '/storage/v1/object/list/music', {
+                    method: 'POST',
+                    headers: storageHeaders,
+                    body: JSON.stringify({ prefix: '', limit: pageSize, offset: offset, sortBy: { column: 'name', order: 'asc' } })
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const page = await res.json();
+                if (!page.length) break;
+                allFiles = allFiles.concat(page);
+                if (page.length < pageSize) break;
+                offset += pageSize;
+            }
 
             // 分类：音频文件和歌词文件
             const audioFiles = [];
-            const lrcFiles = new Map(); // nameNoExt -> fileName
-            files.forEach(f => {
+            const lrcFileNames = new Set();
+            allFiles.forEach(f => {
                 if (!f.name || f.name.startsWith('.')) return;
                 const ext = f.name.split('.').pop().toLowerCase();
-                const nameNoExt = f.name.replace(/\.[^.]+$/, '');
                 if (ext === 'lrc') {
-                    lrcFiles.set(nameNoExt, f.name);
+                    lrcFileNames.add(f.name);
                 } else if (['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac'].includes(ext)) {
                     audioFiles.push(f);
                 }
             });
 
-            // 获取已有记录的 file_url（统一解码后比较）
-            const existing = new Set(musicCache.tracks.map(t => {
-                try { return decodeURIComponent(t.file_url); } catch(e) { return t.file_url; }
-            }));
+            // 获取已有记录，统一解码比较
+            const existingUrls = new Set();
+            musicCache.tracks.forEach(t => {
+                existingUrls.add(t.file_url);
+                try { existingUrls.add(decodeURIComponent(t.file_url)); } catch(e) {}
+                try { existingUrls.add(encodeURI(decodeURIComponent(t.file_url))); } catch(e) {}
+            });
 
             let added = 0;
             const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
 
             for (const f of audioFiles) {
                 const fileUrl = base + '/storage/v1/object/public/music/' + f.name;
-                let decodedUrl;
-                try { decodedUrl = decodeURIComponent(fileUrl); } catch(e) { decodedUrl = fileUrl; }
-                if (existing.has(decodedUrl)) continue;
 
-                // 从文件名解析歌手和歌名（格式：Artist - Title.mp3）
+                // 多种格式比对
+                let exists = existingUrls.has(fileUrl);
+                if (!exists) { try { exists = existingUrls.has(decodeURIComponent(fileUrl)); } catch(e) {} }
+                if (!exists) { try { exists = existingUrls.has(encodeURI(fileUrl)); } catch(e) {} }
+                if (exists) continue;
+
+                // 从文件名解析歌手和歌名
                 const nameNoExt = f.name.replace(/\.[^.]+$/, '');
-                let title = nameNoExt, artist = '';
+                let title = nameNoExt, artist = '', album = '';
                 const sep = nameNoExt.indexOf(' - ');
                 if (sep > 0) {
                     artist = nameNoExt.slice(0, sep).trim();
                     title = nameNoExt.slice(sep + 3).trim();
                 }
 
-                // 尝试获取歌词
+                // 获取歌词：优先 Storage 同名 .lrc
                 let lyrics = '';
-
-                // 优先：检查 Storage 里有没有同名 .lrc 文件
-                if (lrcFiles.has(nameNoExt)) {
+                const lrcName = nameNoExt + '.lrc';
+                if (lrcFileNames.has(lrcName)) {
                     try {
-                        const lrcUrl = base + '/storage/v1/object/public/music/' + lrcFiles.get(nameNoExt);
+                        const lrcUrl = base + '/storage/v1/object/public/music/' + lrcName;
                         const lrcRes = await fetch(lrcUrl);
                         if (lrcRes.ok) lyrics = await lrcRes.text();
                     } catch (e) { /* 忽略 */ }
                 }
 
-                // 兜底：如果没有 .lrc 文件，去 LRCLIB 查
+                // 兜底：LRCLIB
                 if (!lyrics && title) {
                     try {
                         const lrcLibUrl = 'https://lrclib.net/api/get?artist_name=' + encodeURIComponent(artist) + '&track_name=' + encodeURIComponent(title);
                         const lrcLibRes = await fetch(lrcLibUrl);
                         if (lrcLibRes.ok) {
                             const lrcData = await lrcLibRes.json();
-                            if (lrcData && lrcData.syncedLyrics) {
-                                lyrics = lrcData.syncedLyrics;
-                            } else if (lrcData && lrcData.plainLyrics) {
-                                lyrics = lrcData.plainLyrics;
-                            }
+                            if (lrcData && lrcData.syncedLyrics) lyrics = lrcData.syncedLyrics;
+                            else if (lrcData && lrcData.plainLyrics) lyrics = lrcData.plainLyrics;
                         }
                     } catch (e) { /* 忽略 */ }
                 }
 
                 await fetch(base + '/rest/v1/music_tracks', {
                     method: 'POST', headers: h,
-                    body: JSON.stringify({ title, artist, file_url: fileUrl, lyrics })
+                    body: JSON.stringify({ title, artist, album, file_url: fileUrl, lyrics })
                 });
                 added++;
             }
 
-            showToast('扫描完成，新增 ' + added + ' 首');
+            // === 补歌词：给已有但没歌词的歌补上 ===
+            const tracksNoLyrics = musicCache.tracks.filter(t => !t.lyrics);
+            let lyricsFound = 0;
+            for (const t of tracksNoLyrics) {
+                let lyrics = '';
+                // 从 file_url 推断 lrc 路径
+                const lrcUrl = t.file_url.replace(/\.[^.]+$/, '.lrc');
+                try {
+                    const lrcRes = await fetch(lrcUrl);
+                    if (lrcRes.ok) {
+                        const text = await lrcRes.text();
+                        if (text && text.includes('[')) lyrics = text;
+                    }
+                } catch(e) {}
+
+                // 兜底 LRCLIB
+                if (!lyrics && t.title) {
+                    try {
+                        const url = 'https://lrclib.net/api/get?artist_name=' + encodeURIComponent(t.artist || '') + '&track_name=' + encodeURIComponent(t.title);
+                        const res = await fetch(url);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && data.syncedLyrics) lyrics = data.syncedLyrics;
+                            else if (data && data.plainLyrics) lyrics = data.plainLyrics;
+                        }
+                    } catch(e) {}
+                }
+
+                if (lyrics) {
+                    await fetch(base + '/rest/v1/music_tracks?id=eq.' + t.id, {
+                        method: 'PATCH', headers: h,
+                        body: JSON.stringify({ lyrics })
+                    });
+                    lyricsFound++;
+                }
+            }
+
+            let msg = '扫描完成';
+            if (added) msg += '，新增 ' + added + ' 首';
+            if (lyricsFound) msg += '，补了 ' + lyricsFound + ' 首歌词';
+            if (!added && !lyricsFound) msg += '，没有新内容';
+            showToast(msg);
+
             await loadMusicData(true);
             const content = document.getElementById('bedroomContent');
             if (content) {
