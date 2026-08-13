@@ -3030,3 +3030,176 @@ body.has-input-image[data-glass="on"] .input-pill-row {
 [data-theme="dark"] .theme-color-dot { border-color: rgba(255,255,255,0.15); }
 [data-theme="dark"] .theme-color-item.active .theme-color-dot { border-color: rgba(255,255,255,0.3); }
 [data-theme="dark"] .theme-color-check { color: rgba(255,255,255,0.6); }
+
+/* ===== 碎片墙 ===== */
+.fragment-wall {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.fragment-card {
+    background: var(--bg-white);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 4px var(--shadow);
+    cursor: pointer;
+    transition: transform 0.15s;
+    border-left: 3px solid var(--primary-light);
+}
+.fragment-card:active { transform: scale(0.98); }
+.fragment-text {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    word-break: break-word;
+}
+.fragment-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-light);
+}
+.fragment-mood { font-size: 14px; }
+.fragment-auto {
+    background: var(--primary-lighter);
+    color: var(--primary-dark);
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+}
+.fragment-time { margin-left: auto; }
+
+/* ===== 里程碑时间轴 ===== */
+.milestone-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding-left: 20px;
+    border-left: 2px solid var(--primary-light);
+}
+.milestone-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 0;
+    position: relative;
+    cursor: pointer;
+}
+.milestone-item:active { opacity: 0.7; }
+.milestone-dot {
+    position: absolute;
+    left: -32px;
+    top: 16px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bg-white);
+    border: 2px solid var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+.milestone-body { flex: 1; min-width: 0; }
+.milestone-date {
+    font-size: 12px;
+    color: var(--primary-dark);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.milestone-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.5;
+}
+.milestone-preview {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 4px;
+    line-height: 1.5;
+}
+
+/* ===== 信物陈列柜 ===== */
+.keepsake-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+.keepsake-card {
+    background: var(--bg-white);
+    border-radius: 18px;
+    padding: 20px 14px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--shadow);
+    transition: transform 0.15s;
+    border: 1px solid rgba(255,255,255,0.6);
+}
+.keepsake-card:active { transform: scale(0.96); }
+.keepsake-emoji {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+.keepsake-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+}
+.keepsake-meaning {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+/* ===== 信物详情 ===== */
+.keepsake-detail { padding-bottom: 20px; }
+.keepsake-detail-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 20px 0;
+}
+.keepsake-detail-emoji { font-size: 48px; }
+.keepsake-detail-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 10px;
+}
+.keepsake-detail-section {
+    background: var(--bg-white);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px var(--shadow);
+}
+.keepsake-detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    margin-bottom: 6px;
+}
+.keepsake-detail-text {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.7;
+    word-break: break-word;
+}
+
+/* ===== 暗色适配 ===== */
+[data-theme="dark"] .fragment-card {
+    background: rgba(255,255,255,0.06);
+    border-left-color: rgba(255,255,255,0.15);
+}
+[data-theme="dark"] .milestone-timeline { border-left-color: rgba(255,255,255,0.12); }
+[data-theme="dark"] .milestone-dot { background: var(--bg-white); border-color: rgba(255,255,255,0.15); }
+[data-theme="dark"] .keepsake-card {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.08);
+}
+[data-theme="dark"] .keepsake-detail-section { background: rgba(255,255,255,0.06); }
