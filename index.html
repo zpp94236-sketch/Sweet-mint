@@ -86,7 +86,7 @@
                         <span class="home-action-name">鱼缸</span>
                         <span class="home-action-desc">生活轨迹</span>
                     </button>
-                    <button class="home-action" onclick="alert('音响开发中，敬请期待～')">
+                    <button class="home-action" onclick="openRoom('musicHome')">
                         <span class="home-action-icon">🔊</span>
                         <span class="home-action-name">音响</span>
                         <span class="home-action-desc">敬请期待</span>
@@ -301,6 +301,8 @@
     <script src="piggy-bank.js"></script>
     <script src="sidebar.js"></script>
     <script src="study.js"></script>
+    <link rel="stylesheet" href="music-player.css">
+    <script src="music-player.js"></script>
     <script>
         lucide.createIcons();
         if ('serviceWorker' in navigator) {

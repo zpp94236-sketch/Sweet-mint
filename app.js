@@ -3713,6 +3713,12 @@ function renderBedroom() {
     else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
     else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
+    else if (view === 'musicHome' || view === 'musicAll' || view === 'musicUserLikes' || view === 'musicAiLikes' || view === 'musicPlaylists') {
+        title = '音响';
+        html = window._musicPlayer ? window._musicPlayer.renderPage(view) : '<div class="bedroom-empty">加载中...</div>';
+        if (view === 'musicHome') showAdd = () => bedroomGo('musicUpload', {});
+    }
+    else if (view === 'musicUpload') { title = '上传歌曲'; html = window._musicPlayer ? window._musicPlayer.renderUpload() : ''; }
     else if (view === 'studyHome') { title = '书房'; html = renderStudyHome(); }
     else if (view === 'kitchenHome') { title = '厨房'; html = '<div class="room-title-en">Kitchen</div><div class="room-content">' + renderPlaceholderGrid([
         { icon: '🍽️', name: '饮食记录', desc: '敬请期待' },
@@ -3780,6 +3786,17 @@ if (view === 'diaryList') {
 if (view === 'diaryDetail') {
     renderDiaryDetailPage(bedroomParams.id || diaryCurrentId).then(h => {
         content.innerHTML = h;
+    });
+}
+if (view && view.startsWith('music') && window._musicPlayer) {
+    window._musicPlayer.loadData().then(() => {
+        if (bedroomStack[bedroomStack.length - 1] === view) {
+            const c = document.getElementById('bedroomContent');
+            if (c) {
+                c.innerHTML = view === 'musicUpload' ? window._musicPlayer.renderUpload() : window._musicPlayer.renderPage(view);
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }
     });
 }
 if (typeof lucide !== 'undefined') lucide.createIcons();
