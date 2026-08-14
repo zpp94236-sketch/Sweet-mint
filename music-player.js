@@ -24,6 +24,7 @@
         history: [],
         playlists: [],
         recommendation: null,
+        allRecommendations: [],
         loaded: false,
         loading: false
     };
@@ -59,7 +60,7 @@
                 fetch(base + '/rest/v1/music_tracks?select=*&order=created_at.desc&limit=200', { headers: h }),
                 fetch(base + '/rest/v1/music_likes?select=*', { headers: h }),
                 fetch(base + '/rest/v1/music_play_history?select=*,music_tracks(*)&order=played_at.desc&limit=20', { headers: h }),
-                fetch(base + '/rest/v1/music_recommendations?select=*,music_tracks(*)&order=recommended_at.desc&limit=1', { headers: h }),
+                fetch(base + '/rest/v1/music_recommendations?select=*,music_tracks(*)&order=recommended_at.desc&limit=30', { headers: h }),
                 fetch(base + '/rest/v1/music_playlists?select=*&order=created_at.desc', { headers: h }),
                 fetch(base + '/rest/v1/music_playlist_tracks?select=*&order=added_at.asc', { headers: h })
             ]);
@@ -68,6 +69,7 @@
             musicCache.history = historyRes.ok ? await historyRes.json() : [];
             const recs = recRes.ok ? await recRes.json() : [];
             musicCache.recommendation = recs.length ? recs[0] : null;
+            musicCache.allRecommendations = recs;
             const rawPlaylists = playlistsRes.ok ? await playlistsRes.json() : [];
             const rawPlTracks = plTracksRes.ok ? await plTracksRes.json() : [];
             // 把歌单关联的 track_id 列表挂到每个歌单上
@@ -582,15 +584,19 @@
         let recHtml = '';
         if (rec && rec.music_tracks) {
             const t = rec.music_tracks;
+            const coverUrl = t.cover_url || '';
             recHtml = '<div class="music-rec-card" onclick="window._musicPlayer.playTrackById(\'' + t.id + '\')">' +
+                (coverUrl ? '<div class="music-rec-bg" style="background-image:url(' + coverUrl + ')"></div>' : '') +
+                '<div class="music-rec-overlay"></div>' +
                 '<div class="music-rec-left">' +
                     '<div class="music-rec-label">🎵 晏晏今天推荐</div>' +
                     '<div class="music-rec-title">' + escapeHtml(t.title) + '</div>' +
                     '<div class="music-rec-artist">' + escapeHtml(t.artist || '') + '</div>' +
                     (rec.message ? '<div class="music-rec-msg">"' + escapeHtml(rec.message) + '"</div>' : '') +
                 '</div>' +
-                '<div class="music-rec-play">▶</div>' +
+                (coverUrl ? '<img class="music-rec-cover" src="' + coverUrl + '">' : '') +
             '</div>';
+            recHtml += '<div style="text-align:right;margin-top:-10px;margin-bottom:12px;"><button class="music-play-all-btn" onclick="event.stopPropagation();bedroomGo(\'musicRecHistory\',{})">推荐历史 →</button></div>';
         }
 
         // 四个入口
@@ -684,7 +690,34 @@
         if (view === 'musicPlaylistDetail') {
             return renderPlaylistDetailPage();
         }
+        if (view === 'musicRecHistory') {
+            return renderRecHistoryPage();
+        }
         return '';
+    }
+
+    function renderRecHistoryPage() {
+        const recs = musicCache.allRecommendations || [];
+        if (!recs.length) {
+            return '<div class="bedroom-empty">还没有推荐记录～<br>晏晏会每天给你推一首歌的</div>' +
+                '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
+        }
+        const listHtml = recs.map(r => {
+            const t = r.music_tracks;
+            if (!t) return '';
+            const date = (r.recommended_at || '').slice(0, 10);
+            return '<div class="music-rec-history-item" onclick="window._musicPlayer.playTrackById(\'' + t.id + '\')">' +
+                '<img class="music-rec-history-cover" src="' + (t.cover_url || '') + '" onerror="this.style.display=\'none\'">' +
+                '<div class="music-rec-history-info">' +
+                    '<div class="music-rec-history-title">' + escapeHtml(t.title) + '</div>' +
+                    '<div class="music-rec-history-artist">' + escapeHtml(t.artist || '') + '</div>' +
+                    (r.message ? '<div class="music-rec-history-msg">"' + escapeHtml(r.message) + '"</div>' : '') +
+                '</div>' +
+                '<div class="music-rec-history-date">' + escapeHtml(date) + '</div>' +
+            '</div>';
+        }).join('');
+        return '<div class="music-rec-history-list">' + listHtml + '</div>' +
+            '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
     }
 
     function renderPlaylistsPage() {

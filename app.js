@@ -3750,12 +3750,12 @@ function renderBedroom() {
     else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
     else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
-    else if (view === 'musicHome' || view === 'musicAll' || view === 'musicUserLikes' || view === 'musicAiLikes' || view === 'musicPlaylists' || view === 'musicPlaylistDetail') {
-        title = '音响';
+    else if (view === 'musicHome' || view === 'musicAll' || view === 'musicUserLikes' || view === 'musicAiLikes' || view === 'musicPlaylists' || view === 'musicPlaylistDetail' || view === 'musicRecHistory') {
+        title = '';
         html = window._musicPlayer ? window._musicPlayer.renderPage(view) : '<div class="bedroom-empty">加载中...</div>';
         if (view === 'musicHome') showAdd = () => { if (window._musicPlayer) window._musicPlayer.syncFromStorage(); };
     }
-    else if (view === 'musicUpload') { title = '上传歌曲'; html = window._musicPlayer ? window._musicPlayer.renderUpload() : ''; }
+    else if (view === 'musicUpload') { title = ''; html = window._musicPlayer ? window._musicPlayer.renderUpload() : ''; }
     else if (view === 'studyHome') { title = '书房'; html = renderStudyHome(); }
     else if (view === 'kitchenHome') { title = '厨房'; html = '<div class="room-title-en">Kitchen</div><div class="room-content">' + renderPlaceholderGrid([
         { icon: '🍽️', name: '饮食记录', desc: '敬请期待' },
