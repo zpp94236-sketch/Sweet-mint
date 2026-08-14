@@ -77,6 +77,7 @@
                 pl.trackIds = rawPlTracks.filter(pt => pt.playlist_id === pl.id).map(pt => pt.track_id);
             });
             musicCache.playlists = rawPlaylists;
+            loadPodcasts();
             musicCache.loaded = true;
         } catch (e) {
             console.warn('音乐数据加载失败:', e);
@@ -141,6 +142,10 @@
             currentLyricIdx = -1;
             renderFullscreenPlayer();
         }
+        // 切歌时重置一起听状态并计划Gemini分析
+        ltMessages = [];
+        geminiAnalyzed = false;
+        scheduleGeminiAnalysis();
     }
 
     function togglePlay() {
@@ -371,7 +376,7 @@
                         '<div class="mf-lp-title">' + escapeHtml(t.title) + '</div>' +
                         '<div class="mf-lp-artist">' + escapeHtml(t.artist || '') + '</div>' +
                     '</div>' +
-                    '<button class="mf-lp-headphone" onclick="window._musicPlayer.toggleListenTogether()"><i data-lucide="headphones"></i></button>' +
+                    '<button class="mf-lp-headphone" onclick="event.stopPropagation();window._musicPlayer.toggleListenTogether()"><i data-lucide="headphones"></i></button>' +
                 '</div>' +
                 '<div class="mf-lp-body" onclick="window._musicPlayer.toggleFullscreenMode()">' +
                     '<div class="mf-lp-lyrics" id="mfLpLyrics">' + renderFullLyricsHtml() + '</div>' +
@@ -393,6 +398,20 @@
                         '<button class="mf-btn" onclick="window._musicPlayer.handleLike(\'' + t.id + '\')"><i data-lucide="heart"></i></button>' +
                     '</div>' +
                 '</div>' +
+            '<div class="mf-listen-together" id="mfListenTogether">' +
+                '<div class="mf-lt-header">' +
+                    '<div class="mf-lt-header-left">' +
+                        '<span class="mf-lt-title">和ta聊聊天吧</span>' +
+                        '<span class="mf-lt-duration" id="mfLtDuration">已经一起听了 0 分钟</span>' +
+                    '</div>' +
+                    '<button class="mf-lt-collapse" onclick="window._musicPlayer.collapseListenTogether()">⌃</button>' +
+                '</div>' +
+                '<div class="mf-lt-messages" id="mfLtMessages"></div>' +
+                '<div class="mf-lt-input-row">' +
+                    '<input type="text" class="mf-lt-input" id="mfLtInput" placeholder="说点什么..." onkeydown="if(event.key===\'Enter\')window._musicPlayer.sendLtMessage()">' +
+                    '<button class="mf-lt-send" onclick="window._musicPlayer.sendLtMessage()">发送</button>' +
+                '</div>' +
+            '</div>' +
             '</div>';
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -547,8 +566,98 @@
         }
     }
 
+    let ltMessages = [];
+    let ltStartTime = null;
+    let ltVisible = false;
+    let ltDurationTimer = null;
+    let geminiAnalyzed = false;
+    let geminiHalfAnalyzed = false;
+
     function toggleListenTogether() {
-        showToast('一起听功能即将上线～');
+        const el = document.getElementById('mfListenTogether');
+        if (!el) return;
+        ltVisible = !ltVisible;
+        el.classList.toggle('active', ltVisible);
+        if (ltVisible) {
+            if (!ltStartTime) ltStartTime = Date.now();
+            startLtDurationTimer();
+            renderLtMessages();
+        }
+    }
+
+    function collapseListenTogether() {
+        ltVisible = false;
+        const el = document.getElementById('mfListenTogether');
+        if (el) el.classList.remove('active');
+    }
+
+    function startLtDurationTimer() {
+        if (ltDurationTimer) return;
+        ltDurationTimer = setInterval(() => {
+            const dur = document.getElementById('mfLtDuration');
+            if (!dur || !ltStartTime) return;
+            const mins = Math.floor((Date.now() - ltStartTime) / 60000);
+            dur.textContent = '已经一起听了 ' + mins + ' 分钟';
+        }, 30000);
+    }
+
+    function sendLtMessage() {
+        const input = document.getElementById('mfLtInput');
+        if (!input || !input.value.trim()) return;
+        const text = input.value.trim();
+        input.value = '';
+        ltMessages.push({ role: 'user', text: text, time: new Date() });
+        renderLtMessages();
+    }
+
+    function addLtAiMessage(text) {
+        ltMessages.push({ role: 'ai', text: text, time: new Date() });
+        renderLtMessages();
+    }
+
+    function renderLtMessages() {
+        const container = document.getElementById('mfLtMessages');
+        if (!container) return;
+        container.innerHTML = ltMessages.map(m => {
+            const isUser = m.role === 'user';
+            const timeStr = m.time ? (m.time.getHours() + ':' + String(m.time.getMinutes()).padStart(2,'0')) : '';
+            return '<div class="mf-lt-msg ' + (isUser ? 'mf-lt-msg-user' : 'mf-lt-msg-ai') + '">' +
+                '<div class="mf-lt-bubble">' + escapeHtml(m.text) + '</div>' +
+                '<div class="mf-lt-time">' + timeStr + '</div>' +
+            '</div>';
+        }).join('');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Gemini 分析（切歌后10秒自动调用）
+    let geminiTimer = null;
+    let geminiHalfTimer = null;
+
+    function scheduleGeminiAnalysis() {
+        if (geminiTimer) clearTimeout(geminiTimer);
+        if (geminiHalfTimer) clearTimeout(geminiHalfTimer);
+        geminiAnalyzed = false;
+        geminiHalfAnalyzed = false;
+        // 10秒后第一次分析
+        geminiTimer = setTimeout(() => analyzeWithGemini('intro'), 10000);
+        // 1分30秒后如果没聊天，主动搭话
+        geminiHalfTimer = setTimeout(() => {
+            const userMessages = ltMessages.filter(m => m.role === 'user');
+            if (userMessages.length === 0) analyzeWithGemini('halfway');
+        }, 90000);
+    }
+
+    async function analyzeWithGemini(trigger) {
+        if (!player.current) return;
+        const track = player.current;
+        // 尝试调用 Gemini（需要 API key，暂时用占位）
+        // TODO: 接入 Gemini API 分析音频
+        // 现在先用歌词文本分析
+        const lyricsSnippet = lyricsData.slice(0, 8).map(l => l.text).join(' ');
+        const msg = trigger === 'intro'
+            ? '正在听《' + track.title + '》' + (track.artist ? ' - ' + track.artist : '') + (lyricsSnippet ? '，开头唱的是："' + lyricsSnippet.slice(0, 40) + '..."' : '') + '，你喜欢吗？'
+            : '这首歌听到一半了，感觉怎么样～';
+        addLtAiMessage(msg);
     }
 
     function bindProgressDrag() {
@@ -652,10 +761,19 @@
                 }).join('') + '</div>';
         }
 
+        // 播客入口
+        let podcastHtml = '<div class="music-section-head" style="margin-top:20px;"><span class="music-section-title">🎙️ 晏晏随笔</span><button class="music-play-all-btn" onclick="bedroomGo(\'musicPodcast\',{})">查看全部 →</button></div>' +
+            '<div class="music-podcast-preview" onclick="bedroomGo(\'musicPodcast\',{})">' +
+                '<div class="music-podcast-label">最新随笔</div>' +
+                '<div class="music-podcast-title" id="podcastPreviewTitle">加载中...</div>' +
+                '<div class="music-podcast-date" id="podcastPreviewDate"></div>' +
+            '</div>';
+
         const hasPageBg = !!state.settings.musicPageBg;
         return '<div class="music-home' + (hasPageBg ? ' has-music-page-bg' : '') + '">' +
             recHtml +
             entriesHtml +
+            podcastHtml +
             historyHtml +
             '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>' +
         '</div>';
@@ -679,8 +797,14 @@
     function renderTrackList(title, tracks) {
         if (!tracks.length) return '<div class="bedroom-empty">还没有歌曲</div>';
         const hasPageBg = !!state.settings.musicPageBg;
-        return '<div class="' + (hasPageBg ? 'music-list-bg' : '') + '"><div class="music-section-head"><span class="music-section-title">' + escapeHtml(title) + '</span><button class="music-play-all-btn" onclick="window._musicPlayer.playAll(\'current\')">▶ 播放全部</button></div>' +
-            '<div class="music-track-list">' + tracks.map(t => renderTrackItem(t)).join('') + '</div>' +
+        return '<div class="' + (hasPageBg ? 'music-list-bg' : '') + '">' +
+            '<div class="music-search-bar">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+                '<input type="text" id="musicSearchInput" placeholder="搜索歌名、歌手..." oninput="window._musicPlayer.filterTracks()">' +
+                '<button id="musicSearchClear" style="display:none;" onclick="window._musicPlayer.clearSearch()">×</button>' +
+            '</div>' +
+            '<div class="music-section-head"><span class="music-section-title" id="musicTrackCount">' + escapeHtml(title) + '</span><button class="music-play-all-btn" onclick="window._musicPlayer.playAll(\'current\')">▶ 播放全部</button></div>' +
+            '<div class="music-track-list" id="musicTrackList">' + tracks.map(t => renderTrackItem(t)).join('') + '</div>' +
             '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div></div>';
     }
 
@@ -709,6 +833,9 @@
         }
         if (view === 'musicRecHistory') {
             return renderRecHistoryPage();
+        }
+        if (view === 'musicPodcast') {
+            return renderPodcastPage();
         }
         return '';
     }
@@ -1116,6 +1243,7 @@
         if (!track) return;
         const html = '<div class="music-menu-title">' + escapeHtml(track.title) + '</div>' +
             '<button class="music-menu-item" onclick="closeInfoSheet();window._musicPlayer.openAddTrackToPlaylist(\'' + trackId + '\')"><i data-lucide="list-plus"></i>加入歌单</button>' +
+            '<button class="music-menu-item" onclick="window._musicPlayer.openTrackComments(\'' + trackId + '\')"><i data-lucide="message-circle"></i>留言板</button>' +
             '<button class="music-menu-item" onclick="window._musicPlayer.openEditLyrics(\'' + trackId + '\')"><i data-lucide="text"></i>编辑歌词</button>' +
             '<button class="music-menu-item" onclick="window._musicPlayer.openEditTrack(\'' + trackId + '\')"><i data-lucide="pencil"></i>编辑信息</button>' +
             '<button class="music-menu-item music-menu-danger" onclick="window._musicPlayer.deleteTrack(\'' + trackId + '\')"><i data-lucide="trash-2"></i>删除歌曲</button>';
@@ -1588,6 +1716,124 @@
         await loadMusicData(true);
     }
 
+    function filterTracks() {
+        const input = document.getElementById('musicSearchInput');
+        const clearBtn = document.getElementById('musicSearchClear');
+        const list = document.getElementById('musicTrackList');
+        const count = document.getElementById('musicTrackCount');
+        if (!input || !list) return;
+        const q = input.value.trim().toLowerCase();
+        if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
+        const source = window._musicPlayer._currentList || musicCache.tracks;
+        const filtered = q ? source.filter(t =>
+            (t.title || '').toLowerCase().includes(q) ||
+            (t.artist || '').toLowerCase().includes(q)
+        ) : source;
+        list.innerHTML = filtered.map(t => renderTrackItem(t)).join('');
+        if (count) count.textContent = q ? (filtered.length + ' 首结果') : (source.length + ' 首');
+        updateMiniBar();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function clearSearch() {
+        const input = document.getElementById('musicSearchInput');
+        if (input) { input.value = ''; filterTracks(); input.focus(); }
+    }
+
+    let podcastCache = [];
+
+    async function loadPodcasts() {
+        if (!isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = getSupabaseHeaders();
+        try {
+            const res = await fetch(base + '/rest/v1/music_podcasts?select=*&order=created_at.desc&limit=20', { headers: h });
+            if (res.ok) podcastCache = await res.json();
+            // 更新首页预览
+            const titleEl = document.getElementById('podcastPreviewTitle');
+            const dateEl = document.getElementById('podcastPreviewDate');
+            if (podcastCache.length) {
+                const latest = podcastCache[0];
+                if (titleEl) titleEl.textContent = latest.title || '暂无随笔';
+                if (dateEl) dateEl.textContent = (latest.created_at || '').slice(0, 10);
+            } else {
+                if (titleEl) titleEl.textContent = '还没有随笔，晏晏在想...';
+            }
+        } catch (e) { console.log('播客加载失败', e); }
+    }
+
+    function renderPodcastPage() {
+        if (!podcastCache.length) {
+            loadPodcasts();
+            return '<div class="bedroom-empty">还没有随笔～<br>晏晏会在听过歌之后写下感想的</div>' +
+                '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
+        }
+        const listHtml = podcastCache.map(p => {
+            return '<div class="music-podcast-item" onclick="window._musicPlayer.openPodcast(\'' + p.id + '\')">' +
+                '<div class="music-podcast-item-title">' + escapeHtml(p.title || '') + '</div>' +
+                '<div class="music-podcast-item-date">' + (p.created_at || '').slice(0, 10) + '</div>' +
+                '<div class="music-podcast-item-preview">' + escapeHtml((p.content || '').slice(0, 60)) + '...</div>' +
+            '</div>';
+        }).join('');
+        return '<div class="music-podcast-list">' + listHtml + '</div>' +
+            '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
+    }
+
+    function openPodcast(id) {
+        const p = podcastCache.find(x => x.id === id);
+        if (!p) return;
+        const html = '<div class="music-podcast-detail">' +
+            '<div class="music-podcast-detail-date">' + (p.created_at || '').slice(0, 10) + '</div>' +
+            '<div class="music-podcast-detail-title">' + escapeHtml(p.title || '') + '</div>' +
+            (p.track_title ? '<div class="music-podcast-detail-track">🎵 ' + escapeHtml(p.track_title) + '</div>' : '') +
+            '<div class="music-podcast-detail-content">' + escapeHtml(p.content || '').replace(/\n/g, '<br>') + '</div>' +
+        '</div>';
+        openInfoSheet(p.title || '随笔', html);
+    }
+
+    async function openTrackComments(trackId) {
+        const track = musicCache.tracks.find(t => t.id === trackId);
+        if (!track) return;
+        let comments = [];
+        if (isSupabaseConfigured()) {
+            const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+            const h = getSupabaseHeaders();
+            try {
+                const res = await fetch(base + '/rest/v1/music_comments?track_id=eq.' + trackId + '&select=*&order=created_at.asc', { headers: h });
+                if (res.ok) comments = await res.json();
+            } catch (e) {}
+        }
+        const notesHtml = comments.length
+            ? comments.map(c => '<div class="music-comment-item">' +
+                '<div class="music-comment-role">' + (c.role === 'ai' ? '晏晏' : '郑郑') + '</div>' +
+                '<div class="music-comment-text">' + escapeHtml(c.content || '') + '</div>' +
+                '<div class="music-comment-date">' + (c.created_at || '').slice(0, 10) + '</div>' +
+              '</div>').join('')
+            : '<div class="bedroom-empty" style="padding:20px 0;">还没有留言～<br>写第一张纸条吧</div>';
+        const html = '<div class="music-comments-wrap">' +
+            notesHtml +
+            '<div class="music-comment-input-row">' +
+                '<input type="text" id="commentInput" placeholder="写一张纸条..." style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--primary-lighter);font-size:14px;outline:none;font-family:inherit;color:var(--text);">' +
+                '<button class="btn-primary" style="margin-left:8px;padding:10px 16px;border-radius:12px;" onclick="window._musicPlayer.saveComment(\'' + trackId + '\')">发送</button>' +
+            '</div>' +
+        '</div>';
+        openInfoSheet('💌 ' + track.title, html);
+    }
+
+    async function saveComment(trackId) {
+        const input = document.getElementById('commentInput');
+        if (!input || !input.value.trim()) return;
+        if (!isSupabaseConfigured()) { alert('请先配置云端同步'); return; }
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+        await fetch(base + '/rest/v1/music_comments', {
+            method: 'POST', headers: h,
+            body: JSON.stringify({ track_id: trackId, content: input.value.trim(), role: 'user' })
+        });
+        showToast('纸条已贴上 💌');
+        closeInfoSheet();
+    }
+
     // ===== 暴露接口 =====
     window._musicPlayer = {
         loadData: loadMusicData,
@@ -1631,6 +1877,15 @@
         togglePlaylist,
         playFromPlaylist,
         toggleListenTogether,
+        collapseListenTogether,
+        sendLtMessage,
+        addLtAiMessage,
+        filterTracks,
+        clearSearch,
+        loadPodcasts,
+        openPodcast,
+        openTrackComments,
+        saveComment,
         getPlayer: () => player,
         _currentList: null
     };
