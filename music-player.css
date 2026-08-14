@@ -793,10 +793,6 @@
     overflow-wrap: break-word;
     max-width: 82%;
     margin-left: auto;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 }
 .mf-lp-line.active {
     color: #fff;
@@ -804,7 +800,6 @@
     font-weight: 500;
     line-height: 1.45;
     max-width: 92%;
-    -webkit-line-clamp: 2;
 }
 
 /* 歌词页控制区 */

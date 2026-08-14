@@ -262,8 +262,22 @@
     // 歌词在标点符号后换行
     function breakLyricAtPunctuation(text) {
         if (!text) return text;
-        // 在逗号、句号、分号、感叹号、问号、省略号等标点后面插入换行
-        return text.replace(/([,，;；!！?？、。\.…]+)\s*/g, '$1\n');
+        // 如果整句比较短（<=20字符），不断行
+        if (text.length <= 20) return text;
+        // 不要在括号内部断行：先把括号内容保护起来
+        let protectedParts = [];
+        let safe = text.replace(/(\([^)]*\)|\[[^\]]*\]|（[^）]*）|「[^」]*」|【[^】]*】)/g, (match) => {
+            protectedParts.push(match);
+            return '\x00PROT' + (protectedParts.length - 1) + '\x00';
+        });
+        // 在逗号、分号后面断行（但不拆句号/感叹号/问号，因为那些一般是句尾）
+        safe = safe.replace(/([,，;；]+)\s*/g, '$1\n');
+        // 恢复被保护的括号内容
+        safe = safe.replace(/\x00PROT(\d+)\x00/g, (_, i) => protectedParts[parseInt(i)]);
+        // 如果断行后只产生一个换行，且第二段很短（<6字符），不断行（避免尾巴太短）
+        const parts = safe.split('\n');
+        if (parts.length === 2 && parts[1].length < 6) return text;
+        return safe;
     }
 
     function openFullscreenPlayer() {
