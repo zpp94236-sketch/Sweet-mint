@@ -516,6 +516,250 @@
     margin-top: 2px;
 }
 
+/* ===== 全屏播放页 v2 ===== */
+
+/* 背景层 */
+.mf-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(40px) saturate(120%);
+    transform: scale(1.3);
+}
+.mf-bg-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: rgba(0,0,0,0.45);
+}
+.music-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: #1a1a1a;
+    color: #fff;
+    overflow: hidden;
+}
+.music-fullscreen > * { position: relative; z-index: 1; }
+
+/* ===== 沉浸页 ===== */
+.mf-immersive {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+/* 黑胶唱片区域 */
+.mf-vinyl-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+.mf-vinyl-wrap-new {
+    width: 72vw;
+    height: 72vw;
+    max-width: 320px;
+    max-height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #333 0%, #111 42%, #333 43%, #222 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+}
+.mf-vinyl-wrap-new.spinning { animation: vinylSpin 12s linear infinite; }
+.mf-vinyl-new {
+    width: 42%;
+    height: 42%;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #444;
+    background: #2a2a2a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mf-vinyl-new .mf-vinyl-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+.mf-vinyl-new .mf-vinyl-default {
+    font-size: 32px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #333;
+    border-radius: 50%;
+}
+
+/* 沉浸页底部：歌名/歌词 + 控制 */
+.mf-imm-bottom {
+    padding: 0 24px 8px;
+    flex-shrink: 0;
+    min-height: 90px;
+}
+
+/* 歌名歌手 */
+.mf-imm-title {
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.mf-imm-song {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+}
+.mf-imm-artist {
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 4px;
+}
+
+/* 沉浸页三句歌词 */
+.mf-imm-lyrics {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.mf-imm-line {
+    font-size: 14px;
+    color: rgba(255,255,255,0.4);
+    line-height: 1.5;
+    transition: all 0.3s;
+}
+.mf-imm-prev {
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 100%);
+}
+.mf-imm-curr {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+}
+.mf-imm-next {
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+}
+
+/* 沉浸页控制按钮 */
+.mf-imm-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+    padding: 12px 0 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    flex-shrink: 0;
+}
+.mf-imm-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    color: rgba(255,255,255,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 50%;
+}
+.mf-imm-btn:active { background: rgba(255,255,255,0.1); }
+.mf-imm-btn svg { width: 28px; height: 28px; }
+.mf-imm-btn-play svg { width: 48px; height: 48px; }
+
+/* ===== 歌词页 ===== */
+.mf-lyrics-page {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+.mf-lp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    flex-shrink: 0;
+}
+.mf-lp-back, .mf-lp-headphone {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.mf-lp-back:active, .mf-lp-headphone:active { background: rgba(255,255,255,0.2); }
+.mf-lp-back i, .mf-lp-back svg, .mf-lp-headphone i, .mf-lp-headphone svg { width: 20px !important; height: 20px !important; }
+.mf-lp-header-info { text-align: center; flex: 1; min-width: 0; }
+.mf-lp-title { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mf-lp-artist { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+/* 歌词页歌词区域（右对齐） */
+.mf-lp-body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 24px;
+}
+.mf-lp-lyrics {
+    height: 100%;
+    overflow-y: auto;
+    text-align: right;
+    padding: 20px 0;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent);
+    -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent);
+}
+.mf-lp-line {
+    font-size: 16px;
+    color: rgba(255,255,255,0.35);
+    padding: 10px 0;
+    transition: all 0.3s;
+    line-height: 1.5;
+}
+.mf-lp-line.active {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* 歌词页控制区 */
+.mf-lp-controls {
+    padding: 12px 24px 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    flex-shrink: 0;
+}
+.mf-lp-btns {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+.mf-lp-btns .mf-btn svg { width: 22px; height: 22px; }
+.mf-lp-btns .mf-btn-play svg { width: 28px; height: 28px; }
+
+/* 背景层保持在最底层（覆盖通用 > * 规则，避免被改成 relative） */
+.mf-bg, .mf-bg-overlay { position: absolute; z-index: 0; }
+
 /* 歌曲更多按钮 */
 .music-track-more {
     background: none;

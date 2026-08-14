@@ -276,65 +276,120 @@
         if (!el) {
             el = document.createElement('div');
             el.id = 'musicFullscreen';
-            el.className = 'music-fullscreen' + (state.settings.musicPlayerBg ? ' has-player-bg' : '');
+            el.className = 'music-fullscreen';
             document.body.appendChild(el);
         }
         const t = player.current;
-        const coverHtml = t.cover_url
+        const hasCover = !!t.cover_url;
+        const coverBg = hasCover ? t.cover_url : '';
+        const coverHtml = hasCover
             ? '<img class="mf-vinyl-cover" src="' + t.cover_url + '">'
             : '<div class="mf-vinyl-cover mf-vinyl-default">🎵</div>';
 
         const showVinyl = fullscreenMode === 'vinyl';
         const showLyrics = fullscreenMode === 'lyrics';
 
+        // 沉浸页三句歌词
+        let immersiveLyricsHtml = '';
+        if (showVinyl && lyricsData.length) {
+            immersiveLyricsHtml = '<div class="mf-imm-lyrics" id="mfImmLyrics">' + renderImmersiveLyrics() + '</div>';
+        }
+
+        // 沉浸页歌名歌手（没歌词或歌词还没开始时显示）
+        const showTitle = showVinyl && (!lyricsData.length || currentLyricIdx < 0);
+        const titleHtml = '<div class="mf-imm-title" id="mfImmTitle" style="' + (showTitle ? '' : 'opacity:0;transform:translateY(20px);') + '">' +
+            '<div class="mf-imm-song">' + escapeHtml(t.title) + '</div>' +
+            '<div class="mf-imm-artist">' + escapeHtml(t.artist || '') + '</div>' +
+        '</div>';
+
         el.innerHTML =
-            '<div class="mf-header">' +
-                '<button class="mf-back" onclick="window._musicPlayer.closeFullscreen()"><i data-lucide="chevron-down"></i></button>' +
-                '<div class="mf-header-info">' +
-                    '<div class="mf-header-title">' + escapeHtml(t.title) + '</div>' +
-                    '<div class="mf-header-artist">' + escapeHtml(t.artist || '') + '</div>' +
-                '</div>' +
-                '<button class="mf-more" onclick="window._musicPlayer.handleLike(\'' + t.id + '\')"><i data-lucide="heart"></i></button>' +
-            '</div>' +
-            '<div class="mf-body" onclick="window._musicPlayer.toggleFullscreenMode()">' +
-                '<div class="mf-vinyl-wrap' + (player.playing ? ' spinning' : '') + (showVinyl ? '' : ' mf-vinyl-hidden') + '" id="mfVinyl">' +
-                    '<div class="mf-vinyl">' + coverHtml + '</div>' +
-                '</div>' +
-                '<div class="mf-lyrics' + (showLyrics ? ' mf-lyrics-full' : '') + '" id="mfLyrics" style="' + (showLyrics ? '' : 'display:none;') + '">' + renderLyricsHtml() + '</div>' +
-            '</div>' +
-            '<div class="mf-controls">' +
-                '<div class="mf-progress-wrap">' +
-                    '<span class="mf-time" id="mfTimeCur">' + formatDuration(player.currentTime) + '</span>' +
-                    '<div class="mf-progress-bar" id="mfProgressBar">' +
-                        '<div class="mf-progress-fill" id="mfProgressFill" style="width:0%"></div>' +
-                        '<div class="mf-progress-thumb" id="mfProgressThumb" style="left:0%"></div>' +
+            // 背景层
+            '<div class="mf-bg" style="' + (coverBg ? 'background-image:url(' + coverBg + ')' : '') + '"></div>' +
+            '<div class="mf-bg-overlay"></div>' +
+
+            // 沉浸页内容
+            '<div class="mf-immersive" id="mfImmersive" style="' + (showVinyl ? '' : 'display:none;') + '" onclick="window._musicPlayer.toggleFullscreenMode()">' +
+                '<div class="mf-vinyl-area">' +
+                    '<div class="mf-vinyl-wrap-new' + (player.playing ? ' spinning' : '') + '" id="mfVinyl">' +
+                        '<div class="mf-vinyl-new">' + coverHtml + '</div>' +
                     '</div>' +
-                    '<span class="mf-time" id="mfTimeTotal">' + formatDuration(player.duration) + '</span>' +
                 '</div>' +
-                '<div class="mf-btns">' +
-                    '<button class="mf-btn" onclick="window._musicPlayer.cycleMode()"><i data-lucide="' + getModeIcon() + '"></i></button>' +
-                    '<button class="mf-btn" onclick="window._musicPlayer.playPrev()"><i data-lucide="skip-back"></i></button>' +
-                    '<button class="mf-btn mf-btn-play" onclick="window._musicPlayer.togglePlay()"><i data-lucide="' + (player.playing ? 'pause' : 'play') + '"></i></button>' +
-                    '<button class="mf-btn" onclick="window._musicPlayer.playNext()"><i data-lucide="skip-forward"></i></button>' +
-                    '<button class="mf-btn" onclick="window._musicPlayer.togglePlaylist()"><i data-lucide="list"></i></button>' +
+                '<div class="mf-imm-bottom">' +
+                    titleHtml +
+                    immersiveLyricsHtml +
+                '</div>' +
+                '<div class="mf-imm-controls">' +
+                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playPrev()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" transform="scale(-1,1) translate(-24,0)"/></svg></button>' +
+                    '<button class="mf-imm-btn mf-imm-btn-play" onclick="event.stopPropagation();window._musicPlayer.togglePlay()">' +
+                        (player.playing
+                            ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
+                            : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>') +
+                    '</button>' +
+                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playNext()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 18h2V6h-2zm-8.5-6l8.5 6V6z"/></svg></button>' +
                 '</div>' +
             '</div>' +
-            '<div class="mf-playlist" id="mfPlaylist" style="display:none;">' +
-                '<div class="mf-playlist-header">' +
-                    '<span class="mf-playlist-title">播放列表 (' + player.playlist.length + ')</span>' +
-                    '<button class="mf-playlist-close" onclick="window._musicPlayer.togglePlaylist()"><i data-lucide="x"></i></button>' +
+
+            // 歌词页内容
+            '<div class="mf-lyrics-page" id="mfLyricsPage" style="' + (showLyrics ? '' : 'display:none;') + '">' +
+                '<div class="mf-lp-header">' +
+                    '<button class="mf-lp-back" onclick="window._musicPlayer.toggleFullscreenMode()"><i data-lucide="chevron-down"></i></button>' +
+                    '<div class="mf-lp-header-info">' +
+                        '<div class="mf-lp-title">' + escapeHtml(t.title) + '</div>' +
+                        '<div class="mf-lp-artist">' + escapeHtml(t.artist || '') + '</div>' +
+                    '</div>' +
+                    '<button class="mf-lp-headphone" onclick="window._musicPlayer.toggleListenTogether()"><i data-lucide="headphones"></i></button>' +
                 '</div>' +
-                '<div class="mf-playlist-list">' + renderPlaylistHtml() + '</div>' +
+                '<div class="mf-lp-body" onclick="window._musicPlayer.toggleFullscreenMode()">' +
+                    '<div class="mf-lp-lyrics" id="mfLpLyrics">' + renderFullLyricsHtml() + '</div>' +
+                '</div>' +
+                '<div class="mf-lp-controls">' +
+                    '<div class="mf-progress-wrap">' +
+                        '<span class="mf-time" id="mfTimeCur">' + formatDuration(player.currentTime) + '</span>' +
+                        '<div class="mf-progress-bar" id="mfProgressBar">' +
+                            '<div class="mf-progress-fill" id="mfProgressFill"></div>' +
+                            '<div class="mf-progress-thumb" id="mfProgressThumb"></div>' +
+                        '</div>' +
+                        '<span class="mf-time" id="mfTimeTotal">' + formatDuration(player.duration) + '</span>' +
+                    '</div>' +
+                    '<div class="mf-lp-btns">' +
+                        '<button class="mf-btn" onclick="window._musicPlayer.cycleMode()"><i data-lucide="' + getModeIcon() + '"></i></button>' +
+                        '<button class="mf-btn" onclick="window._musicPlayer.playPrev()"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" transform="scale(-1,1) translate(-24,0)"/></svg></button>' +
+                        '<button class="mf-btn mf-btn-play" onclick="window._musicPlayer.togglePlay()">' +
+                            (player.playing
+                                ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
+                                : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>') +
+                        '</button>' +
+                        '<button class="mf-btn" onclick="window._musicPlayer.playNext()"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M16 18h2V6h-2zm-8.5-6l8.5 6V6z"/></svg></button>' +
+                        '<button class="mf-btn" onclick="window._musicPlayer.handleLike(\'' + t.id + '\')"><i data-lucide="heart"></i></button>' +
+                    '</div>' +
+                '</div>' +
             '</div>';
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
         bindProgressDrag();
 
-        // 阻止 body 区域点击冒泡到 mf-controls 和 mf-playlist
-        const controls = el.querySelector('.mf-controls');
-        if (controls) controls.addEventListener('click', e => e.stopPropagation());
-        const playlist = el.querySelector('.mf-playlist');
-        if (playlist) playlist.addEventListener('click', e => e.stopPropagation());
+        // 阻止控制区冒泡
+        ['mf-imm-controls', 'mf-lp-controls', 'mf-lp-header'].forEach(cls => {
+            const c = el.querySelector('.' + cls);
+            if (c) c.addEventListener('click', e => e.stopPropagation());
+        });
+    }
+
+    function renderImmersiveLyrics() {
+        if (!lyricsData.length || currentLyricIdx < 0) return '';
+        const prev = currentLyricIdx > 0 ? lyricsData[currentLyricIdx - 1].text : '';
+        const curr = lyricsData[currentLyricIdx] ? lyricsData[currentLyricIdx].text : '';
+        const next = currentLyricIdx < lyricsData.length - 1 ? lyricsData[currentLyricIdx + 1].text : '';
+        return (prev ? '<div class="mf-imm-line mf-imm-prev">' + escapeHtml(prev) + '</div>' : '') +
+            '<div class="mf-imm-line mf-imm-curr">' + escapeHtml(curr) + '</div>' +
+            (next ? '<div class="mf-imm-line mf-imm-next">' + escapeHtml(next) + '</div>' : '');
+    }
+
+    function renderFullLyricsHtml() {
+        if (!lyricsData.length) return '<div class="mf-lyrics-empty">暂无歌词</div>';
+        return lyricsData.map((l, i) =>
+            '<div class="mf-lp-line' + (i === currentLyricIdx ? ' active' : '') + '">' + escapeHtml(l.text) + '</div>'
+        ).join('');
     }
 
     function toggleFullscreenMode() {
@@ -392,10 +447,11 @@
         const timeCur = document.getElementById('mfTimeCur');
         const timeTotal = document.getElementById('mfTimeTotal');
         const vinyl = document.getElementById('mfVinyl');
-        if (!fill) return;
-        const pct = player.duration ? (player.currentTime / player.duration * 100) : 0;
-        fill.style.width = pct + '%';
-        thumb.style.left = pct + '%';
+        if (fill) {
+            const pct = player.duration ? (player.currentTime / player.duration * 100) : 0;
+            fill.style.width = pct + '%';
+            if (thumb) thumb.style.left = pct + '%';
+        }
         if (timeCur) timeCur.textContent = formatDuration(player.currentTime);
         if (timeTotal) timeTotal.textContent = formatDuration(player.duration);
         if (vinyl) vinyl.classList.toggle('spinning', player.playing);
@@ -409,15 +465,37 @@
         }
         if (idx === currentLyricIdx) return;
         currentLyricIdx = idx;
-        const container = document.getElementById('mfLyrics');
-        if (!container) return;
-        container.querySelectorAll('.mf-lyric-line').forEach((el, i) => {
+
+        // 沉浸页：更新三句歌词
+        const immEl = document.getElementById('mfImmLyrics');
+        if (immEl) immEl.innerHTML = renderImmersiveLyrics();
+
+        // 沉浸页：歌名淡出
+        const titleEl = document.getElementById('mfImmTitle');
+        if (titleEl) {
+            if (idx >= 0) {
+                titleEl.style.opacity = '0';
+                titleEl.style.transform = 'translateY(20px)';
+            } else {
+                titleEl.style.opacity = '1';
+                titleEl.style.transform = 'translateY(0)';
+            }
+        }
+
+        // 歌词页：高亮当前行
+        const lpContainer = document.getElementById('mfLpLyrics');
+        if (!lpContainer) return;
+        lpContainer.querySelectorAll('.mf-lp-line').forEach((el, i) => {
             el.classList.toggle('active', i === idx);
         });
-        const activeLine = container.querySelector('.mf-lyric-line.active');
+        const activeLine = lpContainer.querySelector('.mf-lp-line.active');
         if (activeLine) {
             activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+    }
+
+    function toggleListenTogether() {
+        showToast('一起听功能即将上线～');
     }
 
     function bindProgressDrag() {
@@ -622,6 +700,13 @@
             '<div class="form-group"><label>歌名</label><input type="text" id="editTrackTitle" value="' + escapeHtml(track.title || '') + '" placeholder="歌曲名称"></div>' +
             '<div class="form-group"><label>歌手</label><input type="text" id="editTrackArtist" value="' + escapeHtml(track.artist || '') + '" placeholder="歌手名"></div>' +
             '<div class="form-group"><label>专辑</label><input type="text" id="editTrackAlbum" value="' + escapeHtml(track.album || '') + '" placeholder="专辑名（可选）"></div>' +
+            '<div class="form-group"><label>封面</label><div style="display:flex;align-items:center;gap:12px;">' +
+                (track.cover_url ? '<img src="' + track.cover_url + '" style="width:56px;height:56px;border-radius:8px;object-fit:cover;">' : '<div style="width:56px;height:56px;border-radius:8px;background:var(--primary-lighter);display:flex;align-items:center;justify-content:center;">🎵</div>') +
+                '<label class="wp-btn wp-btn-pick" for="editTrackCoverInput" style="cursor:pointer;">选择图片</label>' +
+                (track.cover_url ? '<button class="wp-btn wp-btn-clear" onclick="window._musicPlayer.clearTrackCover(\'' + trackId + '\')">清除</button>' : '') +
+            '</div>' +
+            '<input type="file" id="editTrackCoverInput" accept="image/*" style="display:none;" onchange="window._musicPlayer.handleCoverPick(\'' + trackId + '\',event)">' +
+            '</div>' +
             '<button class="btn-primary" style="width:100%;justify-content:center;margin-top:14px;" onclick="window._musicPlayer.saveEditTrack(\'' + trackId + '\')">保存</button>' +
         '</div>';
         openInfoSheet('编辑歌曲信息', html);
@@ -681,6 +766,59 @@
         } catch (e) {
             alert('删除失败: ' + e.message);
         }
+    }
+
+    async function handleCoverPick(trackId, e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!isSupabaseConfigured()) { alert('请先配置云端同步'); return; }
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const key = state.memorySystem.settings.supabaseKey;
+
+        const fileName = 'cover_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5) + '.' + file.name.split('.').pop();
+        showToast('上传中...');
+        try {
+            const uploadRes = await fetch(base + '/storage/v1/object/covers/' + fileName, {
+                method: 'POST',
+                headers: {
+                    'apikey': key,
+                    'Authorization': 'Bearer ' + key,
+                    'Content-Type': file.type || 'image/jpeg'
+                },
+                body: file
+            });
+            if (!uploadRes.ok) throw new Error('HTTP ' + uploadRes.status);
+            const coverUrl = base + '/storage/v1/object/public/covers/' + fileName;
+
+            const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+            await fetch(base + '/rest/v1/music_tracks?id=eq.' + trackId, {
+                method: 'PATCH', headers: h,
+                body: JSON.stringify({ cover_url: coverUrl })
+            });
+
+            const track = musicCache.tracks.find(t => t.id === trackId);
+            if (track) track.cover_url = coverUrl;
+
+            showToast('封面已更新');
+            openEditTrack(trackId);
+        } catch (err) {
+            alert('上传失败: ' + err.message);
+        }
+        e.target.value = '';
+    }
+
+    async function clearTrackCover(trackId) {
+        if (!isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+        await fetch(base + '/rest/v1/music_tracks?id=eq.' + trackId, {
+            method: 'PATCH', headers: h,
+            body: JSON.stringify({ cover_url: '' })
+        });
+        const track = musicCache.tracks.find(t => t.id === trackId);
+        if (track) track.cover_url = '';
+        showToast('已清除封面');
+        openEditTrack(trackId);
     }
 
     // ===== 上传功能 =====
@@ -774,11 +912,15 @@
             // 分类：音频文件和歌词文件
             const audioFiles = [];
             const lrcFileNames = new Set();
+            const coverFiles = new Map(); // nameNoExt -> fileName
             allFiles.forEach(f => {
                 if (!f.name || f.name.startsWith('.')) return;
                 const ext = f.name.split('.').pop().toLowerCase();
+                const nameNoExt = f.name.replace(/\.[^.]+$/, '');
                 if (ext === 'lrc') {
                     lrcFileNames.add(f.name);
+                } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
+                    coverFiles.set(nameNoExt, f.name);
                 } else if (['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac'].includes(ext)) {
                     audioFiles.push(f);
                 }
@@ -837,9 +979,15 @@
                     } catch (e) { /* 忽略 */ }
                 }
 
+                // 检查有没有同名封面
+                let cover_url = '';
+                if (coverFiles.has(nameNoExt)) {
+                    cover_url = base + '/storage/v1/object/public/music/' + coverFiles.get(nameNoExt);
+                }
+
                 await fetch(base + '/rest/v1/music_tracks', {
                     method: 'POST', headers: h,
-                    body: JSON.stringify({ title, artist, album, file_url: fileUrl, lyrics })
+                    body: JSON.stringify({ title, artist, album, file_url: fileUrl, lyrics, cover_url })
                 });
                 added++;
             }
@@ -982,6 +1130,8 @@
         openEditTrack,
         saveEditTrack,
         deleteTrack,
+        handleCoverPick,
+        clearTrackCover,
         uploadTrack,
         syncFromStorage,
         fetchMissingLyrics,
@@ -991,6 +1141,7 @@
         toggleFullscreenMode,
         togglePlaylist,
         playFromPlaylist,
+        toggleListenTogether,
         getPlayer: () => player,
         _currentList: null
     };
