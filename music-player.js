@@ -331,11 +331,7 @@
                     titleHtml +
                     immersiveLyricsHtml +
                 '</div>' +
-                '<div class="mf-imm-controls">' +
-                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playPrev()">' + iconPrev() + '</button>' +
-                    '<button class="mf-imm-btn mf-imm-btn-play" onclick="event.stopPropagation();window._musicPlayer.togglePlay()">' + (player.playing ? iconPauseBig() : iconPlayBig()) + '</button>' +
-                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playNext()">' + iconNext() + '</button>' +
-                '</div>' +
+                '' +
             '</div>' +
 
             // 歌词页内容

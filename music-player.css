@@ -558,20 +558,21 @@
 .mf-vinyl-area {
     flex: 1;
     position: relative;
-    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 0;
+    overflow: visible;
 }
 
 /* 唱片 */
 .mf-vinyl-wrap-new {
-    position: absolute;
-    width: 75vw;
-    height: 75vw;
-    max-width: 340px;
-    max-height: 340px;
-    top: 8vh;
-    left: 50%;
-    transform: translateX(-50%);
+    position: relative;
+    width: 85vw;
+    height: 85vw;
+    max-width: 400px;
+    max-height: 400px;
+    margin: 0 auto;
     border-radius: 50%;
     background: radial-gradient(
         circle at center,
@@ -600,11 +601,7 @@
     justify-content: center;
 }
 .mf-vinyl-wrap-new.spinning {
-    animation: vinylSpinCentered 20s linear infinite;
-}
-@keyframes vinylSpinCentered {
-    from { transform: translateX(-50%) rotate(0deg); }
-    to { transform: translateX(-50%) rotate(360deg); }
+    animation: vinylSpin 20s linear infinite;
 }
 
 /* 中间封面 */
@@ -640,13 +637,13 @@
 /* 唱针 */
 .mf-tonearm {
     position: absolute;
-    top: calc(8vh + 2vw);
-    right: calc(50% - 37.5vw - 10px);
+    top: 0;
+    right: 8vw;
     width: 4px;
-    height: 28vw;
-    max-height: 140px;
+    height: 30vw;
+    max-height: 150px;
     transform-origin: top center;
-    transform: rotate(-30deg);
+    transform: rotate(-25deg);
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 2;
 }
@@ -684,9 +681,10 @@
 
 /* 沉浸页底部：歌名/歌词 + 控制 */
 .mf-imm-bottom {
-    padding: 0 24px 16px;
+    padding: 0 24px 40px;
+    padding-bottom: max(40px, calc(env(safe-area-inset-bottom) + 24px));
     flex-shrink: 0;
-    min-height: 90px;
+    min-height: 100px;
 }
 
 /* 歌名歌手 */
@@ -717,18 +715,19 @@
 }
 .mf-imm-lyrics::-webkit-scrollbar { display: none; }
 .mf-imm-line {
-    font-size: 14px;
-    color: rgba(255,255,255,0.4);
-    line-height: 1.5;
+    font-size: 15px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.6;
     transition: all 0.3s;
+    text-align: left;
 }
 .mf-imm-prev {
     mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 100%);
     -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 100%);
 }
 .mf-imm-curr {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     color: #fff;
 }
 .mf-imm-next {
@@ -736,15 +735,8 @@
     -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
 }
 
-/* 沉浸页控制按钮 */
 .mf-imm-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 36px;
-    padding: 12px 0 20px;
-    padding-bottom: max(20px, env(safe-area-inset-bottom));
-    flex-shrink: 0;
+    display: none;
 }
 .mf-imm-btn {
     width: 44px;
