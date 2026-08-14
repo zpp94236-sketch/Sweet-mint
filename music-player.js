@@ -174,6 +174,13 @@
         return m + ':' + String(s).padStart(2, '0');
     }
 
+    function iconPlay() { return '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'; }
+    function iconPause() { return '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'; }
+    function iconPrev() { return '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm12 0l-10 6 10 6z"/></svg>'; }
+    function iconNext() { return '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l10-6L6 6z"/></svg>'; }
+    function iconPlayBig() { return '<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'; }
+    function iconPauseBig() { return '<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'; }
+
     // ===== 迷你播放条 =====
     function updateMiniBar() {
         const bar = document.getElementById('musicMiniBar');
@@ -193,7 +200,7 @@
                     '<div class="mini-bar-artist">' + escapeHtml(player.current.artist || '') + '</div>' +
                 '</div>' +
                 '<button class="mini-bar-btn" onclick="window._musicPlayer.playPrev()"><i data-lucide="skip-back"></i></button>' +
-                '<button class="mini-bar-btn mini-bar-play" id="miniBarPlayBtn" onclick="window._musicPlayer.togglePlay()"><i data-lucide="' + (player.playing ? 'pause' : 'play') + '"></i></button>' +
+                '<button class="mini-bar-btn mini-bar-play" id="miniBarPlayBtn" data-icon="' + (player.playing ? 'pause' : 'play') + '" onclick="window._musicPlayer.togglePlay()">' + (player.playing ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>' : '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>') + '</button>' +
                 '<button class="mini-bar-btn" onclick="window._musicPlayer.playNext()"><i data-lucide="skip-forward"></i></button>';
             if (typeof lucide !== 'undefined') lucide.createIcons();
         } else {
@@ -206,8 +213,9 @@
                 const icon = player.playing ? 'pause' : 'play';
                 if (playBtn.dataset.icon !== icon) {
                     playBtn.dataset.icon = icon;
-                    playBtn.innerHTML = '<i data-lucide="' + icon + '"></i>';
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    playBtn.innerHTML = icon === 'pause'
+                        ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
+                        : '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
                 }
             }
         }
@@ -313,26 +321,27 @@
                     '<div class="mf-vinyl-wrap-new' + (player.playing ? ' spinning' : '') + '" id="mfVinyl">' +
                         '<div class="mf-vinyl-new">' + coverHtml + '</div>' +
                     '</div>' +
+                    '<div class="mf-tonearm' + (player.playing ? ' playing' : '') + '" id="mfTonearm">' +
+                        '<div class="mf-tonearm-pivot"></div>' +
+                        '<div class="mf-tonearm-rod"></div>' +
+                        '<div class="mf-tonearm-head"></div>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="mf-imm-bottom">' +
                     titleHtml +
                     immersiveLyricsHtml +
                 '</div>' +
                 '<div class="mf-imm-controls">' +
-                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playPrev()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" transform="scale(-1,1) translate(-24,0)"/></svg></button>' +
-                    '<button class="mf-imm-btn mf-imm-btn-play" onclick="event.stopPropagation();window._musicPlayer.togglePlay()">' +
-                        (player.playing
-                            ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
-                            : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>') +
-                    '</button>' +
-                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playNext()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 18h2V6h-2zm-8.5-6l8.5 6V6z"/></svg></button>' +
+                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playPrev()">' + iconPrev() + '</button>' +
+                    '<button class="mf-imm-btn mf-imm-btn-play" onclick="event.stopPropagation();window._musicPlayer.togglePlay()">' + (player.playing ? iconPauseBig() : iconPlayBig()) + '</button>' +
+                    '<button class="mf-imm-btn" onclick="event.stopPropagation();window._musicPlayer.playNext()">' + iconNext() + '</button>' +
                 '</div>' +
             '</div>' +
 
             // 歌词页内容
             '<div class="mf-lyrics-page" id="mfLyricsPage" style="' + (showLyrics ? '' : 'display:none;') + '">' +
                 '<div class="mf-lp-header">' +
-                    '<button class="mf-lp-back" onclick="window._musicPlayer.toggleFullscreenMode()"><i data-lucide="chevron-down"></i></button>' +
+                    '<button class="mf-lp-back" onclick="window._musicPlayer.closeFullscreen()"><i data-lucide="chevron-down"></i></button>' +
                     '<div class="mf-lp-header-info">' +
                         '<div class="mf-lp-title">' + escapeHtml(t.title) + '</div>' +
                         '<div class="mf-lp-artist">' + escapeHtml(t.artist || '') + '</div>' +
@@ -353,13 +362,9 @@
                     '</div>' +
                     '<div class="mf-lp-btns">' +
                         '<button class="mf-btn" onclick="window._musicPlayer.cycleMode()"><i data-lucide="' + getModeIcon() + '"></i></button>' +
-                        '<button class="mf-btn" onclick="window._musicPlayer.playPrev()"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" transform="scale(-1,1) translate(-24,0)"/></svg></button>' +
-                        '<button class="mf-btn mf-btn-play" onclick="window._musicPlayer.togglePlay()">' +
-                            (player.playing
-                                ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
-                                : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>') +
-                        '</button>' +
-                        '<button class="mf-btn" onclick="window._musicPlayer.playNext()"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M16 18h2V6h-2zm-8.5-6l8.5 6V6z"/></svg></button>' +
+                        '<button class="mf-btn" onclick="window._musicPlayer.playPrev()">' + iconPrev() + '</button>' +
+                        '<button class="mf-btn mf-btn-play" onclick="window._musicPlayer.togglePlay()">' + (player.playing ? iconPause() : iconPlay()) + '</button>' +
+                        '<button class="mf-btn" onclick="window._musicPlayer.playNext()">' + iconNext() + '</button>' +
                         '<button class="mf-btn" onclick="window._musicPlayer.handleLike(\'' + t.id + '\')"><i data-lucide="heart"></i></button>' +
                     '</div>' +
                 '</div>' +
@@ -455,6 +460,8 @@
         if (timeCur) timeCur.textContent = formatDuration(player.currentTime);
         if (timeTotal) timeTotal.textContent = formatDuration(player.duration);
         if (vinyl) vinyl.classList.toggle('spinning', player.playing);
+        const tonearm = document.getElementById('mfTonearm');
+        if (tonearm) tonearm.classList.toggle('playing', player.playing);
     }
 
     function updateFullscreenLyric() {
