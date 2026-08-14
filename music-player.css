@@ -634,51 +634,6 @@
     border-radius: 50%;
 }
 
-/* 唱针 */
-.mf-tonearm {
-    position: absolute;
-    top: 0;
-    right: 8vw;
-    width: 4px;
-    height: 30vw;
-    max-height: 150px;
-    transform-origin: top center;
-    transform: rotate(-25deg);
-    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 2;
-}
-.mf-tonearm.playing {
-    transform: rotate(-38deg);
-}
-.mf-tonearm-rod {
-    width: 3px;
-    height: 100%;
-    background: linear-gradient(to bottom, #888 0%, #666 50%, #444 100%);
-    border-radius: 2px;
-    margin: 0 auto;
-}
-.mf-tonearm-head {
-    width: 10px;
-    height: 18px;
-    background: #333;
-    border-radius: 2px;
-    position: absolute;
-    bottom: -14px;
-    left: 50%;
-    transform: translateX(-50%);
-}
-.mf-tonearm-pivot {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: radial-gradient(circle, #aaa, #666);
-    position: absolute;
-    top: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-
 /* 沉浸页底部：歌名/歌词 + 控制 */
 .mf-imm-bottom {
     padding: 0 24px 40px;
@@ -840,6 +795,110 @@
 }
 .mf-lp-btns .mf-btn svg { width: 22px; height: 22px; }
 .mf-lp-btns .mf-btn-play svg { width: 28px; height: 28px; }
+
+/* ===== 沉浸页右上角菜单 ===== */
+.mf-imm-more {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    top: max(16px, env(safe-area-inset-top));
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+}
+.mf-imm-more:active { background: rgba(255,255,255,0.2); }
+.mf-imm-more i, .mf-imm-more svg { width: 18px !important; height: 18px !important; }
+
+.mf-imm-popup {
+    position: absolute;
+    top: max(60px, calc(env(safe-area-inset-top) + 44px));
+    right: 16px;
+    width: 200px;
+    background: rgba(30,30,30,0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 14px;
+    padding: 12px 14px;
+    z-index: 10;
+    display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+.mf-imm-popup.active { display: block; animation: fadeIn 0.18s ease; }
+.mf-imm-popup-title {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 10px;
+}
+.mf-imm-popup-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.mf-imm-popup-slider span {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    flex-shrink: 0;
+}
+.mf-imm-popup-slider input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.2);
+    outline: none;
+}
+.mf-imm-popup-slider input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+}
+.mf-imm-popup-delete {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 8px;
+    border: none;
+    background: none;
+    color: #F07070;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 8px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 12px;
+    margin-top: 2px;
+}
+.mf-imm-popup-delete:active { background: rgba(255,255,255,0.08); }
+.mf-imm-popup-delete i, .mf-imm-popup-delete svg { width: 14px !important; height: 14px !important; }
+
+/* ===== 歌词大小三档 ===== */
+.mf-imm-line.mf-lyric-size-0 { font-size: 13px; }
+.mf-imm-line.mf-lyric-size-1 { font-size: 15px; }
+.mf-imm-line.mf-lyric-size-2 { font-size: 18px; }
+.mf-imm-line.mf-imm-curr.mf-lyric-size-0 { font-size: 16px; }
+.mf-imm-line.mf-imm-curr.mf-lyric-size-1 { font-size: 18px; }
+.mf-imm-line.mf-imm-curr.mf-lyric-size-2 { font-size: 22px; }
+
+.mf-lp-line.mf-lyric-size-0 { font-size: 14px; }
+.mf-lp-line.mf-lyric-size-1 { font-size: 16px; }
+.mf-lp-line.mf-lyric-size-2 { font-size: 20px; }
+.mf-lp-line.active.mf-lyric-size-0 { font-size: 17px; }
+.mf-lp-line.active.mf-lyric-size-1 { font-size: 20px; }
+.mf-lp-line.active.mf-lyric-size-2 { font-size: 24px; }
 
 /* 背景层保持在最底层（覆盖通用 > * 规则，避免被改成 relative） */
 .mf-bg, .mf-bg-overlay { position: absolute; z-index: 0; }

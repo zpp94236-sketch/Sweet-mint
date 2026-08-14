@@ -247,6 +247,13 @@
         return result.sort((a, b) => a.time - b.time);
     }
 
+    // 歌词在标点符号后换行
+    function breakLyricAtPunctuation(text) {
+        if (!text) return text;
+        // 在逗号、句号、分号、感叹号、问号、省略号等标点后面插入换行
+        return text.replace(/([,，;；!！?？、。\.…]+)\s*/g, '$1\n');
+    }
+
     function openFullscreenPlayer() {
         if (!player.current) return;
         fullscreenOpen = true;
@@ -317,14 +324,19 @@
 
             // 沉浸页内容
             '<div class="mf-immersive" id="mfImmersive" style="' + (showVinyl ? '' : 'display:none;') + '" onclick="window._musicPlayer.toggleFullscreenMode()">' +
+                '<button class="mf-imm-more" onclick="event.stopPropagation();window._musicPlayer.toggleImmPopup()"><i data-lucide="more-vertical"></i></button>' +
+                '<div class="mf-imm-popup" id="mfImmPopup">' +
+                    '<div class="mf-imm-popup-title">歌词大小</div>' +
+                    '<div class="mf-imm-popup-slider">' +
+                        '<span>小</span>' +
+                        '<input type="range" min="0" max="2" step="1" value="' + (player.lyricSize || 1) + '" oninput="window._musicPlayer.setLyricSize(parseInt(this.value))">' +
+                        '<span>大</span>' +
+                    '</div>' +
+                    '<button class="mf-imm-popup-delete" onclick="event.stopPropagation();window._musicPlayer.deleteCurrentTrack()"><i data-lucide="trash-2"></i>删除这首歌</button>' +
+                '</div>' +
                 '<div class="mf-vinyl-area">' +
                     '<div class="mf-vinyl-wrap-new' + (player.playing ? ' spinning' : '') + '" id="mfVinyl">' +
                         '<div class="mf-vinyl-new">' + coverHtml + '</div>' +
-                    '</div>' +
-                    '<div class="mf-tonearm' + (player.playing ? ' playing' : '') + '" id="mfTonearm">' +
-                        '<div class="mf-tonearm-pivot"></div>' +
-                        '<div class="mf-tonearm-rod"></div>' +
-                        '<div class="mf-tonearm-head"></div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="mf-imm-bottom">' +
@@ -381,15 +393,17 @@
         const prev = currentLyricIdx > 0 ? lyricsData[currentLyricIdx - 1].text : '';
         const curr = lyricsData[currentLyricIdx] ? lyricsData[currentLyricIdx].text : '';
         const next = currentLyricIdx < lyricsData.length - 1 ? lyricsData[currentLyricIdx + 1].text : '';
-        return (prev ? '<div class="mf-imm-line mf-imm-prev">' + escapeHtml(prev) + '</div>' : '') +
-            '<div class="mf-imm-line mf-imm-curr">' + escapeHtml(curr) + '</div>' +
-            (next ? '<div class="mf-imm-line mf-imm-next">' + escapeHtml(next) + '</div>' : '');
+        const sizeClass = ' mf-lyric-size-' + (player.lyricSize || 1);
+        return (prev ? '<div class="mf-imm-line mf-imm-prev' + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(prev)).replace(/\n/g, '<br>') + '</div>' : '') +
+            '<div class="mf-imm-line mf-imm-curr' + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(curr)).replace(/\n/g, '<br>') + '</div>' +
+            (next ? '<div class="mf-imm-line mf-imm-next' + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(next)).replace(/\n/g, '<br>') + '</div>' : '');
     }
 
     function renderFullLyricsHtml() {
         if (!lyricsData.length) return '<div class="mf-lyrics-empty">暂无歌词</div>';
+        const sizeClass = ' mf-lyric-size-' + (player.lyricSize || 1);
         return lyricsData.map((l, i) =>
-            '<div class="mf-lp-line' + (i === currentLyricIdx ? ' active' : '') + '">' + escapeHtml(l.text) + '</div>'
+            '<div class="mf-lp-line' + (i === currentLyricIdx ? ' active' : '') + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(l.text)).replace(/\n/g, '<br>') + '</div>'
         ).join('');
     }
 
@@ -456,8 +470,6 @@
         if (timeCur) timeCur.textContent = formatDuration(player.currentTime);
         if (timeTotal) timeTotal.textContent = formatDuration(player.duration);
         if (vinyl) vinyl.classList.toggle('spinning', player.playing);
-        const tonearm = document.getElementById('mfTonearm');
-        if (tonearm) tonearm.classList.toggle('playing', player.playing);
 
         // 同步所有播放/暂停按钮状态
         // 沉浸页按钮
@@ -1138,6 +1150,74 @@
         await loadMusicData(true);
     }
 
+    // 初始化歌词大小，默认 1（中）
+    player.lyricSize = 1;
+
+    function toggleImmPopup() {
+        const popup = document.getElementById('mfImmPopup');
+        if (popup) popup.classList.toggle('active');
+    }
+
+    function setLyricSize(val) {
+        player.lyricSize = val;
+        // 实时更新已渲染的歌词行
+        document.querySelectorAll('.mf-imm-line, .mf-lp-line').forEach(el => {
+            el.classList.remove('mf-lyric-size-0', 'mf-lyric-size-1', 'mf-lyric-size-2');
+            el.classList.add('mf-lyric-size-' + val);
+        });
+    }
+
+    async function deleteCurrentTrack() {
+        if (!player.current) return;
+        if (!confirm('确定删除「' + player.current.title + '」？歌曲文件和歌词都会被删除。')) return;
+        if (!isSupabaseConfigured()) { alert('未配置云端'); return; }
+        const track = player.current;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const key = state.memorySystem.settings.supabaseKey;
+        const h = getSupabaseHeaders();
+
+        try {
+            // 从 file_url 提取 storage 路径并删除文件
+            if (track.file_url) {
+                const filePath = track.file_url.split('/storage/v1/object/public/music/')[1];
+                if (filePath) {
+                    await fetch(base + '/storage/v1/object/music/' + filePath, {
+                        method: 'DELETE',
+                        headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+                    });
+                    // 尝试删除同名 .lrc
+                    const lrcPath = filePath.replace(/\.[^.]+$/, '.lrc');
+                    await fetch(base + '/storage/v1/object/music/' + lrcPath, {
+                        method: 'DELETE',
+                        headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+                    }).catch(() => {});
+                }
+            }
+            // 删除数据库记录
+            await fetch(base + '/rest/v1/music_tracks?id=eq.' + track.id, { method: 'DELETE', headers: h });
+            // 更新缓存
+            musicCache.tracks = musicCache.tracks.filter(t => t.id !== track.id);
+            // 停止播放，关闭全屏
+            player.audio.pause();
+            player.current = null;
+            player.playing = false;
+            closeFullscreenPlayer();
+            updateMiniBar();
+            showToast('已删除');
+            // 刷新列表页
+            const content = document.getElementById('bedroomContent');
+            if (content) {
+                const view = bedroomStack[bedroomStack.length - 1];
+                if (view && view.startsWith('music')) {
+                    content.innerHTML = renderMusicPage(view);
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+            }
+        } catch (e) {
+            alert('删除失败: ' + e.message);
+        }
+    }
+
     // ===== 暴露接口 =====
     window._musicPlayer = {
         loadData: loadMusicData,
@@ -1165,6 +1245,9 @@
         togglePlaylist,
         playFromPlaylist,
         toggleListenTogether,
+        toggleImmPopup,
+        setLyricSize,
+        deleteCurrentTrack,
         getPlayer: () => player,
         _currentList: null
     };
