@@ -22,6 +22,7 @@
         tracks: [],
         likes: [],
         history: [],
+        playlists: [],
         recommendation: null,
         loaded: false,
         loading: false
@@ -54,17 +55,26 @@
         try {
             const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
             const h = getSupabaseHeaders();
-            const [tracksRes, likesRes, historyRes, recRes] = await Promise.all([
+            const [tracksRes, likesRes, historyRes, recRes, playlistsRes, plTracksRes] = await Promise.all([
                 fetch(base + '/rest/v1/music_tracks?select=*&order=created_at.desc&limit=200', { headers: h }),
                 fetch(base + '/rest/v1/music_likes?select=*', { headers: h }),
                 fetch(base + '/rest/v1/music_play_history?select=*,music_tracks(*)&order=played_at.desc&limit=20', { headers: h }),
-                fetch(base + '/rest/v1/music_recommendations?select=*,music_tracks(*)&order=recommended_at.desc&limit=1', { headers: h })
+                fetch(base + '/rest/v1/music_recommendations?select=*,music_tracks(*)&order=recommended_at.desc&limit=1', { headers: h }),
+                fetch(base + '/rest/v1/music_playlists?select=*&order=created_at.desc', { headers: h }),
+                fetch(base + '/rest/v1/music_playlist_tracks?select=*&order=added_at.asc', { headers: h })
             ]);
             musicCache.tracks = tracksRes.ok ? await tracksRes.json() : [];
             musicCache.likes = likesRes.ok ? await likesRes.json() : [];
             musicCache.history = historyRes.ok ? await historyRes.json() : [];
             const recs = recRes.ok ? await recRes.json() : [];
             musicCache.recommendation = recs.length ? recs[0] : null;
+            const rawPlaylists = playlistsRes.ok ? await playlistsRes.json() : [];
+            const rawPlTracks = plTracksRes.ok ? await plTracksRes.json() : [];
+            // 把歌单关联的 track_id 列表挂到每个歌单上
+            rawPlaylists.forEach(pl => {
+                pl.trackIds = rawPlTracks.filter(pt => pt.playlist_id === pl.id).map(pt => pt.track_id);
+            });
+            musicCache.playlists = rawPlaylists;
             musicCache.loaded = true;
         } catch (e) {
             console.warn('音乐数据加载失败:', e);
@@ -324,16 +334,6 @@
 
             // 沉浸页内容
             '<div class="mf-immersive" id="mfImmersive" style="' + (showVinyl ? '' : 'display:none;') + '" onclick="window._musicPlayer.toggleFullscreenMode()">' +
-                '<button class="mf-imm-more" onclick="event.stopPropagation();window._musicPlayer.toggleImmPopup()"><i data-lucide="more-vertical"></i></button>' +
-                '<div class="mf-imm-popup" id="mfImmPopup">' +
-                    '<div class="mf-imm-popup-title">歌词大小</div>' +
-                    '<div class="mf-imm-popup-slider">' +
-                        '<span>小</span>' +
-                        '<input type="range" min="0" max="2" step="1" value="' + (player.lyricSize || 1) + '" oninput="window._musicPlayer.setLyricSize(parseInt(this.value))">' +
-                        '<span>大</span>' +
-                    '</div>' +
-                    '<button class="mf-imm-popup-delete" onclick="event.stopPropagation();window._musicPlayer.deleteCurrentTrack()"><i data-lucide="trash-2"></i>删除这首歌</button>' +
-                '</div>' +
                 '<div class="mf-vinyl-area">' +
                     '<div class="mf-vinyl-wrap-new' + (player.playing ? ' spinning' : '') + '" id="mfVinyl">' +
                         '<div class="mf-vinyl-new">' + coverHtml + '</div>' +
@@ -393,17 +393,15 @@
         const prev = currentLyricIdx > 0 ? lyricsData[currentLyricIdx - 1].text : '';
         const curr = lyricsData[currentLyricIdx] ? lyricsData[currentLyricIdx].text : '';
         const next = currentLyricIdx < lyricsData.length - 1 ? lyricsData[currentLyricIdx + 1].text : '';
-        const sizeClass = ' mf-lyric-size-' + (player.lyricSize || 1);
-        return (prev ? '<div class="mf-imm-line mf-imm-prev' + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(prev)).replace(/\n/g, '<br>') + '</div>' : '') +
-            '<div class="mf-imm-line mf-imm-curr' + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(curr)).replace(/\n/g, '<br>') + '</div>' +
-            (next ? '<div class="mf-imm-line mf-imm-next' + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(next)).replace(/\n/g, '<br>') + '</div>' : '');
+        return (prev ? '<div class="mf-imm-line mf-imm-prev">' + escapeHtml(breakLyricAtPunctuation(prev)).replace(/\n/g, '<br>') + '</div>' : '') +
+            '<div class="mf-imm-line mf-imm-curr">' + escapeHtml(breakLyricAtPunctuation(curr)).replace(/\n/g, '<br>') + '</div>' +
+            (next ? '<div class="mf-imm-line mf-imm-next">' + escapeHtml(breakLyricAtPunctuation(next)).replace(/\n/g, '<br>') + '</div>' : '');
     }
 
     function renderFullLyricsHtml() {
         if (!lyricsData.length) return '<div class="mf-lyrics-empty">暂无歌词</div>';
-        const sizeClass = ' mf-lyric-size-' + (player.lyricSize || 1);
         return lyricsData.map((l, i) =>
-            '<div class="mf-lp-line' + (i === currentLyricIdx ? ' active' : '') + sizeClass + '">' + escapeHtml(breakLyricAtPunctuation(l.text)).replace(/\n/g, '<br>') + '</div>'
+            '<div class="mf-lp-line' + (i === currentLyricIdx ? ' active' : '') + '">' + escapeHtml(breakLyricAtPunctuation(l.text)).replace(/\n/g, '<br>') + '</div>'
         ).join('');
     }
 
@@ -599,7 +597,7 @@
             { icon: '🎵', name: '全部音乐', count: allCount, view: 'musicAll' },
             { icon: '❤️', name: '我的喜欢', count: userLikes, view: 'musicUserLikes' },
             { icon: '💜', name: '晏晏喜欢', count: aiLikes, view: 'musicAiLikes' },
-            { icon: '📁', name: '歌单列表', count: '', view: 'musicPlaylists' }
+            { icon: '📁', name: '歌单列表', count: musicCache.playlists.length, view: 'musicPlaylists' }
         ];
         const entriesHtml = '<div class="music-entries">' + entries.map(e =>
             '<div class="music-entry" onclick="bedroomGo(\'' + e.view + '\',{})">' +
@@ -680,10 +678,346 @@
             return renderTrackList('晏晏喜欢 · ' + liked.length + ' 首', liked);
         }
         if (view === 'musicPlaylists') {
-            return '<div class="bedroom-empty">歌单功能即将上线～</div>' +
-                '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
+            return renderPlaylistsPage();
+        }
+        if (view === 'musicPlaylistDetail') {
+            return renderPlaylistDetailPage();
         }
         return '';
+    }
+
+    function renderPlaylistsPage() {
+        const playlists = musicCache.playlists;
+        let listHtml = '';
+        if (playlists.length) {
+            listHtml = '<div class="music-playlist-list">' + playlists.map(pl => {
+                const count = pl.trackIds ? pl.trackIds.length : 0;
+                const coverTrack = pl.trackIds && pl.trackIds[0] ? musicCache.tracks.find(t => t.id === pl.trackIds[0]) : null;
+                const cover = pl.cover_url || (coverTrack && coverTrack.cover_url) || '';
+                return '<div class="music-playlist-item" onclick="window._musicPlayer.openPlaylist(\'' + pl.id + '\')">' +
+                    (cover ? '<img class="music-playlist-cover" src="' + cover + '">' : '<div class="music-playlist-cover music-playlist-cover-empty">🎵</div>') +
+                    '<div class="music-playlist-info">' +
+                        '<div class="music-playlist-name">' + escapeHtml(pl.name) + '</div>' +
+                        '<div class="music-playlist-meta">' + count + ' 首' + (pl.description ? ' · ' + escapeHtml(pl.description) : '') + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('') + '</div>';
+        } else {
+            listHtml = '<div class="bedroom-empty">还没有歌单，创建一个吧～</div>';
+        }
+        return listHtml +
+            '<button class="btn-secondary" style="width:100%;justify-content:center;margin-top:16px;" onclick="window._musicPlayer.openCreatePlaylist()"><i data-lucide="plus" style="width:14px;height:14px;margin-right:6px;"></i>新建歌单</button>' +
+            '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
+    }
+
+    let currentPlaylistId = null;
+
+    function renderPlaylistDetailPage() {
+        const pl = musicCache.playlists.find(p => p.id === currentPlaylistId);
+        if (!pl) return '<div class="bedroom-empty">歌单不存在</div>';
+        const tracks = (pl.trackIds || []).map(tid => musicCache.tracks.find(t => t.id === tid)).filter(Boolean);
+        const count = tracks.length;
+        const coverTrack = tracks[0];
+        const cover = pl.cover_url || (coverTrack && coverTrack.cover_url) || '';
+
+        const headerHtml = '<div class="music-pl-header">' +
+            (cover ? '<img class="music-pl-header-cover" src="' + cover + '">' : '<div class="music-pl-header-cover music-playlist-cover-empty">🎵</div>') +
+            '<div class="music-pl-header-info">' +
+                '<div class="music-pl-header-name">' + escapeHtml(pl.name) + '</div>' +
+                '<div class="music-pl-header-meta">' + count + ' 首</div>' +
+                (pl.description ? '<div class="music-pl-header-desc">' + escapeHtml(pl.description) + '</div>' : '') +
+            '</div>' +
+            '<button class="music-pl-edit-btn" onclick="window._musicPlayer.openEditPlaylist(\'' + pl.id + '\')"><i data-lucide="pencil"></i></button>' +
+        '</div>';
+
+        const actionsHtml = '<div class="music-section-head">' +
+            '<button class="music-play-all-btn" onclick="window._musicPlayer.playPlaylist(\'' + pl.id + '\')">▶ 播放全部</button>' +
+            '<button class="music-play-all-btn" onclick="window._musicPlayer.openAddToPlaylist(\'' + pl.id + '\')">+ 添加歌曲</button>' +
+        '</div>';
+
+        let tracksHtml = '';
+        if (tracks.length) {
+            window._musicPlayer._currentList = tracks;
+            tracksHtml = '<div class="music-track-list">' + tracks.map(t => renderTrackItem(t)).join('') + '</div>';
+        } else {
+            tracksHtml = '<div class="bedroom-empty">歌单还是空的，去添加歌曲吧～</div>';
+        }
+
+        return headerHtml + actionsHtml + tracksHtml +
+            '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
+    }
+
+    function openPlaylist(playlistId) {
+        currentPlaylistId = playlistId;
+        bedroomGo('musicPlaylistDetail', {});
+    }
+
+    function playPlaylist(playlistId) {
+        const pl = musicCache.playlists.find(p => p.id === playlistId);
+        if (!pl) return;
+        const tracks = (pl.trackIds || []).map(tid => musicCache.tracks.find(t => t.id === tid)).filter(Boolean);
+        if (tracks.length) playTrack(tracks[0], tracks);
+    }
+
+    function openCreatePlaylist() {
+        const html = '<div class="music-edit-form">' +
+            '<div class="form-group"><label>歌单名称</label><input type="text" id="newPlName" placeholder="给歌单起个名字"></div>' +
+            '<div class="form-group"><label>描述（可选）</label><input type="text" id="newPlDesc" placeholder="一句话描述这个歌单"></div>' +
+            '<div class="form-group"><label>封面（可选）</label>' +
+                '<div style="display:flex;align-items:center;gap:12px;">' +
+                    '<div id="newPlCoverPreview" style="width:56px;height:56px;border-radius:8px;background:var(--primary-lighter);display:flex;align-items:center;justify-content:center;">🎵</div>' +
+                    '<label class="wp-btn wp-btn-pick" for="newPlCoverInput" style="cursor:pointer;">选择图片</label>' +
+                '</div>' +
+                '<input type="file" id="newPlCoverInput" accept="image/*" style="display:none;" onchange="window._musicPlayer.handlePlCoverPick(event)">' +
+            '</div>' +
+            '<button class="btn-primary" style="width:100%;justify-content:center;margin-top:14px;" onclick="window._musicPlayer.saveNewPlaylist()">创建歌单</button>' +
+        '</div>';
+        openInfoSheet('新建歌单', html);
+    }
+
+    let pendingPlCoverUrl = '';
+
+    async function handlePlCoverPick(e) {
+        const file = e.target.files[0];
+        if (!file || !isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const key = state.memorySystem.settings.supabaseKey;
+        const fileName = 'pl_cover_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5) + '.' + file.name.split('.').pop();
+        showToast('上传中...');
+        try {
+            const uploadRes = await fetch(base + '/storage/v1/object/covers/' + fileName, {
+                method: 'POST',
+                headers: { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': file.type || 'image/jpeg' },
+                body: file
+            });
+            if (!uploadRes.ok) throw new Error('HTTP ' + uploadRes.status);
+            pendingPlCoverUrl = base + '/storage/v1/object/public/covers/' + fileName;
+            const preview = document.getElementById('newPlCoverPreview');
+            if (preview) preview.innerHTML = '<img src="' + pendingPlCoverUrl + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">';
+            showToast('封面已上传');
+        } catch (err) {
+            alert('上传失败: ' + err.message);
+        }
+        e.target.value = '';
+    }
+
+    async function saveNewPlaylist() {
+        const name = document.getElementById('newPlName').value.trim();
+        if (!name) { alert('请填写歌单名称'); return; }
+        const desc = document.getElementById('newPlDesc').value.trim();
+        if (!isSupabaseConfigured()) { alert('请先配置云端同步'); return; }
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=representation' });
+        try {
+            const body = { name: name, description: desc || null, cover_url: pendingPlCoverUrl || null };
+            const res = await fetch(base + '/rest/v1/music_playlists', {
+                method: 'POST', headers: h, body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const newPl = Array.isArray(data) ? data[0] : data;
+            newPl.trackIds = [];
+            musicCache.playlists.unshift(newPl);
+            pendingPlCoverUrl = '';
+            closeInfoSheet();
+            showToast('歌单已创建');
+            // 重新渲染页面
+            const content = document.getElementById('bedroomContent');
+            if (content) {
+                content.innerHTML = renderPlaylistsPage();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        } catch (e) {
+            alert('创建失败: ' + e.message);
+        }
+    }
+
+    function openEditPlaylist(playlistId) {
+        const pl = musicCache.playlists.find(p => p.id === playlistId);
+        if (!pl) return;
+        const html = '<div class="music-edit-form">' +
+            '<div class="form-group"><label>歌单名称</label><input type="text" id="editPlName" value="' + escapeHtml(pl.name) + '"></div>' +
+            '<div class="form-group"><label>描述</label><input type="text" id="editPlDesc" value="' + escapeHtml(pl.description || '') + '" placeholder="一句话描述"></div>' +
+            '<div class="form-group"><label>封面</label>' +
+                '<div style="display:flex;align-items:center;gap:12px;">' +
+                    '<div id="editPlCoverPreview" style="width:56px;height:56px;border-radius:8px;background:var(--primary-lighter);display:flex;align-items:center;justify-content:center;overflow:hidden;">' +
+                        (pl.cover_url ? '<img src="' + pl.cover_url + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') +
+                    '</div>' +
+                    '<label class="wp-btn wp-btn-pick" for="editPlCoverInput" style="cursor:pointer;">更换封面</label>' +
+                    (pl.cover_url ? '<button class="wp-btn wp-btn-clear" onclick="window._musicPlayer.clearPlCover(\'' + playlistId + '\')">清除</button>' : '') +
+                '</div>' +
+                '<input type="file" id="editPlCoverInput" accept="image/*" style="display:none;" onchange="window._musicPlayer.handleEditPlCoverPick(\'' + playlistId + '\',event)">' +
+            '</div>' +
+            '<button class="btn-primary" style="width:100%;justify-content:center;margin-top:14px;" onclick="window._musicPlayer.saveEditPlaylist(\'' + playlistId + '\')">保存</button>' +
+            '<button class="btn-danger" style="width:100%;justify-content:center;margin-top:10px;" onclick="window._musicPlayer.deletePlaylist(\'' + playlistId + '\')"><i data-lucide="trash-2" style="width:13px;height:13px;margin-right:6px;"></i>删除歌单</button>' +
+        '</div>';
+        openInfoSheet('编辑歌单', html);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function handleEditPlCoverPick(playlistId, e) {
+        const file = e.target.files[0];
+        if (!file || !isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const key = state.memorySystem.settings.supabaseKey;
+        const fileName = 'pl_cover_' + Date.now() + '.' + file.name.split('.').pop();
+        showToast('上传中...');
+        try {
+            await fetch(base + '/storage/v1/object/covers/' + fileName, {
+                method: 'POST',
+                headers: { 'apikey': key, 'Authorization': 'Bearer ' + key, 'Content-Type': file.type || 'image/jpeg' },
+                body: file
+            });
+            const coverUrl = base + '/storage/v1/object/public/covers/' + fileName;
+            const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+            await fetch(base + '/rest/v1/music_playlists?id=eq.' + playlistId, {
+                method: 'PATCH', headers: h, body: JSON.stringify({ cover_url: coverUrl })
+            });
+            const pl = musicCache.playlists.find(p => p.id === playlistId);
+            if (pl) pl.cover_url = coverUrl;
+            showToast('封面已更新');
+            openEditPlaylist(playlistId);
+        } catch (err) {
+            alert('上传失败: ' + err.message);
+        }
+        e.target.value = '';
+    }
+
+    async function clearPlCover(playlistId) {
+        if (!isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+        await fetch(base + '/rest/v1/music_playlists?id=eq.' + playlistId, {
+            method: 'PATCH', headers: h, body: JSON.stringify({ cover_url: '' })
+        });
+        const pl = musicCache.playlists.find(p => p.id === playlistId);
+        if (pl) pl.cover_url = '';
+        showToast('已清除封面');
+        openEditPlaylist(playlistId);
+    }
+
+    async function saveEditPlaylist(playlistId) {
+        const name = document.getElementById('editPlName').value.trim();
+        if (!name) { alert('名称不能为空'); return; }
+        const desc = document.getElementById('editPlDesc').value.trim();
+        if (!isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+        await fetch(base + '/rest/v1/music_playlists?id=eq.' + playlistId, {
+            method: 'PATCH', headers: h, body: JSON.stringify({ name, description: desc || null })
+        });
+        const pl = musicCache.playlists.find(p => p.id === playlistId);
+        if (pl) { pl.name = name; pl.description = desc; }
+        closeInfoSheet();
+        showToast('已保存');
+        refreshCurrentMusicPage();
+    }
+
+    async function deletePlaylist(playlistId) {
+        if (!confirm('确定删除这个歌单？歌曲不会被删除。')) return;
+        if (!isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = getSupabaseHeaders();
+        await fetch(base + '/rest/v1/music_playlist_tracks?playlist_id=eq.' + playlistId, { method: 'DELETE', headers: h });
+        await fetch(base + '/rest/v1/music_playlists?id=eq.' + playlistId, { method: 'DELETE', headers: h });
+        musicCache.playlists = musicCache.playlists.filter(p => p.id !== playlistId);
+        closeInfoSheet();
+        showToast('已删除');
+        bedroomBack();
+    }
+
+    // 把歌添加到歌单
+    function openAddTrackToPlaylist(trackId) {
+        const playlists = musicCache.playlists;
+        if (!playlists.length) { showToast('请先创建一个歌单'); return; }
+        const html = '<div class="music-playlist-pick-list">' +
+            playlists.map(pl => {
+                const already = (pl.trackIds || []).includes(trackId);
+                return '<div class="music-playlist-pick-item' + (already ? ' disabled' : '') + '" onclick="' + (already ? '' : "window._musicPlayer.addTrackToPlaylist('" + trackId + "','" + pl.id + "')") + '">' +
+                    '<span class="music-playlist-pick-name">' + escapeHtml(pl.name) + '</span>' +
+                    (already ? '<span class="music-playlist-pick-added">已添加</span>' : '<span class="music-playlist-pick-add">+</span>') +
+                '</div>';
+            }).join('') +
+        '</div>';
+        openInfoSheet('加入歌单', html);
+    }
+
+    async function addTrackToPlaylist(trackId, playlistId) {
+        if (!isSupabaseConfigured()) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+        try {
+            await fetch(base + '/rest/v1/music_playlist_tracks', {
+                method: 'POST', headers: h,
+                body: JSON.stringify({ playlist_id: playlistId, track_id: trackId })
+            });
+            const pl = musicCache.playlists.find(p => p.id === playlistId);
+            if (pl) {
+                if (!pl.trackIds) pl.trackIds = [];
+                pl.trackIds.push(trackId);
+            }
+            closeInfoSheet();
+            showToast('已添加到歌单');
+        } catch (e) {
+            alert('添加失败: ' + e.message);
+        }
+    }
+
+    // 在歌单详情页添加歌曲（显示全部音乐列表打勾选择）
+    function openAddToPlaylist(playlistId) {
+        const pl = musicCache.playlists.find(p => p.id === playlistId);
+        if (!pl) return;
+        const existingIds = new Set(pl.trackIds || []);
+        const allTracks = musicCache.tracks;
+        const html = '<div class="music-playlist-add-list">' +
+            allTracks.map(t => {
+                const inPl = existingIds.has(t.id);
+                return '<div class="music-playlist-add-item" onclick="window._musicPlayer.toggleTrackInPlaylist(\'' + t.id + '\',\'' + playlistId + '\',this)">' +
+                    '<img class="music-track-cover" src="' + (t.cover_url || '') + '" onerror="this.classList.add(\'no-cover\')" style="width:36px;height:36px;">' +
+                    '<div class="music-track-info" style="flex:1;min-width:0;">' +
+                        '<div class="music-track-title" style="font-size:13px;">' + escapeHtml(t.title) + '</div>' +
+                        '<div class="music-track-artist">' + escapeHtml(t.artist || '') + '</div>' +
+                    '</div>' +
+                    '<div class="music-playlist-add-check' + (inPl ? ' checked' : '') + '">✓</div>' +
+                '</div>';
+            }).join('') +
+        '</div>';
+        openInfoSheet('添加歌曲到「' + pl.name + '」', html);
+    }
+
+    async function toggleTrackInPlaylist(trackId, playlistId, el) {
+        if (!isSupabaseConfigured()) return;
+        const pl = musicCache.playlists.find(p => p.id === playlistId);
+        if (!pl) return;
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+        const checkEl = el.querySelector('.music-playlist-add-check');
+        if ((pl.trackIds || []).includes(trackId)) {
+            // 移除
+            await fetch(base + '/rest/v1/music_playlist_tracks?playlist_id=eq.' + playlistId + '&track_id=eq.' + trackId, { method: 'DELETE', headers: h });
+            pl.trackIds = (pl.trackIds || []).filter(id => id !== trackId);
+            if (checkEl) checkEl.classList.remove('checked');
+        } else {
+            // 添加
+            await fetch(base + '/rest/v1/music_playlist_tracks', {
+                method: 'POST', headers: h,
+                body: JSON.stringify({ playlist_id: playlistId, track_id: trackId })
+            });
+            if (!pl.trackIds) pl.trackIds = [];
+            pl.trackIds.push(trackId);
+            if (checkEl) checkEl.classList.add('checked');
+        }
+    }
+
+    function refreshCurrentMusicPage() {
+        const content = document.getElementById('bedroomContent');
+        if (!content) return;
+        const view = bedroomStack[bedroomStack.length - 1];
+        if (view && view.startsWith('music')) {
+            content.innerHTML = renderMusicPage(view);
+            updateMiniBar();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
     }
 
     // ===== 交互 =====
@@ -722,6 +1056,7 @@
         const track = musicCache.tracks.find(t => t.id === trackId);
         if (!track) return;
         const html = '<div class="music-menu-title">' + escapeHtml(track.title) + '</div>' +
+            '<button class="music-menu-item" onclick="closeInfoSheet();window._musicPlayer.openAddTrackToPlaylist(\'' + trackId + '\')"><i data-lucide="list-plus"></i>加入歌单</button>' +
             '<button class="music-menu-item" onclick="window._musicPlayer.openEditTrack(\'' + trackId + '\')"><i data-lucide="pencil"></i>编辑信息</button>' +
             '<button class="music-menu-item music-menu-danger" onclick="window._musicPlayer.deleteTrack(\'' + trackId + '\')"><i data-lucide="trash-2"></i>删除歌曲</button>';
         openInfoSheet('歌曲操作', html);
@@ -1150,74 +1485,6 @@
         await loadMusicData(true);
     }
 
-    // 初始化歌词大小，默认 1（中）
-    player.lyricSize = 1;
-
-    function toggleImmPopup() {
-        const popup = document.getElementById('mfImmPopup');
-        if (popup) popup.classList.toggle('active');
-    }
-
-    function setLyricSize(val) {
-        player.lyricSize = val;
-        // 实时更新已渲染的歌词行
-        document.querySelectorAll('.mf-imm-line, .mf-lp-line').forEach(el => {
-            el.classList.remove('mf-lyric-size-0', 'mf-lyric-size-1', 'mf-lyric-size-2');
-            el.classList.add('mf-lyric-size-' + val);
-        });
-    }
-
-    async function deleteCurrentTrack() {
-        if (!player.current) return;
-        if (!confirm('确定删除「' + player.current.title + '」？歌曲文件和歌词都会被删除。')) return;
-        if (!isSupabaseConfigured()) { alert('未配置云端'); return; }
-        const track = player.current;
-        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
-        const key = state.memorySystem.settings.supabaseKey;
-        const h = getSupabaseHeaders();
-
-        try {
-            // 从 file_url 提取 storage 路径并删除文件
-            if (track.file_url) {
-                const filePath = track.file_url.split('/storage/v1/object/public/music/')[1];
-                if (filePath) {
-                    await fetch(base + '/storage/v1/object/music/' + filePath, {
-                        method: 'DELETE',
-                        headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
-                    });
-                    // 尝试删除同名 .lrc
-                    const lrcPath = filePath.replace(/\.[^.]+$/, '.lrc');
-                    await fetch(base + '/storage/v1/object/music/' + lrcPath, {
-                        method: 'DELETE',
-                        headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
-                    }).catch(() => {});
-                }
-            }
-            // 删除数据库记录
-            await fetch(base + '/rest/v1/music_tracks?id=eq.' + track.id, { method: 'DELETE', headers: h });
-            // 更新缓存
-            musicCache.tracks = musicCache.tracks.filter(t => t.id !== track.id);
-            // 停止播放，关闭全屏
-            player.audio.pause();
-            player.current = null;
-            player.playing = false;
-            closeFullscreenPlayer();
-            updateMiniBar();
-            showToast('已删除');
-            // 刷新列表页
-            const content = document.getElementById('bedroomContent');
-            if (content) {
-                const view = bedroomStack[bedroomStack.length - 1];
-                if (view && view.startsWith('music')) {
-                    content.innerHTML = renderMusicPage(view);
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
-                }
-            }
-        } catch (e) {
-            alert('删除失败: ' + e.message);
-        }
-    }
-
     // ===== 暴露接口 =====
     window._musicPlayer = {
         loadData: loadMusicData,
@@ -1238,6 +1505,20 @@
         uploadTrack,
         syncFromStorage,
         fetchMissingLyrics,
+        openPlaylist,
+        playPlaylist,
+        openCreatePlaylist,
+        handlePlCoverPick,
+        saveNewPlaylist,
+        openEditPlaylist,
+        handleEditPlCoverPick,
+        clearPlCover,
+        saveEditPlaylist,
+        deletePlaylist,
+        openAddTrackToPlaylist,
+        addTrackToPlaylist,
+        openAddToPlaylist,
+        toggleTrackInPlaylist,
         openFullscreen: openFullscreenPlayer,
         closeFullscreen: closeFullscreenPlayer,
         cycleMode,
@@ -1245,9 +1526,6 @@
         togglePlaylist,
         playFromPlaylist,
         toggleListenTogether,
-        toggleImmPopup,
-        setLyricSize,
-        deleteCurrentTrack,
         getPlayer: () => player,
         _currentList: null
     };

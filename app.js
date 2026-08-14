@@ -3750,7 +3750,7 @@ function renderBedroom() {
     else if (view === 'fishtankHome') { title = '鱼缸'; html = renderFishTank(); }
     else if (view === 'myDayEdit') { title = '写今天'; html = renderMyDayEdit(); }
     else if (view === 'echoHome') { title = '回声'; html = '<div id="echoContent"></div>'; }
-    else if (view === 'musicHome' || view === 'musicAll' || view === 'musicUserLikes' || view === 'musicAiLikes' || view === 'musicPlaylists') {
+    else if (view === 'musicHome' || view === 'musicAll' || view === 'musicUserLikes' || view === 'musicAiLikes' || view === 'musicPlaylists' || view === 'musicPlaylistDetail') {
         title = '音响';
         html = window._musicPlayer ? window._musicPlayer.renderPage(view) : '<div class="bedroom-empty">加载中...</div>';
         if (view === 'musicHome') showAdd = () => { if (window._musicPlayer) window._musicPlayer.syncFromStorage(); };
