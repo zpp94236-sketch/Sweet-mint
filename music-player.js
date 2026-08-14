@@ -462,6 +462,26 @@
         if (vinyl) vinyl.classList.toggle('spinning', player.playing);
         const tonearm = document.getElementById('mfTonearm');
         if (tonearm) tonearm.classList.toggle('playing', player.playing);
+
+        // 同步所有播放/暂停按钮状态
+        // 沉浸页按钮
+        const immPlayBtn = document.querySelector('.mf-imm-btn-play');
+        if (immPlayBtn) {
+            const expected = player.playing ? iconPauseBig() : iconPlayBig();
+            if (immPlayBtn.dataset.state !== (player.playing ? 'pause' : 'play')) {
+                immPlayBtn.dataset.state = player.playing ? 'pause' : 'play';
+                immPlayBtn.innerHTML = expected;
+            }
+        }
+        // 歌词页按钮
+        const lpPlayBtn = document.querySelector('.mf-lp-btns .mf-btn-play');
+        if (lpPlayBtn) {
+            const expected = player.playing ? iconPause() : iconPlay();
+            if (lpPlayBtn.dataset.state !== (player.playing ? 'pause' : 'play')) {
+                lpPlayBtn.dataset.state = player.playing ? 'pause' : 'play';
+                lpPlayBtn.innerHTML = expected;
+            }
+        }
     }
 
     function updateFullscreenLyric() {

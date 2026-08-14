@@ -565,12 +565,13 @@
 /* 唱片 */
 .mf-vinyl-wrap-new {
     position: absolute;
-    width: 130vw;
-    height: 130vw;
-    max-width: 600px;
-    max-height: 600px;
-    top: -10vw;
-    left: -25vw;
+    width: 75vw;
+    height: 75vw;
+    max-width: 340px;
+    max-height: 340px;
+    top: 8vh;
+    left: 50%;
+    transform: translateX(-50%);
     border-radius: 50%;
     background: radial-gradient(
         circle at center,
@@ -599,7 +600,11 @@
     justify-content: center;
 }
 .mf-vinyl-wrap-new.spinning {
-    animation: vinylSpin 20s linear infinite;
+    animation: vinylSpinCentered 20s linear infinite;
+}
+@keyframes vinylSpinCentered {
+    from { transform: translateX(-50%) rotate(0deg); }
+    to { transform: translateX(-50%) rotate(360deg); }
 }
 
 /* 中间封面 */
@@ -635,18 +640,18 @@
 /* 唱针 */
 .mf-tonearm {
     position: absolute;
-    top: 8vw;
-    right: 12vw;
+    top: calc(8vh + 2vw);
+    right: calc(50% - 37.5vw - 10px);
     width: 4px;
-    height: 42vw;
-    max-height: 200px;
+    height: 28vw;
+    max-height: 140px;
     transform-origin: top center;
-    transform: rotate(-25deg);
+    transform: rotate(-30deg);
     transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 2;
 }
 .mf-tonearm.playing {
-    transform: rotate(-40deg);
+    transform: rotate(-38deg);
 }
 .mf-tonearm-rod {
     width: 3px;
@@ -819,6 +824,9 @@
     padding: 14px 0;
     transition: all 0.3s;
     line-height: 1.5;
+    text-wrap: balance;
+    word-break: keep-all;
+    overflow-wrap: break-word;
 }
 .mf-lp-line.active {
     color: #fff;
