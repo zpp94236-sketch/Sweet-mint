@@ -350,6 +350,7 @@
 
             // 沉浸页内容
             '<div class="mf-immersive" id="mfImmersive" style="' + (showVinyl ? '' : 'display:none;') + '" onclick="window._musicPlayer.toggleFullscreenMode()">' +
+                '<button class="mf-imm-close" onclick="event.stopPropagation();window._musicPlayer.closeFullscreen()"><i data-lucide="chevron-down"></i></button>' +
                 '<div class="mf-vinyl-area">' +
                     '<div class="mf-album-cover">' +
                         (hasCover ? '<img src="' + t.cover_url + '">' : '<div class="mf-album-cover-default">🎵</div>') +

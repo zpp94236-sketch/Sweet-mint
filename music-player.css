@@ -789,8 +789,8 @@
     padding: 16px 0;
     transition: color 0.3s, font-weight 0.3s;
     line-height: 1.45;
-    word-break: keep-all;
-    overflow-wrap: break-word;
+    word-break: normal;
+    overflow-wrap: anywhere;
     max-width: 82%;
     margin-left: auto;
 }
@@ -1069,6 +1069,27 @@
 
 [data-theme="dark"] .music-rec-history-item:active { background: rgba(255,255,255,0.08); }
 [data-theme="dark"] .music-rec-history-cover { background: rgba(255,255,255,0.06); }
+
+/* ===== 沉浸页左上角关闭按钮 ===== */
+.mf-imm-close {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    top: max(16px, env(safe-area-inset-top));
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+}
+.mf-imm-close:active { background: rgba(255,255,255,0.2); }
+.mf-imm-close i, .mf-imm-close svg { width: 18px !important; height: 18px !important; }
 
 /* 暗色适配 */
 [data-theme="dark"] .music-playlist-item:active { background: rgba(255,255,255,0.08); }
