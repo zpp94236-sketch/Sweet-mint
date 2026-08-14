@@ -335,8 +335,8 @@
             // 沉浸页内容
             '<div class="mf-immersive" id="mfImmersive" style="' + (showVinyl ? '' : 'display:none;') + '" onclick="window._musicPlayer.toggleFullscreenMode()">' +
                 '<div class="mf-vinyl-area">' +
-                    '<div class="mf-vinyl-wrap-new' + (player.playing ? ' spinning' : '') + '" id="mfVinyl">' +
-                        '<div class="mf-vinyl-new">' + coverHtml + '</div>' +
+                    '<div class="mf-album-cover">' +
+                        (hasCover ? '<img src="' + t.cover_url + '">' : '<div class="mf-album-cover-default">🎵</div>') +
                     '</div>' +
                 '</div>' +
                 '<div class="mf-imm-bottom">' +
@@ -459,7 +459,6 @@
         const thumb = document.getElementById('mfProgressThumb');
         const timeCur = document.getElementById('mfTimeCur');
         const timeTotal = document.getElementById('mfTimeTotal');
-        const vinyl = document.getElementById('mfVinyl');
         if (fill) {
             const pct = player.duration ? (player.currentTime / player.duration * 100) : 0;
             fill.style.width = pct + '%';
@@ -467,7 +466,6 @@
         }
         if (timeCur) timeCur.textContent = formatDuration(player.currentTime);
         if (timeTotal) timeTotal.textContent = formatDuration(player.duration);
-        if (vinyl) vinyl.classList.toggle('spinning', player.playing);
 
         // 同步所有播放/暂停按钮状态
         // 沉浸页按钮
