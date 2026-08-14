@@ -492,9 +492,11 @@
 
     function updateFullscreenLyric() {
         if (!lyricsData.length) return;
+        const lyricOffset = 0.4; // 歌词提前0.4秒高亮
+        const adjustedTime = player.currentTime + lyricOffset;
         let idx = -1;
         for (let i = lyricsData.length - 1; i >= 0; i--) {
-            if (player.currentTime >= lyricsData[i].time) { idx = i; break; }
+            if (adjustedTime >= lyricsData[i].time) { idx = i; break; }
         }
         if (idx === currentLyricIdx) return;
         currentLyricIdx = idx;
@@ -1099,10 +1101,54 @@
         if (!track) return;
         const html = '<div class="music-menu-title">' + escapeHtml(track.title) + '</div>' +
             '<button class="music-menu-item" onclick="closeInfoSheet();window._musicPlayer.openAddTrackToPlaylist(\'' + trackId + '\')"><i data-lucide="list-plus"></i>加入歌单</button>' +
+            '<button class="music-menu-item" onclick="window._musicPlayer.openEditLyrics(\'' + trackId + '\')"><i data-lucide="text"></i>编辑歌词</button>' +
             '<button class="music-menu-item" onclick="window._musicPlayer.openEditTrack(\'' + trackId + '\')"><i data-lucide="pencil"></i>编辑信息</button>' +
             '<button class="music-menu-item music-menu-danger" onclick="window._musicPlayer.deleteTrack(\'' + trackId + '\')"><i data-lucide="trash-2"></i>删除歌曲</button>';
         openInfoSheet('歌曲操作', html);
         if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function openEditLyrics(trackId) {
+        const track = musicCache.tracks.find(t => t.id === trackId);
+        if (!track) return;
+        const html = '<div class="music-edit-form">' +
+            '<div class="form-group" style="margin-bottom:8px;"><label>歌词（LRC 格式）</label>' +
+                '<div style="font-size:11px;color:var(--text-light);margin-bottom:8px;">每行格式：[分:秒.毫秒]歌词文本<br>例：[00:15.50]Hello world</div>' +
+                '<textarea id="editLyricsTextarea" rows="16" style="width:100%;font-size:13px;font-family:monospace;line-height:1.6;resize:vertical;min-height:300px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--primary-lighter);color:var(--text);outline:none;">' + escapeHtml(track.lyrics || '') + '</textarea>' +
+            '</div>' +
+            '<button class="btn-primary" style="width:100%;justify-content:center;" onclick="window._musicPlayer.saveEditLyrics(\'' + trackId + '\')">保存歌词</button>' +
+        '</div>';
+        openInfoSheet('编辑歌词 · ' + track.title, html);
+    }
+
+    async function saveEditLyrics(trackId) {
+        const textarea = document.getElementById('editLyricsTextarea');
+        if (!textarea) return;
+        const lyrics = textarea.value;
+        if (!isSupabaseConfigured()) { alert('请先配置云端同步'); return; }
+        const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
+        const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
+        try {
+            const res = await fetch(base + '/rest/v1/music_tracks?id=eq.' + trackId, {
+                method: 'PATCH', headers: h,
+                body: JSON.stringify({ lyrics: lyrics })
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            // 更新本地缓存
+            const track = musicCache.tracks.find(t => t.id === trackId);
+            if (track) track.lyrics = lyrics;
+            // 如果正在播放这首歌，更新歌词数据
+            if (player.current && player.current.id === trackId) {
+                player.current.lyrics = lyrics;
+                lyricsData = parseLrc(lyrics);
+                currentLyricIdx = -1;
+                if (fullscreenOpen) renderFullscreenPlayer();
+            }
+            closeInfoSheet();
+            showToast('歌词已保存');
+        } catch (e) {
+            alert('保存失败: ' + e.message);
+        }
     }
 
     function openEditTrack(trackId) {
@@ -1539,6 +1585,8 @@
         playPrev,
         handleLike,
         openTrackMenu,
+        openEditLyrics,
+        saveEditLyrics,
         openEditTrack,
         saveEditTrack,
         deleteTrack,
