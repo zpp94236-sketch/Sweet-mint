@@ -523,7 +523,10 @@
         });
         const activeLine = lpContainer.querySelector('.mf-lp-line.active');
         if (activeLine) {
-            activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const containerRect = lpContainer.getBoundingClientRect();
+            const lineRect = activeLine.getBoundingClientRect();
+            const offset = lineRect.top - containerRect.top - containerRect.height / 2 + lineRect.height / 2;
+            lpContainer.scrollBy({ top: offset, behavior: 'smooth' });
         }
     }
 
@@ -972,13 +975,15 @@
         const html = '<div class="music-playlist-add-list">' +
             allTracks.map(t => {
                 const inPl = existingIds.has(t.id);
-                return '<div class="music-playlist-add-item" onclick="window._musicPlayer.toggleTrackInPlaylist(\'' + t.id + '\',\'' + playlistId + '\',this)">' +
-                    '<img class="music-track-cover" src="' + (t.cover_url || '') + '" onerror="this.classList.add(\'no-cover\')" style="width:36px;height:36px;">' +
-                    '<div class="music-track-info" style="flex:1;min-width:0;">' +
-                        '<div class="music-track-title" style="font-size:13px;">' + escapeHtml(t.title) + '</div>' +
-                        '<div class="music-track-artist">' + escapeHtml(t.artist || '') + '</div>' +
+                return '<div class="music-playlist-add-item" data-track-id="' + t.id + '" onclick="window._musicPlayer.toggleTrackInPlaylist(\'' + t.id + '\',\'' + playlistId + '\',this)">' +
+                    '<img class="music-playlist-add-cover" src="' + (t.cover_url || '') + '" onerror="this.style.display=\'none\'">' +
+                    '<div class="music-playlist-add-info">' +
+                        '<div class="music-playlist-add-title">' + escapeHtml(t.title) + '</div>' +
+                        '<div class="music-playlist-add-artist">' + escapeHtml(t.artist || '') + '</div>' +
                     '</div>' +
-                    '<div class="music-playlist-add-check' + (inPl ? ' checked' : '') + '">✓</div>' +
+                    '<div class="music-playlist-add-btn' + (inPl ? ' added' : '') + '">' +
+                        (inPl ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>') +
+                    '</div>' +
                 '</div>';
             }).join('') +
         '</div>';
@@ -991,12 +996,15 @@
         if (!pl) return;
         const base = state.memorySystem.settings.supabaseUrl.replace(/\/$/, '');
         const h = Object.assign({}, getSupabaseHeaders(), { 'Prefer': 'return=minimal' });
-        const checkEl = el.querySelector('.music-playlist-add-check');
+        const btn = el.querySelector('.music-playlist-add-btn');
         if ((pl.trackIds || []).includes(trackId)) {
             // 移除
             await fetch(base + '/rest/v1/music_playlist_tracks?playlist_id=eq.' + playlistId + '&track_id=eq.' + trackId, { method: 'DELETE', headers: h });
             pl.trackIds = (pl.trackIds || []).filter(id => id !== trackId);
-            if (checkEl) checkEl.classList.remove('checked');
+            if (btn) {
+                btn.classList.remove('added');
+                btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+            }
         } else {
             // 添加
             await fetch(base + '/rest/v1/music_playlist_tracks', {
@@ -1005,7 +1013,10 @@
             });
             if (!pl.trackIds) pl.trackIds = [];
             pl.trackIds.push(trackId);
-            if (checkEl) checkEl.classList.add('checked');
+            if (btn) {
+                btn.classList.add('added');
+                btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>';
+            }
         }
     }
 
