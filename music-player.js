@@ -123,6 +123,12 @@
         recordPlay(track.id);
         updateMiniBar();
         updatePlayingHighlight();
+        // 如果全屏播放页打开着，切歌时重新渲染
+        if (fullscreenOpen) {
+            lyricsData = parseLrc(player.current.lyrics);
+            currentLyricIdx = -1;
+            renderFullscreenPlayer();
+        }
     }
 
     function togglePlay() {
@@ -175,17 +181,36 @@
         if (!player.current) { bar.style.display = 'none'; return; }
         bar.style.display = 'flex';
         const progress = player.duration ? (player.currentTime / player.duration * 100) : 0;
-        bar.innerHTML =
-            '<div class="mini-bar-progress" style="width:' + progress.toFixed(1) + '%"></div>' +
-            '<img class="mini-bar-cover" src="' + (player.current.cover_url || '') + '" onerror="this.style.display=\'none\'">' +
-            '<div class="mini-bar-info" onclick="window._musicPlayer.openFullscreen()">' +
-                '<div class="mini-bar-title">' + escapeHtml(player.current.title) + '</div>' +
-                '<div class="mini-bar-artist">' + escapeHtml(player.current.artist || '') + '</div>' +
-            '</div>' +
-            '<button class="mini-bar-btn" onclick="window._musicPlayer.playPrev()"><i data-lucide="skip-back"></i></button>' +
-            '<button class="mini-bar-btn mini-bar-play" onclick="window._musicPlayer.togglePlay()"><i data-lucide="' + (player.playing ? 'pause' : 'play') + '"></i></button>' +
-            '<button class="mini-bar-btn" onclick="window._musicPlayer.playNext()"><i data-lucide="skip-forward"></i></button>';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        // 只在歌曲切换时重建 DOM，否则只更新进度和按钮状态
+        if (bar.dataset.trackId !== player.current.id) {
+            bar.dataset.trackId = player.current.id;
+            bar.innerHTML =
+                '<div class="mini-bar-progress" id="miniBarProgress" style="width:' + progress.toFixed(1) + '%"></div>' +
+                '<img class="mini-bar-cover" src="' + (player.current.cover_url || '') + '" onerror="this.style.display=\'none\'">' +
+                '<div class="mini-bar-info" onclick="window._musicPlayer.openFullscreen()">' +
+                    '<div class="mini-bar-title">' + escapeHtml(player.current.title) + '</div>' +
+                    '<div class="mini-bar-artist">' + escapeHtml(player.current.artist || '') + '</div>' +
+                '</div>' +
+                '<button class="mini-bar-btn" onclick="window._musicPlayer.playPrev()"><i data-lucide="skip-back"></i></button>' +
+                '<button class="mini-bar-btn mini-bar-play" id="miniBarPlayBtn" onclick="window._musicPlayer.togglePlay()"><i data-lucide="' + (player.playing ? 'pause' : 'play') + '"></i></button>' +
+                '<button class="mini-bar-btn" onclick="window._musicPlayer.playNext()"><i data-lucide="skip-forward"></i></button>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            // 只更新进度条
+            const prog = document.getElementById('miniBarProgress');
+            if (prog) prog.style.width = progress.toFixed(1) + '%';
+            // 更新播放/暂停按钮
+            const playBtn = document.getElementById('miniBarPlayBtn');
+            if (playBtn) {
+                const icon = player.playing ? 'pause' : 'play';
+                if (playBtn.dataset.icon !== icon) {
+                    playBtn.dataset.icon = icon;
+                    playBtn.innerHTML = '<i data-lucide="' + icon + '"></i>';
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+            }
+        }
     }
 
     function updatePlayingHighlight() {
@@ -267,10 +292,10 @@
                 '<button class="mf-more" onclick="window._musicPlayer.handleLike(\'' + t.id + '\')"><i data-lucide="heart"></i></button>' +
             '</div>' +
             '<div class="mf-body">' +
-                '<div class="mf-vinyl-wrap' + (player.playing ? ' spinning' : '') + '" id="mfVinyl">' +
+                '<div class="mf-vinyl-wrap' + (player.playing ? ' spinning' : '') + (lyricsData.length ? ' mf-vinyl-hidden' : '') + '" id="mfVinyl">' +
                     '<div class="mf-vinyl">' + coverHtml + '</div>' +
                 '</div>' +
-                '<div class="mf-lyrics" id="mfLyrics">' + renderLyricsHtml() + '</div>' +
+                '<div class="mf-lyrics' + (lyricsData.length ? ' mf-lyrics-full' : '') + '" id="mfLyrics">' + renderLyricsHtml() + '</div>' +
             '</div>' +
             '<div class="mf-controls">' +
                 '<div class="mf-progress-wrap">' +

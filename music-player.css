@@ -425,6 +425,15 @@
 .mf-btn-play:active { background: rgba(255,255,255,0.85); }
 .mf-btn-play i, .mf-btn-play svg { width: 28px !important; height: 28px !important; }
 
+/* 有歌词时隐藏黑胶唱片 */
+.mf-vinyl-wrap.mf-vinyl-hidden {
+    display: none;
+}
+.mf-lyrics.mf-lyrics-full {
+    max-height: none;
+    flex: 1;
+}
+
 /* 歌曲更多按钮 */
 .music-track-more {
     background: none;

@@ -1475,13 +1475,16 @@ function renderAppearancePage() {
 
 function appearanceImageRow(key, title, desc) {
     const value = state.settings[key];
-    return '<div class="settings-row" style="gap:12px;">' +
-        '<div class="settings-entry-info" style="flex:1;"><div class="settings-entry-title">' + title + '</div><div class="settings-entry-sub">' + desc + '</div></div>' +
+    const opKey = key + 'Opacity';
+    const curOp = state.settings[opKey] != null ? state.settings[opKey] : 100;
+    return '<div class="settings-row" style="flex-wrap:wrap;gap:12px;">' +
+        '<div class="settings-entry-info" style="flex:1;min-width:140px;"><div class="settings-entry-title">' + title + '</div><div class="settings-entry-sub">' + desc + '</div></div>' +
         '<div class="wp-row-actions">' +
             (value ? '<button class="wp-btn wp-btn-clear" onclick="clearImageSetting(\'' + key + '\')">清除</button>' : '') +
             '<label class="wp-btn wp-btn-pick" for="' + key + 'Input" style="display:flex;align-items:center;gap:4px;">选择图片 <i data-lucide="chevron-right" style="width:14px;height:14px;"></i></label>' +
         '</div>' +
         '<input type="file" id="' + key + 'Input" class="wp-hidden-input" accept="image/*" data-wp-key="' + key + '">' +
+        (value ? '<div style="width:100%;"><div class="settings-range-head"><span style="font-size:12px;color:var(--text-light);">透明度</span><span class="settings-range-value" id="rangeVal-' + opKey + '">' + curOp + '%</span></div><input type="range" class="settings-range font-page-range" data-key="' + opKey + '" data-scale="1" min="0" max="100" step="5" value="' + curOp + '"></div>' : '') +
     '</div>';
 }
 
