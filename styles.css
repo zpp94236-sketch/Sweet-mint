@@ -3044,6 +3044,48 @@ body.has-input-image[data-glass="on"] .input-pill-row {
 [data-theme="dark"] .theme-color-item.active .theme-color-dot { border-color: rgba(255,255,255,0.3); }
 [data-theme="dark"] .theme-color-check { color: rgba(255,255,255,0.6); }
 
+/* ===== 音响页面壁纸 ===== */
+.music-home.has-music-page-bg {
+    position: relative;
+}
+.music-home.has-music-page-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--music-page-bg) center/cover no-repeat;
+    opacity: var(--music-page-bg-opacity, 1);
+    pointer-events: none;
+}
+
+/* 音响歌曲列表页也用 music-page-bg */
+.music-list-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--music-page-bg) center/cover no-repeat;
+    opacity: var(--music-page-bg-opacity, 1);
+    pointer-events: none;
+}
+
+/* 全屏播放器壁纸 */
+.music-fullscreen.has-player-bg {
+    background: #1a1a1a;
+}
+.music-fullscreen.has-player-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: var(--music-player-bg) center/cover no-repeat;
+    opacity: var(--music-player-bg-opacity, 1);
+}
+.music-fullscreen.has-player-bg > * {
+    position: relative;
+    z-index: 1;
+}
+
 /* ===== 碎片墙 ===== */
 .fragment-wall {
     display: flex;

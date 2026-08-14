@@ -139,6 +139,16 @@ function init() {
     applyInputBlur();
     applyCustomFontFace();
     applyGlassMode();
+    applyMusicBg();
+    // 一次性迁移：清理旧的 generalBg 设置
+    if (state.settings.generalBg) {
+        delete state.settings.generalBg;
+        delete state.settings.generalBgOpacity;
+        delete state.settings.generalBgName;
+        delete state.settings.generalBgPages;
+        saveState();
+        applyGeneralBg();
+    }
     if (window.matchMedia) { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state.settings.theme === 'system') applyTheme(); }); }
     applyUserAvatar();
     applyUserName();
@@ -1469,7 +1479,8 @@ function renderAppearancePage() {
         appearanceImageRow('wallpaper', '聊天壁纸插图', '背景图片仅在聊天页面显示'),
         appearanceImageRow('sidebarImage', '侧边栏插图', '侧边栏背景装饰图'),
         appearanceImageRow('inputImage', '输入栏插图', '输入区域背景图案'),
-        appearanceImageRow('generalBg', '通用背景插图', '应用于客厅、书房、卧室、花园、厨房')
+        appearanceImageRow('musicPageBg', '音响页面壁纸', '音响首页、歌曲列表等页面背景'),
+        appearanceImageRow('musicPlayerBg', '播放器壁纸', '全屏播放页背景')
     ]);
 }
 
@@ -1510,8 +1521,9 @@ function clearImageSetting(key) {
     saveState();
     if (key === 'wallpaper') applyWallpaper();
     else if (key === 'homeWallpaper') applyHomeBg();
-    else if (key === 'generalBg') applyGeneralBg();
+    else if (key === 'musicPageBg' || key === 'musicPlayerBg') { applyMusicBg(); }
     else applyCustomImages();
+    if (key === 'generalBg') applyGeneralBg();
     renderSettingsView();
 }
 
@@ -2604,6 +2616,27 @@ function applyCustomImages() {
         }
     });
 }
+function applyMusicBg() {
+    const root = document.documentElement.style;
+    const pageBg = state.settings.musicPageBg;
+    const playerBg = state.settings.musicPlayerBg;
+    if (pageBg) {
+        const op = state.settings.musicPageBgOpacity != null ? state.settings.musicPageBgOpacity / 100 : 1;
+        root.setProperty('--music-page-bg', 'url(' + pageBg + ')');
+        root.setProperty('--music-page-bg-opacity', op.toFixed(3));
+    } else {
+        root.removeProperty('--music-page-bg');
+        root.removeProperty('--music-page-bg-opacity');
+    }
+    if (playerBg) {
+        const op = state.settings.musicPlayerBgOpacity != null ? state.settings.musicPlayerBgOpacity / 100 : 1;
+        root.setProperty('--music-player-bg', 'url(' + playerBg + ')');
+        root.setProperty('--music-player-bg-opacity', op.toFixed(3));
+    } else {
+        root.removeProperty('--music-player-bg');
+        root.removeProperty('--music-player-bg-opacity');
+    }
+}
 function applyGeneralBg() {
     const root = document.documentElement.style;
     const bg = state.settings.generalBg;
@@ -2697,6 +2730,7 @@ function applySettingChange(key) {
     else if (key === 'codeWrap') { applyCodeWrap(); }
     else if (key === 'inputBlur') { applyInputBlur(); }
     else if (key.indexOf('ImageOpacity') >= 0) { applyCustomImages(); }
+    else if (key === 'musicPageBgOpacity' || key === 'musicPlayerBgOpacity') { applyMusicBg(); }
     else if (key === 'showThinking' || key === 'autoCollapseThinking' || key === 'renderMath') { renderMessages(); }
 }
 

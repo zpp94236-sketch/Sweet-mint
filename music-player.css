@@ -434,6 +434,88 @@
     flex: 1;
 }
 
+/* ===== 全屏播放列表 ===== */
+.mf-playlist {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 55vh;
+    background: rgba(30,30,30,0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: mfPlaylistUp 0.25s ease;
+}
+@keyframes mfPlaylistUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+.mf-playlist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 10px;
+    flex-shrink: 0;
+}
+.mf-playlist-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+}
+.mf-playlist-close {
+    width: 30px; height: 30px;
+    border: none; border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+}
+.mf-playlist-close i, .mf-playlist-close svg { width: 16px !important; height: 16px !important; }
+.mf-playlist-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+    -webkit-overflow-scrolling: touch;
+}
+.mf-playlist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.mf-playlist-item:active { background: rgba(255,255,255,0.08); }
+.mf-playlist-item.mf-pl-active { background: rgba(255,255,255,0.1); }
+.mf-pl-idx {
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    min-width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.mf-pl-active .mf-pl-idx { color: var(--primary); font-weight: 700; }
+.mf-pl-info { flex: 1; min-width: 0; }
+.mf-pl-title {
+    font-size: 14px;
+    color: rgba(255,255,255,0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mf-pl-active .mf-pl-title { color: var(--primary); font-weight: 600; }
+.mf-pl-artist {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 2px;
+}
+
 /* 歌曲更多按钮 */
 .music-track-more {
     background: none;

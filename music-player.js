@@ -242,6 +242,8 @@
     function openFullscreenPlayer() {
         if (!player.current) return;
         fullscreenOpen = true;
+        fullscreenMode = 'vinyl';
+        playlistVisible = false;
         lyricsData = parseLrc(player.current.lyrics);
         currentLyricIdx = -1;
         renderFullscreenPlayer();
@@ -274,13 +276,16 @@
         if (!el) {
             el = document.createElement('div');
             el.id = 'musicFullscreen';
-            el.className = 'music-fullscreen';
+            el.className = 'music-fullscreen' + (state.settings.musicPlayerBg ? ' has-player-bg' : '');
             document.body.appendChild(el);
         }
         const t = player.current;
         const coverHtml = t.cover_url
             ? '<img class="mf-vinyl-cover" src="' + t.cover_url + '">'
             : '<div class="mf-vinyl-cover mf-vinyl-default">🎵</div>';
+
+        const showVinyl = fullscreenMode === 'vinyl';
+        const showLyrics = fullscreenMode === 'lyrics';
 
         el.innerHTML =
             '<div class="mf-header">' +
@@ -291,11 +296,11 @@
                 '</div>' +
                 '<button class="mf-more" onclick="window._musicPlayer.handleLike(\'' + t.id + '\')"><i data-lucide="heart"></i></button>' +
             '</div>' +
-            '<div class="mf-body">' +
-                '<div class="mf-vinyl-wrap' + (player.playing ? ' spinning' : '') + (lyricsData.length ? ' mf-vinyl-hidden' : '') + '" id="mfVinyl">' +
+            '<div class="mf-body" onclick="window._musicPlayer.toggleFullscreenMode()">' +
+                '<div class="mf-vinyl-wrap' + (player.playing ? ' spinning' : '') + (showVinyl ? '' : ' mf-vinyl-hidden') + '" id="mfVinyl">' +
                     '<div class="mf-vinyl">' + coverHtml + '</div>' +
                 '</div>' +
-                '<div class="mf-lyrics' + (lyricsData.length ? ' mf-lyrics-full' : '') + '" id="mfLyrics">' + renderLyricsHtml() + '</div>' +
+                '<div class="mf-lyrics' + (showLyrics ? ' mf-lyrics-full' : '') + '" id="mfLyrics" style="' + (showLyrics ? '' : 'display:none;') + '">' + renderLyricsHtml() + '</div>' +
             '</div>' +
             '<div class="mf-controls">' +
                 '<div class="mf-progress-wrap">' +
@@ -311,12 +316,67 @@
                     '<button class="mf-btn" onclick="window._musicPlayer.playPrev()"><i data-lucide="skip-back"></i></button>' +
                     '<button class="mf-btn mf-btn-play" onclick="window._musicPlayer.togglePlay()"><i data-lucide="' + (player.playing ? 'pause' : 'play') + '"></i></button>' +
                     '<button class="mf-btn" onclick="window._musicPlayer.playNext()"><i data-lucide="skip-forward"></i></button>' +
-                    '<button class="mf-btn" onclick="window._musicPlayer.toggleLyrics()"><i data-lucide="text"></i></button>' +
+                    '<button class="mf-btn" onclick="window._musicPlayer.togglePlaylist()"><i data-lucide="list"></i></button>' +
                 '</div>' +
+            '</div>' +
+            '<div class="mf-playlist" id="mfPlaylist" style="display:none;">' +
+                '<div class="mf-playlist-header">' +
+                    '<span class="mf-playlist-title">播放列表 (' + player.playlist.length + ')</span>' +
+                    '<button class="mf-playlist-close" onclick="window._musicPlayer.togglePlaylist()"><i data-lucide="x"></i></button>' +
+                '</div>' +
+                '<div class="mf-playlist-list">' + renderPlaylistHtml() + '</div>' +
             '</div>';
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
         bindProgressDrag();
+
+        // 阻止 body 区域点击冒泡到 mf-controls 和 mf-playlist
+        const controls = el.querySelector('.mf-controls');
+        if (controls) controls.addEventListener('click', e => e.stopPropagation());
+        const playlist = el.querySelector('.mf-playlist');
+        if (playlist) playlist.addEventListener('click', e => e.stopPropagation());
+    }
+
+    function toggleFullscreenMode() {
+        if (fullscreenMode === 'vinyl' && lyricsData.length) {
+            fullscreenMode = 'lyrics';
+        } else {
+            fullscreenMode = 'vinyl';
+        }
+        renderFullscreenPlayer();
+    }
+
+    function renderPlaylistHtml() {
+        return player.playlist.map((t, i) => {
+            const isCurrent = player.current && player.current.id === t.id;
+            return '<div class="mf-playlist-item' + (isCurrent ? ' mf-pl-active' : '') + '" onclick="window._musicPlayer.playFromPlaylist(' + i + ')">' +
+                '<span class="mf-pl-idx">' + (i + 1) + '</span>' +
+                '<div class="mf-pl-info">' +
+                    '<div class="mf-pl-title">' + escapeHtml(t.title) + '</div>' +
+                    '<div class="mf-pl-artist">' + escapeHtml(t.artist || '') + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function togglePlaylist() {
+        playlistVisible = !playlistVisible;
+        const el = document.getElementById('mfPlaylist');
+        if (el) el.style.display = playlistVisible ? 'flex' : 'none';
+        // 滚动到当前播放的歌
+        if (playlistVisible) {
+            setTimeout(() => {
+                const active = document.querySelector('.mf-pl-active');
+                if (active) active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+    }
+
+    function playFromPlaylist(idx) {
+        if (idx >= 0 && idx < player.playlist.length) {
+            player.index = idx;
+            playTrack(player.playlist[idx]);
+        }
     }
 
     function renderLyricsHtml() {
@@ -396,14 +456,8 @@
         renderFullscreenPlayer();
     }
 
-    let lyricsVisible = true;
-    function toggleLyrics() {
-        lyricsVisible = !lyricsVisible;
-        const el = document.getElementById('mfLyrics');
-        if (el) el.style.display = lyricsVisible ? '' : 'none';
-        const vinyl = document.getElementById('mfVinyl');
-        if (vinyl) vinyl.classList.toggle('mf-vinyl-large', !lyricsVisible);
-    }
+    let fullscreenMode = 'vinyl'; // 'vinyl' | 'lyrics'
+    let playlistVisible = false;
 
     // ===== 页面渲染 =====
     function renderMusicHome() {
@@ -463,7 +517,8 @@
                 }).join('') + '</div>';
         }
 
-        return '<div class="music-home">' +
+        const hasPageBg = !!state.settings.musicPageBg;
+        return '<div class="music-home' + (hasPageBg ? ' has-music-page-bg' : '') + '">' +
             recHtml +
             entriesHtml +
             historyHtml +
@@ -488,9 +543,10 @@
 
     function renderTrackList(title, tracks) {
         if (!tracks.length) return '<div class="bedroom-empty">还没有歌曲</div>';
-        return '<div class="music-section-head"><span class="music-section-title">' + escapeHtml(title) + '</span><button class="music-play-all-btn" onclick="window._musicPlayer.playAll(\'current\')">▶ 播放全部</button></div>' +
+        const hasPageBg = !!state.settings.musicPageBg;
+        return '<div class="' + (hasPageBg ? 'music-list-bg' : '') + '"><div class="music-section-head"><span class="music-section-title">' + escapeHtml(title) + '</span><button class="music-play-all-btn" onclick="window._musicPlayer.playAll(\'current\')">▶ 播放全部</button></div>' +
             '<div class="music-track-list">' + tracks.map(t => renderTrackItem(t)).join('') + '</div>' +
-            '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div>';
+            '<div id="musicMiniBar" class="music-mini-bar" style="display:none;"></div></div>';
     }
 
     // ===== 页面路由 =====
@@ -932,7 +988,9 @@
         openFullscreen: openFullscreenPlayer,
         closeFullscreen: closeFullscreenPlayer,
         cycleMode,
-        toggleLyrics,
+        toggleFullscreenMode,
+        togglePlaylist,
+        playFromPlaylist,
         getPlayer: () => player,
         _currentList: null
     };
